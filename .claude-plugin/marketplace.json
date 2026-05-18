@@ -19,10 +19,6 @@
     {
       "name": "mc-logi-update",
       "source": "./plugins/mc-logi-update"
-    },
-    {
-      "name": "mc_wireframe_logicraft",
-      "source": "./plugins/mc_wireframe_logicraft"
     }
   ]
 }
