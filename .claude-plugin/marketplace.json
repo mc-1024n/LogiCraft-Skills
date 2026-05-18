@@ -9,6 +9,10 @@
       "source": "./plugins/mc-logi-domain-review"
     },
     {
+      "name": "mc-logi-figma-wireframe",
+      "source": "./plugins/mc-logi-figma-wireframe"
+    },
+    {
       "name": "mc-logi-integration-bootstrap",
       "source": "./plugins/mc-logi-integration-bootstrap"
     },
