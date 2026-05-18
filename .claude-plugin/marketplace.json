@@ -1,0 +1,24 @@
+{
+  "name": "logicraft",
+  "owner": {
+    "name": "mc-1024n"
+  },
+  "plugins": [
+    {
+      "name": "mc-logi-domain-review",
+      "source": "./plugins/mc-logi-domain-review"
+    },
+    {
+      "name": "mc-logi-integration-bootstrap",
+      "source": "./plugins/mc-logi-integration-bootstrap"
+    },
+    {
+      "name": "mc-logi-update",
+      "source": "./plugins/mc-logi-update"
+    },
+    {
+      "name": "mc_wireframe_logicraft",
+      "source": "./plugins/mc_wireframe_logicraft"
+    }
+  ]
+}

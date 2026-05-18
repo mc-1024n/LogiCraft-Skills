@@ -1,0 +1,9 @@
+{
+  "name": "mc-logi-integration-bootstrap",
+  "version": "1.0.0",
+  "description": "Logicraft 프로젝트의 외부 연동 카탈로그(EXTSYS + INT)를 설계 ITEM 본문에서 자동 발굴해 일괄 등록하는 부트스트랩 스킬. 사용자가 \"외부 연동 정리해줘\", \"EXTSYS 발굴해줘 [프로젝트]\", \"INT 등록해줘\", \"외부 시스템 카탈로그 만들어줘\", \"integration bootstrap\" 등을 요청할 때 실행. discover_external_integrations MCP 도구로 FEAT/DFEAT 본문 스캔 → 사용자에게 vendor/owner/criticality 4종 질문 → register_external_system × N → INT 후보 검토 → register_integration_point × M. C4·SEQ 정형 표현 기반 promote_external_systems 와 다른 design-tier 부트스트랩 (시나리오 D).",
+  "author": {
+    "name": "mc-1024n"
+  },
+  "license": "MIT"
+}
