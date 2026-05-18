@@ -2,6 +2,7 @@
   "name": "mc_wireframe_logicraft",
   "version": "1.0.0",
   "description": "Logicraft 의 SCREEN 화면정의서를 Figma 에 흑백 로우피델리티 와이어프레임으로 자동 렌더링하는 스킬. SCREEN-NNN ID 를 받으면 sections/components/role/layout/triggers_api 메타를 그대로 시각화하고, 결과 Figma 노드를 SCREEN.external_designs[] 에 자동 등록. PRD + IA 차트 텍스트로도 일반 와이어프레임 생성 가능. 사용자가 'SCREEN 와이어프레임', 'Logicraft 화면 그려줘', '화면정의서 시각화', '와이어프레임 만들어줘', 'figma 와이어프레임' 을 말하거나 SCREEN-NNN 같은 Logicraft ID 를 언급하며 시각화·다이어그램·Figma 출력을 요청할 때 반드시 이 스킬을 사용. 기획서·화면 설계·UI 와이어프레임·로우피델리티 디자인이 필요한 모든 경우에 트리거. 'wireframe 그려줘' 같은 짧은 요청에서도 적극 트리거.",
+  "summary": "Logicraft SCREEN 화면정의서를 Figma 흑백 로우피델리티 와이어프레임으로 자동 렌더 + external_designs 자동 등록. PRD+IA 일반 모드도 지원.",
   "author": {
     "name": "노명철"
   },

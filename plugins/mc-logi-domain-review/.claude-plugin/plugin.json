@@ -2,6 +2,7 @@
   "name": "mc-logi-domain-review",
   "version": "1.0.0",
   "description": "Logicraft 도메인을 5 차원(coverage/links/schema/stale/policy) 병렬 감사해 갭을 검출하는 read-only 스킬. 사용자가 도메인 검토를 요청하면(예 \"D002 검토해줘\", \"DOMAIN-001 갭 찾아줘\", \"도메인 정합 확인\") logi-domain-auditor 에이전트 5건을 병렬 실행해 갭 리포트를 우선순위(P0/P1/P2)별로 생성. ITEM 수정 안 함 — 검출만. 후속 수정은 사용자가 mc-logi-update 별도 호출.",
+  "summary": "Logicraft 도메인을 coverage/links/schema/stale/policy 5차원으로 병렬 감사해 P0~P2 갭 리포트를 만드는 read-only 검출 스킬. 수정은 mc-logi-update가 별도 담당.",
   "author": {
     "name": "노명철"
   },
