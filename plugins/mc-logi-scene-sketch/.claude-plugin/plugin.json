@@ -1,0 +1,15 @@
+{
+  "name": "mc-logi-scene-sketch",
+  "version": "0.1.0",
+  "description": "사용자 자연어 시나리오를 ./docs/scene-sketch/ .md 파일(진실원)로 정제 + Logicraft scenario_sketch ITEM으로 자동 등록하는 스킬. 다중 시나리오는 자동 분해해 독립 SKETCH N건으로 분리 등록. SK-001 (배경이미지 요청) 작업 패턴 표준화. 사용자가 \"시나리오 스케치 만들어줘\" / \"이 흐름 logicraft 에 등록해줘\" / \"기획안 sketch 로 만들어\" / \"/mc-logi-scene-sketch\" 호출 시 트리거.",
+  "summary": "자연어 시나리오 → 로컬 .md 진실원 + Logicraft scenario_sketch ITEM 자동 등록. 다중 시나리오 자동 분해, Event Storming 단계 분류, 결정 hotspot 추출.",
+  "author": {
+    "name": "노명철"
+  },
+  "logicraft": {
+    "publisher_user_id": "4b805dc4-6d13-42c5-9710-f5a34bf2e73e",
+    "publisher_email": "mc_1024@cudo.co.kr",
+    "published_at": "2026-05-22T04:31:17.982Z",
+    "source": "mcp"
+  }
+}

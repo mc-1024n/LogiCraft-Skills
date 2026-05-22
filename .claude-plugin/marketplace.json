@@ -21,6 +21,10 @@
       "source": "./plugins/mc-logi-integration-bootstrap"
     },
     {
+      "name": "mc-logi-scene-sketch",
+      "source": "./plugins/mc-logi-scene-sketch"
+    },
+    {
       "name": "mc-logi-update",
       "source": "./plugins/mc-logi-update"
     }
