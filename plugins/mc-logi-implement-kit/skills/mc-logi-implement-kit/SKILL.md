@@ -4,7 +4,7 @@ description: Logicraft 특정 프로젝트의 특정 도메인을 로컬에서 �
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   domain: logicraft-orchestration
   triggers: 구현 키트, implement kit, 도메인 다운로드, 구현 준비, 구현 키트 동기화, 버전 동기화, D001 구현 키트, D002 다운로드, DOMAIN-XXX 구현 준비, logicraft 로컬 다운, 바이브코딩 준비, spec 다운로드
   role: orchestrator-readonly
@@ -28,7 +28,7 @@ Logicraft 특정 프로젝트의 특정 도메인을, **로컬에서 바이브�
 ## When NOT to Use
 
 - logicraft ITEM 수정 (mc-logi-update)
-- 도메인 정합 갑 검출 (mc-logi-domain-review)
+- 도메인 정합 갭 검출 (mc-logi-domain-review)
 - 단일 ITEM 조회 (logicraft MCP 직접)
 - 실제 코드 작성 (본 스킬은 키트만 생성 — 구현은 키트 기반 별도 진행)
 
@@ -161,21 +161,37 @@ Agent(subagent_type="logi-implement-fetcher",
 # ... 타입 수만큼 (상한 8 병렬, 초과 시 배치 분할)
 ```
 
-#### ★ Agent 등록 timing fallback (mc-logi-domain-review 와 동일)
+#### ★ Agent 이름 해석 + 등록 fallback (mc-logi-domain-review 와 동일)
 
-`logi-implement-fetcher` 정의 세션에서는 호출 불가. 에러 시 자동 fallback:
+`logi-implement-fetcher` 에이전트는 **설치 방식에 따라 등록 이름이 다르다**:
+- **플러그인 설치** (`/plugin install mc-logi-implement-kit@logicraft`): 에이전트가 `agents/logi-implement-fetcher.md` 로 동봉되어 **scoped name `mc-logi-implement-kit:logi-implement-fetcher`** 로 자동 등록 (fresh 세션에서 즉시 사용 가능 — "not found" 없음)
+- **user/project scope** (개발 환경, `~/.claude/agents/`): bare name `logi-implement-fetcher`
 
+따라서 다음 순서로 시도 (절대경로 하드코딩 금지 — 설치 위치 무관):
+
+**Case 1 — 전용 에이전트 호출** (첫 성공 채택):
+1. `subagent_type="mc-logi-implement-kit:logi-implement-fetcher"` (플러그인 scope, 배포 환경 기본)
+2. 실패 시 `subagent_type="logi-implement-fetcher"` (user/project scope, 개발 환경)
+
+**Case 2 — 둘 다 `Agent type ... not found`** → general-purpose 로 fallback + 에이전트 정의를 **동적 탐색**해 인라인:
 ```python
-# Case 1: 호출 성공 → 정상
-# Case 2: "Agent type 'logi-implement-fetcher' not found" → general-purpose 전환
+# 1) 에이전트 정의 파일을 Glob 으로 탐색 (설치 위치 무관, 절대경로 박지 말 것)
+#    Glob("**/agents/logi-implement-fetcher.md") → 첫 결과를 Read → agent_md_content
+# 2) summary-templates·checklist 는 메인이 이미 읽어둔 내용(template_section, checklist_content;
+#    스킬 디렉터리 상대 — summary-templates.md, checklist.md)을 그대로 인라인
 Agent(
   subagent_type="general-purpose",
   description="Fetch D002 <type> kit (fallback)",
-  prompt=f"""당신은 logi-implement-fetcher 역할입니다. 먼저 아래 파일을 Read 로 정독하고 그대로 따르세요:
+  prompt=f"""당신은 logi-implement-fetcher 역할입니다. 아래 system prompt 를 그대로 따르세요:
 
-1. C:\\Users\\lumie\\.claude\\agents\\logi-implement-fetcher.md (시스템 프롬프트)
-2. C:\\Users\\lumie\\.claude\\skills\\mc-logi-implement-kit\\summary-templates.md (타입별 요약 포맷)
-3. C:\\Users\\lumie\\.claude\\skills\\mc-logi-implement-kit\\checklist.md (hard rules)
+# logi-implement-fetcher 시스템 프롬프트
+{agent_md_content}
+
+# 타입별 요약 포맷 (summary-templates.md 해당 섹션)
+{template_section}
+
+# hard rules (checklist.md)
+{checklist_content}
 
 # 입력
 {입력 yaml}
