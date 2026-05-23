@@ -1,10 +1,10 @@
 ---
 name: mc-logi-domain-review
-description: Logicraft 도메인을 5 차원(coverage/links/schema/stale/policy) 병렬 감사해 갭을 검출하는 read-only 스킬. 사용자가 도메인 검토를 요청하면(예 "D002 검토해줘", "DOMAIN-001 갭 찾아줘", "도메인 정합 확인") logi-domain-auditor 에이전트 5건을 병렬 실행해 갭 리포트를 우선순위(P0/P1/P2)별로 생성. ITEM 수정 안 함 — 검출만. 후속 수정은 사용자가 mc-logi-update 별도 호출.
+description: Logicraft 도메인을 7 차원(coverage/links/schema/stale/policy/acceptance/requirement) 병렬 감사해 갭을 검출하는 read-only 스킬. 사용자가 도메인 검토를 요청하면(예 "D002 검토해줘", "DOMAIN-001 갭 찾아줘", "도메인 정합 확인", "D001 인수기준 검토", "요구사항 RFP 정합 확인") logi-domain-auditor 에이전트 7건을 병렬 실행해 갭 리포트를 우선순위(P0/P1/P2)별로 생성. requirement 차원은 RFP(원천)↔REQ↔도메인(현재) 정합·stale·추적성 검토. ITEM 수정 안 함 — 검출만. 후속 수정은 사용자가 mc-logi-update 별도 호출.
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   domain: logicraft-orchestration
   triggers: 도메인 검토, 도메인 감사, 갭 검출, 도메인 정합, ITEM 갭, 도메인 review, gap analysis, D001 검토, D002 검토, DOMAIN-XXX 검토, 도메인 audit
   role: orchestrator-readonly
@@ -15,7 +15,7 @@ metadata:
 
 # mc-logi-domain-review — Logicraft Domain Auditor
 
-Logicraft 도메인을 5 차원 병렬 감사해 갭을 검출. **read-only** — ITEM 수정은 mc-logi-update 별도 호출.
+Logicraft 도메인을 7 차원 병렬 감사해 갭을 검출. **read-only** — ITEM 수정은 mc-logi-update 별도 호출.
 
 ## When to Use
 
@@ -34,7 +34,7 @@ Logicraft 도메인을 5 차원 병렬 감사해 갭을 검출. **read-only** �
 
 ## 핵심 원칙 (사용자 결정 반영)
 
-1. ✅ **5 dimension 분리**: coverage / links / schema / stale / policy
+1. ✅ **7 dimension 분리**: coverage / links / schema / stale / policy / acceptance / requirement
 2. ✅ **검출만, 자동 수정 없음**: 수정은 mc-logi-update 사용자 별도 호출
 3. ✅ **legacy grep 기본 OFF**: 1차 소스 검증은 옵션 (D001~D008에서만 활성화 권장)
 4. ✅ **정책 추출 = 메모리 + ADR**: Phase 2에서 자동 추출
@@ -48,7 +48,7 @@ Logicraft 도메인을 5 차원 병렬 감사해 갭을 검출. **read-only** �
    - 도메인명 명시 (예 `영상·메타 수집`) → list_items로 매핑
    - 없으면 `AskUserQuestion`으로 확정
 2. 옵션 확인:
-   - 검토 차원 (기본 5 차원 전체 / 부분 선택)
+   - 검토 차원 (기본 7 차원 전체 / 부분 선택 — 예 "AC만"·"인수기준만" → acceptance 단독, "요구사항만"·"RFP 정합" → requirement 단독)
    - legacy grep (기본 OFF)
 3. project_id 식별 (~/.claude/projects/*/memory/MEMORY.md)
 
@@ -102,9 +102,19 @@ adr_policies:
   # ... (메인이 동적 추출)
 ```
 
-### Phase 3 — 5 dimension 병렬 감사
+**RFP 원천 수집 (requirement 차원용 — Phase 2 에서 1회)**
+```python
+list_items(type=rfp_item, limit=100)   # RFP-001~018 (=SFR-01~18) title·workstream·keyword
+# → requirement auditor 입력에 rfp_catalog 로 전달. REQ↔RFP 매핑이 명시(derived_from_rfp) 없으면
+#   auditor 가 title/workstream 으로 추정 (예 학습데이터 REQ ↔ RFP-013/015/016/017)
+```
+→ `rfp_catalog`(RFP id·title·workstream 목록)을 requirement auditor prompt 에 adr_policies 와 함께 첨부.
 
-**한 메시지에 5 Agent calls**:
+### Phase 3 — 7 dimension 병렬 감사
+
+> ⚠️ 7 auditor 동시 실행 시 일시적 서버 rate limit 가능 — 그 경우 **3+4 배치**(예 coverage/links/schema → stale/policy/acceptance/requirement)로 나눠 재실행하면 안정적. (Session 68 D004 실측)
+
+**한 메시지에 7 Agent calls**:
 ```python
 # 모두 한 메시지에 (병렬 실행)
 Agent(subagent_type="logi-domain-auditor", description="Audit D002 coverage", prompt=...)
@@ -112,7 +122,13 @@ Agent(subagent_type="logi-domain-auditor", description="Audit D002 links", promp
 Agent(subagent_type="logi-domain-auditor", description="Audit D002 schema", prompt=...)
 Agent(subagent_type="logi-domain-auditor", description="Audit D002 stale", prompt=...)
 Agent(subagent_type="logi-domain-auditor", description="Audit D002 policy", prompt=...)
+Agent(subagent_type="logi-domain-auditor", description="Audit D002 acceptance", prompt=...)
+Agent(subagent_type="logi-domain-auditor", description="Audit D002 requirement", prompt=...)
 ```
+
+> `acceptance` 차원 = AC(인수기준)가 도메인의 UC/DFEAT/REQ 를 빠짐없이·올바르게 검증하는지 + AC 본문의 현행성(폐기·구 모델 검증 여부) 검토. dimensions/acceptance.md 룰 적용. 사용자가 "인수기준만"·"AC 검토"를 요청하면 이 차원 단독 실행도 가능.
+>
+> `requirement` 차원 = 요구사항(REQ)이 상위 진실원천 **RFP(rfp_item)** 와 하위 현재설계(도메인)의 사이에서 **최신·정합·추적가능**한지 검토 (도메인 기준 반복 수정으로 REQ 가 가장 stale 해지는 역전 구조 포착). RFP↔REQ 미연결(derived_from_rfp 부재)·REQ 가 폐기 모델 서술(도메인보다 stale)·RFP divergence 미명시·RFP 핵심요구 미하향·**RFP 비책임 부분 미명시(RQ-006 advisory — "이 부분은 우리 영역 아닌 것으로 보임")**. dimensions/requirement.md 룰. 정책: RFP 원천=rfp_item, 충돌 시 도메인 우선+RFP 배경. 사용자가 "요구사항만"·"RFP 정합"을 요청하면 단독 실행 가능. **★ requirement auditor 입력에는 후보 rfp_item(RFP-NNN) 목록도 adr_policies 와 함께 제공**(메인이 Phase 2 에서 list_items(type=rfp_item) 1회 수집). **★ 검증 모드 3단계(가용 입력별 자동)**: REQ 0건→차원 SKIP / REQ+RFP없음→domain↔REQ 대조만(RQ-002/005) / REQ+RFP+도메인→전체(RQ-001~006). dimensions/requirement.md "검증 모드" 참조.
 
 #### ★ Agent 등록 timing fallback (중요)
 `logi-domain-auditor` agent는 정의된 세션에서는 호출 불가 (Claude Code 한계).
@@ -148,11 +164,11 @@ agent 파일의 STEP F YAML 한 블록만 출력하고 종료. 자유 텍스트 
 - 해당 dimension의 `dimensions/<name>.md` 본문
 - 공통 `checklist.md` 본문
 
-5 auditor 모두 완료 대기.
+7 auditor 모두 완료 대기.
 
 ### Phase 4 — 결과 합산
 
-1. **YAML 파싱**: 5 auditor 출력 YAML 모두 파싱 (실패 시 1회 재시도)
+1. **YAML 파싱**: 7 auditor 출력 YAML 모두 파싱 (실패 시 1회 재시도)
 2. **중복 gap 병합**:
    - `affected_items` + 유사 reason으로 중복 식별
    - cross_dimension_hint 매칭 항목 통합
@@ -208,7 +224,7 @@ agent 파일의 STEP F YAML 한 블록만 출력하고 종료. 자유 텍스트 
    - session 번호: MEMORY.md 최근 entry에서 자동 추출
 3. **메모리 파일 작성**: ~/.claude/projects/<project>/memory/<filename>.md
 4. **MEMORY.md 인덱스 자동 추가**: 최상단 (가장 최근 작업)
-   - 형식: `- **★★★★ [Session NN D<NNN> 도메인 감사 (mc-logi-domain-review, YYYY-MM-DD HH:MM)](filename)** — 5 차원 ... P0/P1/P2/P3 ... 핵심 ...`
+   - 형식: `- **★★★★ [Session NN D<NNN> 도메인 감사 (mc-logi-domain-review, YYYY-MM-DD HH:MM)](filename)** — 6 차원 ... P0/P1/P2/P3 ... 핵심 ...`
 
 저장 완료 후 사용자에게 파일명만 보고. 별도 확인 묻지 않음.
 
@@ -252,22 +268,22 @@ STEP A~F 완료 후 YAML 한 블록만 출력하고 종료.
 
 ## 병렬 실행 정책
 
-- 5 dimension은 한 메시지에 동시 호출 (resource 충분)
-- 같은 도메인 단일 audit: 5 auditor 병렬
-- 여러 도메인 동시 audit (예 D001 + D002): 10 auditor 병렬 (상한)
-- 상한 초과 시 도메인별 순차
+- 7 dimension은 한 메시지에 동시 호출 (resource 충분, rate limit 시 3+4 배치)
+- 같은 도메인 단일 audit: 7 auditor 병렬
+- 여러 도메인 동시 audit: 도메인별 순차 권장 (7×N auditor 동시 = rate limit 위험)
+- 상한 초과·rate limit 시 배치 분할
 
 ## 갭 우선순위 매김 (Phase 4)
 
 | Severity | 조건 |
 |---|---|
-| P0 | 시스템 동작 불가 / link 깨짐 / schema 불일치 / ADR 정책 위반 / deprecated 활성 참조 |
-| P1 | stale / coverage 갭 / link 단방향 / brownfield 메타 누락 / required_roles 비어있음 |
-| P2 | description 부족 / prominent 필드 비어있음 / 정보 풍부화 권장 |
+| P0 | 시스템 동작 불가 / link 깨짐 / schema 불일치 / ADR 정책 위반 / deprecated 활성 참조 / AC 가 폐기·deprecated 모델 검증 (ACC-004/005) / must REQ 가 폐기 모델 서술 (RQ-002 must) |
+| P1 | stale / coverage 갭 / link 단방향 / brownfield 메타 누락 / required_roles 비어있음 / 활성 UC·DFEAT 검증 AC 부재 (ACC-001/002) / AC scenario 현행 불일치 (ACC-006) / 완전 고립 AC·UC forward 등록 누락 (ACC-007) / REQ 가 도메인보다 stale (RQ-002) / REQ↔RFP 미연결 (RQ-001) / RFP divergence 미명시 (RQ-003) |
+| P2 | description 부족 / prominent 필드 비어있음 / 정보 풍부화 권장 / AC scenario 부재 (ACC-008) / negative AC 부재 / AC→UC 역방향 link 비대칭 (ACC-007, derived_from_use_cases 빔→파생 UC/도메인 빈칸) / RFP 핵심요구 도메인 REQ 미하향 (RQ-004) / REQ acceptance_criteria 빈약 (RQ-005) / RFP 비책임 부분 미명시 advisory (RQ-006) |
 
 ## TaskList 관리
 
-- audit 진입 시 `TaskCreate` × 5 (dimension별)
+- audit 진입 시 `TaskCreate` × 7 (dimension별)
 - 각 auditor 시작 시 in_progress
 - 완료 시 completed
 - Phase 4~5 종료 시 cleanup
@@ -300,7 +316,7 @@ STEP A~F 완료 후 YAML 한 블록만 출력하고 종료.
 사용자: "D002 검토해줘"
 → Phase 1: domain_id=DOMAIN-002, 5 dim, legacy_grep=OFF
 → Phase 2: list_items × 7 types + ADR 추출
-→ Phase 3: 5 auditor 병렬 (한 메시지)
+→ Phase 3: 6 auditor 병렬 (한 메시지)
 → Phase 4: 18 gaps 합산, P0:3 / P1:9 / P2:6
 → Phase 5: Markdown 표 + mc-logi-update 후보 11건 분리 보고
 → Phase 6: 메모리 저장 Y → session_XX_d002_audit.md
@@ -314,10 +330,18 @@ STEP A~F 완료 후 YAML 한 블록만 출력하고 종료.
 → Phase 5: policy 갭 리포트만
 ```
 
+### 예시 2b: D001 인수기준(AC) 차원만
+```
+사용자: "D001 인수기준 검토해줘" / "D001 AC 빠진 거 찾아줘"
+→ Phase 1: dimension=acceptance 단일
+→ Phase 3: auditor 1건만 호출 (acceptance)
+→ Phase 5: AC 커버리지 누락(ACC-001/002) + stale AC(ACC-004/005/006) 갭 리포트
+```
+
 ### 예시 3: 여러 도메인 동시
 ```
 사용자: "D001, D002 갭 검출"
-→ Phase 1: 2 도메인 × 5 dim = 10 auditor
+→ Phase 1: 2 도메인 × 6 dim = 12 auditor
 → Phase 3: 10 병렬 호출
 → Phase 5: 도메인별 섹션 분리 리포트
 ```
@@ -330,4 +354,4 @@ STEP A~F 완료 후 YAML 한 블록만 출력하고 종료.
 모드: read-only (수정 없음, 검출만)
 legacy grep: `<ON/OFF>`
 
-데이터 수집 후 5 auditor 병렬 실행합니다. 계속할까요?"
+데이터 수집 후 6 auditor 병렬 실행합니다. 계속할까요?"
