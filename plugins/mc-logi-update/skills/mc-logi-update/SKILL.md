@@ -4,7 +4,7 @@ description: Logicraft ITEM 수정을 가이드대로 정확히 수행하고 cas
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   domain: logicraft-orchestration
   triggers: logicraft 수정, logicraft cascade, ITEM 수정, ITEM 정합, SEQ 수정, DFEAT 수정, API 정합, SCREEN 수정, ERD 정합, ADR 추가, cascade 처리, 영향 추적
   role: orchestrator
@@ -312,6 +312,13 @@ cascade-patterns.md의 우선순위표 참조:
 
 같은 순위라도 `depends_on_completion`에 명시된 ITEM은 선행 처리.
 
+### ★ 상류(upstream) requirement sync (cascade-patterns.md "상류 cascade" 섹션)
+도메인 계층 ITEM(DFEAT/domain/ERD)을 **의미(모델·범위·계약) 변경**하면 부모 `requirement`(REQ)가 stale 해진다(도메인이 REQ 보다 최신 — Session 71 D004 실증). specialist 가 의미 변경 시 부모 REQ 를 cascade_candidate(`auto_propagate: true`)로 보고하면 메인이 자동 큐잉 → REQ 를 **RFP(rfp_item, 불변 원천)+도메인(현재) 재대조**로 refresh(도메인 우선+RFP 배경·`derived_from_rfp` link 보강).
+- ★ 가드: trivial(stale-ack·오타·field-count·HTML 재업로드)은 상류 트리거 안 함. 의미 변경만.
+- ★ REQ 는 catch-up 종착 → REQ 처리 후 그 **하위는 재큐 금지**(무한루프 방지).
+- ★ Phase 5 보고에 REQ 변경 **명시**(요구사항 변경은 사용자 가시화 필요).
+- ★ `rfp_item`(RFP-NNN)은 **읽기 전용** — 재대조 입력으로만, 절대 수정 안 함.
+
 ## 병렬 vs 직렬
 
 **병렬 (한 메시지에 multiple Agent calls)**:
@@ -364,6 +371,7 @@ cascade-patterns.md의 우선순위표 참조:
 - ITEM 삭제·소프트 삭제 안 함 (specialist 금지)
 - 다른 프로젝트 ITEM 영향 안 줌 (project_id 고정)
 - 1차 소스 코드 읽기만 (편집 금지)
+- **rfp_item(RFP-NNN) 읽기만 — 수정 금지** (불변 발주처 진실원천, 상류 REQ refresh 의 재대조 입력으로만)
 - 로컬 파일 변경은 99. screen / 메모리만
 
 ## 호출 예시
