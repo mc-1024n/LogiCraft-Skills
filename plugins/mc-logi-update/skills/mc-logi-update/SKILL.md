@@ -4,7 +4,7 @@ description: Logicraft ITEM 수정을 가이드대로 정확히 수행하고 cas
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
   domain: logicraft-orchestration
   triggers: logicraft 수정, logicraft cascade, ITEM 수정, ITEM 정합, SEQ 수정, DFEAT 수정, API 정합, SCREEN 수정, ERD 정합, ADR 추가, cascade 처리, 영향 추적
   role: orchestrator
@@ -244,33 +244,48 @@ verify 결과 Phase 5 보고에 포함 (`verified: N/M samples checked`).
 
 ## Specialist 호출 패턴 (Agent tool 사용)
 
-#### ★ Agent 등록 timing fallback (중요)
-`logi-update-specialist` agent는 정의된 세션에서는 호출 불가 (Claude Code 한계).
+#### ★ Agent 이름 해석 + 등록 fallback (중요)
 
-**Case 1**: agent 호출 성공 → 정상 진행
+`logi-update-specialist` 에이전트는 **설치 방식에 따라 등록 이름이 다르다**:
+- **플러그인 설치** (`/plugin install mc-logi-update@logicraft`): 에이전트가 `agents/logi-update-specialist.md` 로 동봉되어 **scoped name `mc-logi-update:logi-update-specialist`** 로 자동 등록 (fresh 세션에서 즉시 사용 가능 — "not found" 없음)
+- **user/project scope** (개발 환경, `~/.claude/agents/`): bare name `logi-update-specialist`
 
-**Case 2**: `Agent type 'logi-update-specialist' not found` 에러 → **자동 fallback**:
+따라서 다음 순서로 시도 (절대경로 하드코딩 금지 — 설치 위치 무관):
+
+**Case 1 — 전용 에이전트 호출** (첫 성공 채택):
+1. `subagent_type="mc-logi-update:logi-update-specialist"` (플러그인 scope, 배포 환경 기본)
+2. 실패 시 `subagent_type="logi-update-specialist"` (user/project scope, 개발 환경)
+
+**Case 2 — 둘 다 `Agent type ... not found`** → general-purpose 로 fallback + 에이전트 정의를 **동적 탐색**해 인라인:
 ```python
-# general-purpose agent로 전환 + agent 정의 파일을 prompt에 인라인
+# 1) 에이전트 정의 파일을 Glob 으로 탐색 (설치 위치 무관, 절대경로 박지 말 것)
+#    Glob("**/agents/logi-update-specialist.md") → 첫 결과를 Read → agent_md_content
+# 2) cascade-patterns·checklist 는 메인이 이미 읽어둔 내용(cascade_patterns_content,
+#    checklist_content; 스킬 디렉터리 상대 — cascade-patterns.md, checklist.md)을 그대로 인라인
 Agent(
   subagent_type="general-purpose",
   description="Update <ITEM-ID> (fallback)",
-  prompt=f"""당신은 logi-update-specialist 역할입니다. 먼저 아래 파일들을 Read로 정독하고 system prompt를 그대로 따르세요:
+  prompt=f"""당신은 logi-update-specialist 역할입니다. 아래 system prompt 를 그대로 따르세요:
 
-1. C:\\Users\\lumie\\.claude\\agents\\logi-update-specialist.md
-2. C:\\Users\\lumie\\.claude\\skills\\mc-logi-update\\cascade-patterns.md
-3. C:\\Users\\lumie\\.claude\\skills\\mc-logi-update\\checklist.md
+# logi-update-specialist 시스템 프롬프트
+{agent_md_content}
+
+## cascade-patterns.md
+{cascade_patterns_content}
+
+## checklist.md
+{checklist_content}
 
 # 입력
 {입력 yaml}
 
 # 출력
-agent 파일 STEP H YAML 한 블록만 출력하고 종료. 자유 텍스트 금지.
+STEP H YAML 한 블록만 출력하고 종료. 자유 텍스트 금지.
 """
 )
 ```
 
-검증 완료 (Session 33 D002 cascade) — fallback 결과 동일.
+검증 완료 (Session 33 D002 cascade). 플러그인 배포 시 Case 1-1(plugin scope)으로 정상 동작, Case 2 는 안전망.
 
 ```python
 # 정식 호출 패턴

@@ -1,6 +1,6 @@
 {
   "name": "mc-logi-domain-review",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Logicraft 도메인을 7 차원(coverage/links/schema/stale/policy/acceptance/requirement) 병렬 감사해 갭을 검출하는 read-only 스킬. 사용자가 도메인 검토를 요청하면(예 \"D002 검토해줘\", \"DOMAIN-001 갭 찾아줘\", \"도메인 정합 확인\", \"D001 인수기준 검토\", \"요구사항 RFP 정합 확인\") logi-domain-auditor 에이전트 7건을 병렬 실행해 갭 리포트를 우선순위(P0/P1/P2)별로 생성. requirement 차원은 RFP(원천)↔REQ↔도메인(현재) 정합·stale·추적성 검토. ITEM 수정 안 함 — 검출만. 후속 수정은 사용자가 mc-logi-update 별도 호출.",
   "summary": "Logicraft 도메인을 coverage/links/schema/stale/policy/acceptance/requirement 7차원으로 병렬 감사해 P0~P2 갭 리포트를 만드는 read-only 검출 스킬. acceptance=AC 커버리지·현행성, requirement=RFP↔REQ↔도메인 정합. 수정은 mc-logi-update가 별도 담당.",
   "author": {

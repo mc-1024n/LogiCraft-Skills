@@ -4,7 +4,7 @@ description: Logicraft 도메인을 7 차원(coverage/links/schema/stale/policy/
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.1.1"
+  version: "1.2.0"
   domain: logicraft-orchestration
   triggers: 도메인 검토, 도메인 감사, 갭 검출, 도메인 정합, ITEM 갭, 도메인 review, gap analysis, D001 검토, D002 검토, DOMAIN-XXX 검토, 도메인 audit
   role: orchestrator-readonly
@@ -130,34 +130,48 @@ Agent(subagent_type="logi-domain-auditor", description="Audit D002 requirement",
 >
 > `requirement` 차원 = 요구사항(REQ)이 상위 진실원천 **RFP(rfp_item)** 와 하위 현재설계(도메인)의 사이에서 **최신·정합·추적가능**한지 검토 (도메인 기준 반복 수정으로 REQ 가 가장 stale 해지는 역전 구조 포착). RFP↔REQ 미연결(derived_from_rfp 부재)·REQ 가 폐기 모델 서술(도메인보다 stale)·RFP divergence 미명시·RFP 핵심요구 미하향·**RFP 비책임 부분 미명시(RQ-006 advisory — "이 부분은 우리 영역 아닌 것으로 보임")**. dimensions/requirement.md 룰. 정책: RFP 원천=rfp_item, 충돌 시 도메인 우선+RFP 배경. 사용자가 "요구사항만"·"RFP 정합"을 요청하면 단독 실행 가능. **★ requirement auditor 입력에는 후보 rfp_item(RFP-NNN) 목록도 adr_policies 와 함께 제공**(메인이 Phase 2 에서 list_items(type=rfp_item) 1회 수집). **★ 검증 모드 3단계(가용 입력별 자동)**: REQ 0건→차원 SKIP / REQ+RFP없음→domain↔REQ 대조만(RQ-002/005) / REQ+RFP+도메인→전체(RQ-001~006). dimensions/requirement.md "검증 모드" 참조.
 
-#### ★ Agent 등록 timing fallback (중요)
-`logi-domain-auditor` agent는 정의된 세션에서는 호출 불가 (Claude Code 한계).
-다음 두 케이스 자동 처리:
+#### ★ Agent 이름 해석 + 등록 fallback (중요)
 
-**Case 1**: agent 호출 성공 → 정상 진행
+`logi-domain-auditor` 에이전트는 **설치 방식에 따라 등록 이름이 다르다**:
+- **플러그인 설치** (`/plugin install mc-logi-domain-review@logicraft`): 에이전트가 `agents/logi-domain-auditor.md` 로 동봉되어 **scoped name `mc-logi-domain-review:logi-domain-auditor`** 로 자동 등록 (fresh 세션에서 즉시 사용 가능 — "not found" 없음)
+- **user/project scope** (개발 환경, `~/.claude/agents/`): bare name `logi-domain-auditor`
 
-**Case 2**: `Agent type 'logi-domain-auditor' not found` 에러 → **자동 fallback**:
+따라서 다음 순서로 시도 (절대경로 하드코딩 금지 — 설치 위치 무관):
+
+**Case 1 — 전용 에이전트 호출** (첫 성공 채택):
+1. `subagent_type="mc-logi-domain-review:logi-domain-auditor"` (플러그인 scope, 배포 환경 기본)
+2. 실패 시 `subagent_type="logi-domain-auditor"` (user/project scope, 개발 환경)
+
+**Case 2 — 둘 다 `Agent type ... not found`** → general-purpose 로 fallback + 에이전트 정의를 **동적 탐색**해 인라인:
 ```python
-# general-purpose agent로 전환 + agent 정의 파일을 prompt에 인라인
+# 1) 에이전트 정의 파일을 Glob 으로 탐색 (설치 위치 무관, 절대경로 박지 말 것)
+#    Glob("**/agents/logi-domain-auditor.md") → 첫 결과를 Read → agent_md_content
+# 2) dimension 룰·checklist 는 메인이 이미 읽어둔 내용(dimension_rules_content,
+#    checklist_content; 스킬 디렉터리 상대 — dimensions/<dim>.md, checklist.md)을 그대로 인라인
 Agent(
   subagent_type="general-purpose",
   description="Audit D002 <dim> (fallback)",
-  prompt=f"""당신은 logi-domain-auditor 역할입니다. 먼저 아래 파일들을 Read로 정독하고 system prompt를 그대로 따르세요:
+  prompt=f"""당신은 logi-domain-auditor 역할입니다. 아래 system prompt 를 그대로 따르세요:
 
-1. C:\\Users\\lumie\\.claude\\agents\\logi-domain-auditor.md (시스템 프롬프트)
-2. C:\\Users\\lumie\\.claude\\skills\\mc-logi-domain-review\\dimensions\\<dim>.md (이번 차원 룰)
-3. C:\\Users\\lumie\\.claude\\skills\\mc-logi-domain-review\\checklist.md (공통 hard rules)
+# logi-domain-auditor 시스템 프롬프트
+{agent_md_content}
+
+# 이번 차원 룰 (dimensions/<dim>.md)
+{dimension_rules_content}
+
+# 공통 체크리스트 (checklist.md)
+{checklist_content}
 
 # 입력
 {입력 yaml}
 
 # 출력
-agent 파일의 STEP F YAML 한 블록만 출력하고 종료. 자유 텍스트 금지.
+STEP F YAML 한 블록만 출력하고 종료. 자유 텍스트 금지.
 """
 )
 ```
 
-검증 완료 (Session 33 D002/D003 audit) — fallback 결과 동일.
+검증 완료 (Session 33 D002/D003 audit). 플러그인 배포 시 Case 1-1(plugin scope)으로 정상 동작, Case 2 는 안전망.
 
 각 prompt에 포함:
 - 입력 yaml (domain_id, dimension, item_catalog, domain_context, adr_policies, legacy_grep_enabled)
