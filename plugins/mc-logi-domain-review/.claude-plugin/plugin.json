@@ -1,8 +1,7 @@
 {
   "name": "mc-logi-domain-review",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Logicraft 도메인을 10 차원(coverage/links/schema/stale/policy/acceptance/requirement/content/diagram/test_scenario) 병렬 감사해 갑을 검출하는 read-only 스킬. 사용자가 도메인 검토를 요청하면(예 \"D002 검토해줘\", \"DOMAIN-001 갑 찾아줘\", \"도메인 정합 확인\", \"D001 인수기준 검토\", \"요구사항 RFP 정합 확인\", \"설명이 제목과 맞는지·장황하지 않은지 검토\", \"다이어그램 반영 확인\", \"통합/시스템 시험 시나리오 검토\") logi-domain-auditor 에이전트 10건을 병렬 실행해 갑 리포트를 우선순위(P0/P1/P2)별로 생성. requirement 차원은 RFP(원천)↔REQ↔도메인(현재) 정합·stale·추적성 검토, content 차원은 제목↔본문 의미 일치·서술 명료성 검토, diagram 차원은 다이어그램(CDIAG·C4)이 활성 DFEAT 를 빠짐없이 그리는지(정형 depicts) + 본문(컴포넌트/클래스 description)이 구 모델로 표류 안 했는지(DIAG-005 stale body) 검토, test_scenario 차원은 통합/시스템 시험 시나리오(TEST)가 도메인 핵심 흐름(cross-UC)·책임 REQ/NFR 를 검증하는지(커버리지) + steps 본문 현행성(폐기·옇 흐름 검증) 검토(AC 와 짝, 통합/시스템 레벨). ITEM 수정 안 함 — 검출만. 후속 수정은 사용자가 mc-logi-update 별도 호출.",
-  "summary": "Logicraft 도메인을 coverage/links/schema/stale/policy/acceptance/requirement/content/diagram/test_scenario 10차원으로 병렬 감사해 P0~P2 갭 리포트를 만드는 read-only 검출 스킬. diagram=C4/CDIAG 정형+본문 stale, test_scenario=통합/시스",
   "author": {
     "name": "노명철"
   },
@@ -10,7 +9,7 @@
   "logicraft": {
     "publisher_user_id": "4b805dc4-6d13-42c5-9710-f5a34bf2e73e",
     "publisher_email": "mc_1024@cudo.co.kr",
-    "published_at": "2026-06-04T04:37:16.236Z",
+    "published_at": "2026-06-04T04:49:45.885Z",
     "source": "mcp"
   }
 }
