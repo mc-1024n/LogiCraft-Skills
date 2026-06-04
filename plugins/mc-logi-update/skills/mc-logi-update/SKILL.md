@@ -4,7 +4,7 @@ description: Logicraft ITEM 수정을 가이드대로 정확히 수행하고 cas
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
   domain: logicraft-orchestration
   triggers: logicraft 수정, logicraft cascade, ITEM 수정, ITEM 정합, SEQ 수정, DFEAT 수정, API 정합, SCREEN 수정, ERD 정합, ADR 추가, cascade 처리, 영향 추적
   role: orchestrator

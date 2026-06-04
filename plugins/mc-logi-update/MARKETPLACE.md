@@ -1,53 +1,25 @@
 # mc-logi-update — Logicraft Update Orchestrator
 
-Logicraft ITEM 수정을 가이드대로 정확히 수행하고, 그 수정이 일으키는 **cascade 영향을 재귀적으로 추적·정합**하는 오케스트레이터 스킬입니다. 한 ITEM만 고치고 끝나는 게 아니라 연결된 ITEM까지 일괄 일관성을 맞춥니다.
+Logicraft ITEM 수정을 **가이드대로 정확히** 수행하고, 변경이 일으키는 **cascade 영향을 재귀적으로 추적·정합**하는 오케스트레이터 스킬.
 
 ## 무엇을 하나
+- 사용자가 ITEM 수정을 요청하면("SEQ-020 재작성", "ADR 추가 후 cascade", "명칭/path/테이블 변경 정합")
+- 토폴로지 의존 순서(adr→erd→api→dfeat→uc/nav→seq/screen)로 정렬해 라운드 단위로 처리
+- **trivial**(단일 필드·link 보강·stale-ack)은 메인이 직접 `update_item` patch (1~3초)
+- **복잡**(description 통째 재작성·다단계 편집·의미 변경)은 `logi-update-specialist` 에이전트 위임
+- 각 변경 후 `analyze_impact` 로 cascade 후보를 큐에 추가, MAX_DEPTH까지 재귀
 
-대상 ITEM을 식별 → 큐 초기화 → 라운드별로 처리하며, 각 처리 후 `analyze_impact`로 cascade 후보를 찾아 큐에 넣고 `MAX_DEPTH`까지 반복합니다.
+## 핵심 특징
+- **AI 추정 금지** — brownfield 메타·외부 식별자는 1차 소스/edit_context 근거로만 자동 추정, 실패 시 보고
+- **스키마 캐시 워밍** — 타입별 schema를 24h TTL 로컬 캐시(토큰 절약 + workflow_notes 완독 보장)
+- **상류 requirement sync** — 도메인/DFEAT 의미 변경 시 부모 REQ를 RFP+도메인 재대조로 refresh
+- **post-edit 검증** — 라운드별 random sample re-fetch 로 적용 확인
+- 종료 시 메모리 자동 저장
 
-- **trivial 변경**(단일 필드 set/remove, enum 변경, stale 라이트터치 등)은 메인이 **직접 `update_item` patch** — 1~3초/~2K 토큰
-- **복잡 변경**(description 재작성, 다단계 편집, 의미 변경)은 **`logi-update-specialist` 에이전트** 호출
-- 토폴로지 순서(adr→erd→api→dfeat→uc/nav→seq/screen)대로 정렬, 독립 ITEM은 병렬 그룹
+## 1.3.0 변경 (C4·test_scenario 약-link cascade 보강)
+- **diagram_c4_component / class_diagram 전용 섹션**: C4 컴포넌트·클래스 다이어그램은 `depicts_dfeats`(DFEAT 레벨)로만 연결돼, 필드 레벨 모델 대전환(배치/썸네일 제거·push 전환·식별자 변경·cron→push)이 일어나도 link 무변 → `analyze_impact` 가 dependent로 안 띄우는 사각지대. 모델 대전환 ADR cascade 시 해당 도메인 CMP/CDIAG를 **수동 큐잉** + 본문(description·relationships) **전면 refresh**(부분 수정 금지). D002 CMP-002 실증.
+- **test_scenario 검증 산출물 섹션**: 통합/시스템 시험 시나리오(TEST)는 covers_use_cases·exercises_screens·verifies_requirements/nfrs·related_apis로 추적하나 약-link라 analyze_impact에 안 뜰 수 있음 → UC/SCREEN/API/REQ/NFR/ERD 의미 변경 시 `list_items(type=test_scenario)` 교차 수동 점검. AC(acceptance)와 동일 패턴.
 
-## 언제 쓰나
-
-- 특정 ITEM 수정 + 그 여파 정합 (예: "SEQ-020 재작성", "DFEAT-064 정합")
-- 새 ADR/결정 후 영향 ITEM cascade
-- 1차 소스 검증 결과 잘못된 설계 일괄 수정
-- 명칭/path/테이블 변경 cascade, stale 일괄 해소
-
-## 언제 쓰지 않나
-
-- 신규 ITEM 단독 생성(cascade 불필요) → logicraft MCP 직접
-- 단순 조회 → `get_item`/`list_items` 직접
-- 코드 리팩터/리뷰 → `mc-code-refactorer`/`mc-code-reviewer`
-
-## 효과 / 받는 것
-
-- **일괄 일관성** — 한 변경의 모든 파급을 재귀 추적해 끊긴 link/모순 제거
-- **AI 추정 금지 정책** 준수 + brownfield 메타 자동 추정(실패분만 보고)
-- 변경 요약 표 + cascade 라운드 로그 + post-edit 무작위 검증
-- 스키마 캐시 워밍으로 토큰 절약, 종료 시 메모리 자동 저장
-
-## 사용 예
-
-```
-"SEQ-020 title에 BFF 잔재 있어. 정합해줘"
-→ specialist(SEQ-020) → cascade 0 → 1 ITEM 변경 보고
-
-"1차 소스 따라 SEQ-020 재작성"
-→ cascade[UC-020, DFEAT-064, API-188, ERD-021/022, SCREEN-022]
-→ 토폴로지 정렬 병렬 처리 → 7 ITEM 변경 + HTML 재업로드 보류 보고
-```
-
-## 한계 / 보안
-
-- ITEM 삭제·소프트삭제 안 함, 다른 프로젝트 영향 없음(project_id 고정)
-- 1차 소스 코드는 읽기만, MAX_DEPTH(기본 3) 도달 시 미처리 큐 보고
-
-## 관련 스킬
-
-`mc-logi-domain-review`(갭 검출 → 본 스킬로 수정) · `skill-creator`
-
-> 미검증 마켓플레이스 항목 — 설치 전 SKILL.md 원문도 함께 확인하세요.
+## 함께 쓰는 스킬
+- **mc-logi-domain-review** — 갭 검출(read-only). 검출 후 그 입력으로 이 스킬 호출
+- **mc-logi-implement-kit** — 정합 완료 설계를 로컬 구현 키트로 다운로드

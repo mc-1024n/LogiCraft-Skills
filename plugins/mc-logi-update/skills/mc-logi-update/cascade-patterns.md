@@ -15,6 +15,8 @@ logi-update-specialist가 STEP D 검증 + STEP F cascade 후보 분류 시 참�
 | 5 | `use_case` | SEQ.realizes_use_cases |
 | 6 | `diagram_sequence` | 잎 노드 (보통 더 이상 cascade 없음) |
 | 6 | `screen_spec` | 잎 노드 (단, NAV에 영향 시 5순위) |
+| 6 | `diagram_c4_component` / `class_diagram` | 잎 노드 — ★ `depicts_dfeats`(DFEAT 레벨)만 연결, 필드 변경 analyze_impact 미surface → **모델 대전환 시 수동 큐잉 필요**(아래 전용 섹션) |
+| 6 | `test_scenario` / `acceptance` | 잎 노드 — 검증 산출물. UC/SCREEN/REQ/NFR/API/ERD 의미 변경 시 steps/scenario stale → 약-link 라 **수동 큐잉**(아래 test_scenario 전용 섹션) |
 | 5 | `navigation_tree` | SCREEN route 변경 cascade |
 | 0 | `requirement` | ★ 상류(upstream). 도메인/DFEAT 의 부모 — 의미 변경 시 상류로 sync (아래 별도 섹션) |
 
@@ -68,6 +70,7 @@ logi-update-specialist가 STEP D 검증 + STEP F cascade 후보 분류 시 참�
 - SEQ (invokes_apis / messages[].item_ref)
 - SCREEN (consumes_apis)
 - UC (main_flow의 API 호출 단계)
+- test_scenario (related_apis — API 계약/path 재정의 시 steps stale, 약-link 수동 점검)
 
 **auto_propagate=true 케이스**: path 단순 정정 / response 필드명 변경 (의미 동일)
 **auto_propagate=false**: method 변경, 신규 필드 추가, 의미 변경
@@ -113,6 +116,7 @@ logi-update-specialist가 STEP D 검증 + STEP F cascade 후보 분류 시 참�
 - NAV (route 변경 시)
 - UC.related_screens
 - SEQ (FE 참여자 시작점)
+- test_scenario (exercises_screens / steps[].screen_ref — 화면 흐름·sections 변경 시 steps stale, 약-link 수동 점검)
 - HTML 정적 렌더 (sections 변경 시 재업로드 필요)
 
 **HTML 재업로드 별도 처리**: cascade_candidates에 HTML-upload 가상 항목으로 보고 (메인이 별도 처리).
@@ -176,6 +180,7 @@ sections 변경 시 surface 별로 `upload_static_render` 재호출 필요 — �
 **cascade 후보**
 - SEQ (realizes_use_cases)
 - AC (covered_by_acceptances)
+- test_scenario (covers_use_cases — integration TEST. UC 의미 변경 시 steps stale, 약-link 라 수동 점검)
 - ★ 상류: 부모 REQ (의미 변경 시 — "상류 cascade" 섹션)
 
 ### requirement (REQ-XXX)
@@ -220,6 +225,41 @@ sections 변경 시 surface 별로 `upload_static_render` 재호출 필요 — �
 **cascade 후보**
 - SCREEN route 변경 cascade
 - ROLE 매트릭스 변경 시 영향
+
+### diagram_c4_component (CMP-XXX) / class_diagram (CDIAG-XXX) — ★ 정형 cascade 종착 + 본문 수동 refresh
+
+**문제 (D002 CMP-002 실증)**: C4 컴포넌트(CMP)·클래스(CDIAG) 다이어그램은 도메인/DFEAT 에 `depicts_dfeats`(DFEAT 레벨) 로만 연결된다. ADR/ERD/API 의 **필드 레벨 모델 변경**(ADR-078 배치/썸네일 제거, ADR-055 push 전환, ADR-075 식별자 변경, cron→push 등)은 `depicts_dfeats` 가 그대로 활성 DFEAT 를 가리키면 link 무변 → **analyze_impact 에 CMP/CDIAG 를 dependent 로 안 띄운다**. 그래서 C4/CDIAG 는 cascade 에서 자동 누락되어 **본문(components[].description·classes[].description·relationships)이 구 모델로 표류**한다 (CMP-002 = ADR-078/055/075/278 누적 미반영 → batches·썸네일·8:30 cron·API-009/010 잔재).
+> ★★ **mc-logi-domain-review 의 diagram 차원(DIAG-001~004)도 못 잡는다** — 그건 depicts 레벨(활성 DFEAT 를 그리나)만 보므로 depicts 정상·본문 구모델이면 통과. (DIAG-005 본문-구모델 신설로 검출 보강됨.)
+
+**필수 — 메인/specialist 책임**
+- **도메인 모델 대전환 ADR 를 cascade 할 때는 해당 도메인의 CMP·CDIAG 를 cascade 후보로 수동 큐잉**한다 (analyze_impact 가 안 띄워도). 트리거 = 처리 ADR/ITEM 의 `change_kind` 에 `model-change`/`data-model-redesign`/`semantic-redefinition` 포함, 또는 ERD 테이블/컬럼 대전환·API path/계약 재정의·식별자 변경·컴포넌트 책임 이동·엔티티 폐기.
+- C4/CDIAG 처리 = **본문 전면 대조**: components/classes 의 description·name 이 (a) 폐기 테이블/엔티티 (b) deprecated API id (c) 구 식별자/계약 (d) superseded ADR 인용 을 참조하면 현행 모델로 재작성. **depicts_dfeats 가 활성 DFEAT 정상이어도 본문이 구 모델이면 갱신 대상.**
+- ★ **부분 수정 금지** — 한 다이어그램에서 일부(예: heatmap)만 고치고 batches/썸네일 잔재를 두면 또 표류(CMP-002 1차 부분수정 → 재지적 실증). `update_item` patch op set 으로 `components`/`relationships`/`external_dependencies`/`description` 통째 현행화.
+- 구현 상태 알면 `components[].implementation.status` (implemented/planned) 도 반영.
+
+**cascade 후보**: 보통 종착(자동 후보 없음). 단 신규 컴포넌트가 신규 API/DFEAT 를 인용하면 그 ITEM 존재만 확인.
+**auto_propagate**: 모델 대전환 시 true(자동 큐잉 권장). 단 본문 전면 refresh 라 작업량 큼 → Phase 5 보고에 "C4 전면 refresh" 명시.
+
+### test_scenario (TEST-XXX) — 검증 산출물 종착 (AC 와 동류, 통합/시스템 시험)
+
+통합(integration, cross-UC end-to-end)·시스템(system, REQ/NFR 검증) 시험 시나리오. `covers_use_cases`(UC)·`exercises_screens`(SCREEN)·`verifies_requirements`(REQ)·`verifies_nfrs`(NFR)·`related_apis`(API) 로 추적하고, `steps[]`(순번·업무처리내용 action·시험항목 test_item·사전조건·입력자료 input_data·예상결과 expected·화면ID screen_ref)가 그 흐름을 1:1 반영. AC 와 같은 **검증 산출물 = 하류 종착**(cascade 받는 입장, 하류 없음).
+
+**필수 자체 점검**
+- `steps[].screen_ref`(SCREEN)·`related_apis`(API)·`covers_use_cases`(UC)·`verifies_requirements/nfrs` 인용 대상이 **활성**인지(deprecated 인용 금지).
+- `steps[].action·expected·input_data` 가 대상 UC.main_flow·SCREEN sections·API 계약의 **현행** 흐름과 일치.
+- kind=integration → `covers_use_cases` 필수. kind=system → `verifies_requirements`/`verifies_nfrs` 필수.
+- patch path: `steps` 는 index/predicate(screen_ref). `status=deprecated` 는 top-level status param.
+
+**★ 상류 변경 → test_scenario cascade (이 type 이 받는 입장 — 메인이 수동 큐잉)**
+- UC main_flow/alternate_flows **의미** 변경 → `covers_use_cases` 에 그 UC 가진 TEST steps stale.
+- SCREEN sections/route 변경 → `exercises_screens`·`steps[].screen_ref` 가진 TEST stale.
+- API path/계약 재정의 → `related_apis` 가진 TEST steps stale.
+- REQ/NFR 의미 변경 → `verifies_requirements`/`verifies_nfrs` 가진 system TEST stale.
+- ERD 테이블/컬럼 대전환 → `steps.input_data/expected` 가 그 데이터 인용 시 stale.
+> ★ test_scenario 의 위 link 는 cascade_hint 가 약하거나(notify_weak/없음) project-level 이라 **analyze_impact 에 backward 로 안 뜰 수 있다**(C4 와 유사 사각지대). UC/SCREEN/API/REQ/NFR/ERD 를 **의미 변경**할 때는 `list_items(type=test_scenario)` 로 covers/exercises/verifies/related 교차해 후보를 수동 점검.
+
+**cascade 후보**: 종착(하류 없음).
+**auto_propagate**: trivial(명칭·stale-ack·field-count)=false 무시 / **의미 변경**(흐름·화면·계약·데이터)=true 자동 큐잉. `steps` 재작성은 시험 내용이라 specialist + Phase 5 보고에 명시(시험 산출물 변경은 사용자 가시화). ※ AC(acceptance) 도 동일 패턴 — use_case 섹션 cascade 후보 + 본 원칙 적용.
 
 ## auto_estimation_failed 보고 정책
 
