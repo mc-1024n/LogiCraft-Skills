@@ -1,51 +1,31 @@
-# mc-logi-domain-review — Logicraft 도메인 감사기
+# mc-logi-domain-review — Logicraft Domain Auditor
 
-Logicraft 한 도메인을 **5개 차원으로 병렬 감사**해 설계 정합성 갭을 우선순위별로 뽑아내는 **read-only** 스킬입니다. ITEM을 수정하지 않고 **검출만** 합니다 — 수정은 `mc-logi-update`를 따로 호출.
+Logicraft 도메인을 **10 차원 병렬 감사**해 설계 갭을 검출하는 **read-only** 스킬. ITEM은 절대 수정하지 않고 검출만 — 후속 수정은 사용자가 mc-logi-update를 별도 호출.
 
-## 무엇을 하나
-
-`logi-domain-auditor` 에이전트 5건을 한 번에 병렬 실행해 도메인 소속 ITEM 전체를 다음 차원으로 점검합니다.
-
-| 차원 | 보는 것 |
+## 10 차원
+| 차원 | 검출 대상 |
 |---|---|
-| **coverage** | DFEAT↔API↔UC↔SCREEN 매핑 누락, orphan ITEM |
-| **links** | 단방향/끊긴 link, `implemented_by_endpoints` 누락 등 |
-| **schema** | 스키마 불일치, 누락 테이블/필드 |
-| **stale** | deprecated ITEM의 활성 참조, 오래된 인용 |
-| **policy** | 메모리·ADR에서 추출한 정책 위반(예: BFF 잔재) |
+| **coverage** | 도메인 책임↔DFEAT 양방향 정합, DFEAT→UC/SCREEN/SEQ backing, orphan API |
+| **links** | forward/backward link 무결성, deprecated 참조 잔재, unresolved_links |
+| **schema** | DFEAT.persists↔ERD, API request/response↔ERD 컬럼, brownfield enum |
+| **stale** | stale=true·deprecated 잔재·brownfield 메타 누락 |
+| **policy** | ADR 정책 위반(1차 보존·BFF 제거·8대 이벤트·data scope·JWT 헤더·통신 방향) |
+| **acceptance** | AC(인수기준)가 UC/DFEAT/REQ를 검증하는지 커버리지 + AC 본문 현행성 |
+| **requirement** | RFP(원천)↔REQ↔도메인 정합·stale·추적성·divergence·책임 경계 |
+| **content** | 제목↔본문 의미 일치·형제 rotation 오염·장황·핵심 매몰·이력 혼입 |
+| **diagram** ⭐ | CDIAG·C4가 활성 DFEAT를 정형 depicts로 그리는지 + 본문 stale body(DIAG-005) |
+| **test_scenario** ⭐ | 통합/시스템 시험 TEST가 핵심 흐름·REQ/NFR을 검증하는지 + steps 현행성 |
 
-## 언제 쓰나
+## 동작
+- 사용자가 "D002 검토해줘" / "다이어그램 반영 확인" / "통합시험 시나리오 검토" 등을 요청
+- `logi-domain-auditor` 에이전트 10건을 한 메시지에 병렬 실행(rate limit 시 5+5 배치)
+- 각 차원 auditor는 해당 dimension 룰만 적용, 구조화 YAML(gaps[]+summary) 반환
+- 메인이 합산·중복 병합·P0/P1/P2 정렬 → Markdown 리포트 + mc-logi-update 자동수정 후보 분리
+- 부분 호출 가능: "AC만"→acceptance, "RFP 정합"→requirement, "C4 반영"→diagram 단독
 
-- "D002 검토해줘", "DOMAIN-001 갭 찾아줘" 같은 도메인 정합 점검
-- 도메인 작업/대규모 ITEM 추가 후 무결성 확인
-- 다른 도메인 cascade 후 영향 점검
-- cron + `/loop` 와 묶어 정기 audit
+## 1.3.0 신규 (8→10 차원)
+- **diagram**: 신규 DFEAT가 다이어그램에 자동 미반영되던 사각지대를 차원화. `list_diagram_coverage` MCP로 missing/폐기참조/dangling 검출 + **DIAG-005 본문 구모델 stale body**(depicts는 정상이나 components/classes description이 폐기 테이블·구 API·superseded ADR 참조 — D002 CMP-002 실증, depicts 레벨 도구로 안 잡힘 → 본문 정독 필수).
+- **test_scenario**: 통합(cross-UC end-to-end)·시스템(REQ/NFR 검증) 시험 시나리오 TEST가 도메인 핵심 흐름·책임 REQ/NFR을 빠짐없이 검증하는지(커버리지 TST-001/002) + steps 본문이 폐기 ITEM·옛 흐름/화면/API를 검증하지 않는지(현행성 TST-003~005) 검토. **AC(acceptance)와 짝** — AC=단위/인수기준, TEST=통합/시스템 레벨.
 
-## 효과 / 받는 것
-
-- **P0/P1/P2 우선순위 갭 리포트** (Markdown 표 + YAML 원본)
-- `auto_fixable` 항목을 분리해 **`mc-logi-update` 입력 포맷으로 미리 변환** — 바로 이어서 수정 가능
-- 도메인 전체를 한 번에 훑어 **사람이 놓치는 link/policy 위반**을 체계적으로 검출
-
-## 사용 예
-
-```
-"D002 검토해줘"
-→ 5차원 병렬 감사 → 18 gaps (P0:3 / P1:9 / P2:6)
-→ 자동수정 가능 11건은 mc-logi-update 후보로 분리 보고
-
-"D001 정책 위반만 확인해줘"   # 단일 차원만
-"D001, D002 갭 검출"          # 여러 도메인 동시
-```
-
-## 한계
-
-- **검출만** — 수정·자동 fix 없음 (의도적 분리)
-- `list_items` 의 `domain_id` 필터 미지원 → `get_neighbors` 기반 우회 수집
-- 코드 리뷰/중복 검출은 대상 아님 (`mc-code-reviewer`/`mc-code-hunter`)
-
-## 관련 스킬
-
-`mc-logi-update`(검출된 갭 수정) · `skill-creator`
-
-> 미검증 마켓플레이스 항목 — 설치 전 SKILL.md 원문도 함께 확인하세요.
+## 함께 쓰는 스킬
+- **mc-logi-update** — 검출된 갭을 입력으로 받아 cascade 수정(diagram/test_scenario cascade 섹션 짝)

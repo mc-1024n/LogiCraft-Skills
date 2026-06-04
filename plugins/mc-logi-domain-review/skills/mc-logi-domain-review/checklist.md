@@ -46,10 +46,10 @@ confidence 낮으면 한 단계 낮게 잡기 (보수적).
 - [ ] **신규 AC·재작성은 항상 사용자 결정**: ACC-001/002 부재·ACC-004/006 stale은 시나리오 확정이 필요하므로 `auto_fixable=false`. forward 등록 누락(ACC-007)만 `true`.
 
 ### 양방향 정합 (COV-7/8/9) 보수 룰 — coverage 차원 한정
-- [ ] **기준 없으면 검사 안 함**: 도메인 description에 책임 목록·영역 매트릭스가 둘 다 없으면 COV-7/8/9 전부 skip + `unable_to_verify` 명시 (COV-1만 보고). 기준 없는 곳에 억지 벗어남 gap 생성 금지.
+- [ ] **기준 없으면 검사 안 함**: 도메인 description에 책임 목록·영역 매트릭스가 둘 다 없으면 COV-7/8/9 전부 skip + `unable_to_verify` 명시 (COV-1만 보고). 기준 없는 곳에 억지 볏어남 gap 생성 금지.
 - [ ] **이중 인용 없으면 보고 금지**: COV-8/9는 evidence에 도메인 책임 줄 quote + DFEAT description 줄 quote가 동시에 있어야 함. 한쪽만이면 gap 아님.
-- [ ] **거친 기준 관용**: 도메인 description이 coarse한 건 정상. DFEAT가 그 책임 범위 안에서 더 구체적인 건 벗어남(COV-8) 아님. "명백히 다른 책임 영역"일 때만 COV-8.
-- [ ] **벗어남은 전체 대조로만**: COV-8은 도메인 책임 인벤토리 전체를 evidence에 나열하고 "어디에도 안 맞음"을 입증해야 함. 부분 인상 기반 보고 금지.
+- [ ] **거친 기준 관용**: 도메인 description이 coarse한 건 정상. DFEAT가 그 책임 범위 안에서 더 구체적인 건 볏어남(COV-8) 아님. "명백히 다른 책임 영역"일 때만 COV-8.
+- [ ] **볏어남은 전체 대조로만**: COV-8은 도메인 책임 인벤토리 전체를 evidence에 나열하고 "어디에도 안 맞음"을 입증해야 함. 부분 인상 기반 보고 금지.
 - [ ] **재배치는 항상 사용자 결정**: COV-8 오분류·COV-7 미커버는 belongs_to_domain 재배치/DFEAT 신규/책임 재정의가 필요하므로 항상 `auto_fixable=false`.
 
 ## Post-audit
