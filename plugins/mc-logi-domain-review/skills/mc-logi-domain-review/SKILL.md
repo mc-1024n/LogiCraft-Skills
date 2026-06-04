@@ -1,27 +1,27 @@
 ---
 name: mc-logi-domain-review
-description: Logicraft 도메인을 10 차원(coverage/links/schema/stale/policy/acceptance/requirement/content/diagram/test_scenario) 병렬 감사해 갑을 검출하는 read-only 스킬. 사용자가 도메인 검토를 요청하면(예 "D002 검토해줘", "DOMAIN-001 갑 찾아줘", "도메인 정합 확인", "D001 인수기준 검토", "요구사항 RFP 정합 확인", "설명이 제목과 맞는지·장황하지 않은지 검토", "다이어그램 반영 확인", "통합/시스템 시험 시나리오 검토") logi-domain-auditor 에이전트 10건을 병렬 실행해 갑 리포트를 우선순위(P0/P1/P2)별로 생성. requirement 차원은 RFP(원천)↔REQ↔도메인(현재) 정합·stale·추적성 검토, content 차원은 제목↔본문 의미 일치·서술 명료성 검토, diagram 차원은 다이어그램(CDIAG·C4)이 활성 DFEAT 를 빠짐없이 그리는지(정형 depicts) + 본문(컴포넌트/클래스 description)이 구 모델로 표류 안 했는지(DIAG-005 stale body) 검토, test_scenario 차원은 통합/시스템 시험 시나리오(TEST)가 도메인 핵심 흐름(cross-UC)·책임 REQ/NFR 를 검증하는지(커버리지) + steps 본문 현행성(폐기·옇 흐름 검증) 검토(AC 와 짝, 통합/시스템 레벨). ITEM 수정 안 함 — 검출만. 후속 수정은 사용자가 mc-logi-update 별도 호출.
+description: Logicraft 도메인을 10 차원(coverage/links/schema/stale/policy/acceptance/requirement/content/diagram/test_scenario) 병렬 감사해 갭을 검출하는 read-only 스킬. 사용자가 도메인 검토를 요청하면(예 "D002 검토해줘", "DOMAIN-001 갭 찾아줘", "도메인 정합 확인", "D001 인수기준 검토", "요구사항 RFP 정합 확인", "설명이 제목과 맞는지·장황하지 않은지 검토", "다이어그램 반영 확인", "통합/시스템 시험 시나리오 검토") logi-domain-auditor 에이전트 10건을 병렬 실행해 갭 리포트를 우선순위(P0/P1/P2)별로 생성. requirement 차원은 RFP(원천)↔REQ↔도메인(현재) 정합·stale·추적성 검토, content 차원은 제목↔본문 의미 일치·서술 명료성 검토, diagram 차원은 다이어그램(CDIAG·C4)이 활성 DFEAT 를 빠짐없이 그리는지(정형 depicts) + 본문(컴포넌트/클래스 description)이 구 모델로 표류 안 했는지(DIAG-005 stale body) 검토, test_scenario 차원은 통합/시스템 시험 시나리오(TEST)가 도메인 핵심 흐름(cross-UC)·책임 REQ/NFR 를 검증하는지(커버리지) + steps 본문 현행성(폐기·옛 흐름 검증) 검토(AC 와 짝, 통합/시스템 레벨). ITEM 수정 안 함 — 검출만. 후속 수정은 사용자가 mc-logi-update 별도 호출.
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.3.2"
+  version: "1.3.3"
   domain: logicraft-orchestration
-  triggers: 도메인 검토, 도메인 감사, 갑 검출, 도메인 정합, ITEM 갑, 도메인 review, gap analysis, D001 검토, D002 검토, DOMAIN-XXX 검토, 도메인 audit
+  triggers: 도메인 검토, 도메인 감사, 갭 검출, 도메인 정합, ITEM 갭, 도메인 review, gap analysis, D001 검토, D002 검토, DOMAIN-XXX 검토, 도메인 audit
   role: orchestrator-readonly
   scope: logicraft-domain-audit
-  output-format: 갑 리포트 (Markdown 표 + YAML 원본)
+  output-format: 갭 리포트 (Markdown 표 + YAML 원본)
   related-skills: mc-logi-update, skill-creator
 ---
 
 # mc-logi-domain-review — Logicraft Domain Auditor
 
-Logicraft 도메인을 10 차원 병렬 감사해 갑을 검출. **read-only** — ITEM 수정은 mc-logi-update 별도 호출.
+Logicraft 도메인을 10 차원 병렬 감사해 갭을 검출. **read-only** — ITEM 수정은 mc-logi-update 별도 호출.
 
 > 10 차원 = coverage · links · schema · stale · policy · acceptance · requirement · **content**(제목↔본문 의미 일치·서술 명료성·장황함·핵심 매몰 — Session 121 신설) · **diagram**(다이어그램 CDIAG·C4 가 활성 DFEAT 를 정형 depicts 로 빠짐없이 그리는지 + 본문이 구 모델로 표류 안 했는지 DIAG-005 stale body — system-feedback 05bcc047 신설, DIAG-005 는 D002 CMP-002 실증으로 보강) · **test_scenario**(통합/시스템 시험 시나리오 TEST 가 도메인 핵심 흐름 cross-UC·책임 REQ/NFR 를 검증하는지 커버리지 + steps 본문 현행성 — AC 와 짝, 통합/시스템 레벨).
 
 ## When to Use
 
-- 사용자가 도메인 검토 요청 (예: "D002 검토해줘", "DOMAIN-001 갑 찾아줘")
+- 사용자가 도메인 검토 요청 (예: "D002 검토해줘", "DOMAIN-001 갭 찾아줘")
 - 도메인 작업 완료 후 정합성 확인
 - 다른 도메인 cascade 후 영향 확인
 - 신규 ITEM 다수 추가 후 무결성 검증
@@ -100,7 +100,7 @@ adr_policies:
   ADR-038: "1차 룰셋 그대로 + EV08000101 이그노어 + outbound push"
   ADR-041: "1차 KLID 그대로 운영"
   ADR-045: "BFF 회피 — D002 단일 controller"
-  ADR-051: "2차 8대 이벤트 한정 — 쓰러짐·폭력·화재·교통사고·유구·침수·산불·산사태"
+  ADR-051: "2차 8대 이벤트 한정 — 쓰러짐·폭력·화재·교통사고·유괴·침수·산불·산사태"
   # ... (메인이 동적 추출)
 ```
 
@@ -135,9 +135,9 @@ Agent(subagent_type="logi-domain-auditor", description="Audit D002 test_scenario
 
 > `acceptance` 차원 = AC(인수기준)가 도메인의 UC/DFEAT/REQ 를 빠짐없이·올바르게 검증하는지 + AC 본문의 현행성(폐기·구 모델 검증 여부) 검토. dimensions/acceptance.md 룰 적용. 사용자가 "인수기준만"·"AC 검토"를 요청하면 이 차원 단독 실행도 가능.
 >
-> `requirement` 차원 = 요구사항(REQ)이 상위 진실원천 **RFP(rfp_item)** 와 하위 현재설계(도메인)의 사이에서 **최신·정합·추적가능**한지 검토 (도메인 기준 반복 수정으로 REQ 가 가장 stale 해지는 역전 구조 포착). RFP↔REQ 미연결(derived_from_rfp 부재)·REQ 가 폐기 모델 서술(도메인보다 stale)·RFP divergence 미명시·**RFP 비책임 부분 미명시(RQ-006 advisory — "이 부분은 우리 영역 아닌 것으로 보임")**. dimensions/requirement.md 룰. 정책: RFP 원천=rfp_item, 충돌 시 도메인 우선+RFP 배경. 사용자가 "요구사항만"·"RFP 정합"을 요청하면 단독 실행 가능. **★ requirement auditor 입력에는 후보 rfp_item(RFP-NNN) 목록도 adr_policies 와 함께 제공**(메인이 Phase 2 에서 list_items(type=rfp_item) 1회 수집). **★ 검증 모드 3단계(가용 입력별 자동)**: REQ 0건→차원 SKIP / REQ+RFP없음→domain↔REQ 대조만(RQ-002/005) / REQ+RFP+도메인→전체(RQ-001~006). dimensions/requirement.md "검증 모드" 참조.
+> `requirement` 차원 = 요구사항(REQ)이 상위 진실원천 **RFP(rfp_item)** 와 하위 현재설계(도메인)의 사이에서 **최신·정합·추적가능**한지 검토 (도메인 기준 반복 수정으로 REQ 가 가장 stale 해지는 역전 구조 포착). RFP↔REQ 미연결(derived_from_rfp 부재)·REQ 가 폐기 모델 서술(도메인보다 stale)·RFP divergence 미명시·RFP 핵심요구 미하향·**RFP 비책임 부분 미명시(RQ-006 advisory — "이 부분은 우리 영역 아닌 것으로 보임")**. dimensions/requirement.md 룰. 정책: RFP 원천=rfp_item, 충돌 시 도메인 우선+RFP 배경. 사용자가 "요구사항만"·"RFP 정합"을 요청하면 단독 실행 가능. **★ requirement auditor 입력에는 후보 rfp_item(RFP-NNN) 목록도 adr_policies 와 함께 제공**(메인이 Phase 2 에서 list_items(type=rfp_item) 1회 수집). **★ 검증 모드 3단계(가용 입력별 자동)**: REQ 0건→차원 SKIP / REQ+RFP없음→domain↔REQ 대조만(RQ-002/005) / REQ+RFP+도메인→전체(RQ-001~006). dimensions/requirement.md "검증 모드" 참조.
 
-> `test_scenario` 차원 = 통합(integration, cross-UC end-to-end)·시스템(system, REQ/NFR 검증) 시험 시나리오(`test_scenario`, TEST-NNN)가 도메인 핵심 흐름·책임 REQ/NFR 를 빠짐없이 검증하는지(커버리지 TST-001/002) + `steps` 본문이 폐기 ITEM·옇 흐름/화면/API 를 검증하지 않는지(현행성 TST-003~005) + 추적성·품질(TST-006/007) 검토. **AC(acceptance)와 짝** — AC=단위/인수기준, TEST=통합/시스템 레벨. dimensions/test_scenario.md 룰. ★ TEST 는 **project-level·cross-domain**(`related_domains[]`) — `list_items(type=test_scenario)` 후 related_domains/covers_use_cases/verifies_* ∩ 도메인으로 귀속 식별. 도메인이 아직 시험 시나리오 산출물 단계 전이면 SKIP+안내 1건(과잉 금지). 사용자가 "통합시험"·"시스템시험"·"시험 시나리오 검토"·"TEST 정합"을 요청하면 단독 실행 가능.
+> `test_scenario` 차원 = 통합(integration, cross-UC end-to-end)·시스템(system, REQ/NFR 검증) 시험 시나리오(`test_scenario`, TEST-NNN)가 도메인 핵심 흐름·책임 REQ/NFR 를 빠짐없이 검증하는지(커버리지 TST-001/002) + `steps` 본문이 폐기 ITEM·옛 흐름/화면/API 를 검증하지 않는지(현행성 TST-003~005) + 추적성·품질(TST-006/007) 검토. **AC(acceptance)와 짝** — AC=단위/인수기준, TEST=통합/시스템 레벨. dimensions/test_scenario.md 룰. ★ TEST 는 **project-level·cross-domain**(`related_domains[]`) — `list_items(type=test_scenario)` 후 related_domains/covers_use_cases/verifies_* ∩ 도메인으로 귀속 식별. 도메인이 아직 시험 시나리오 산출물 단계 전이면 SKIP+안내 1건(과잉 금지). 사용자가 "통합시험"·"시스템시험"·"시험 시나리오 검토"·"TEST 정합"을 요청하면 단독 실행 가능.
 
 #### ★ Agent 이름 해석 + 등록 fallback (중요)
 
@@ -189,7 +189,7 @@ STEP F YAML 한 블록만 출력하고 종료. 자유 텍스트 금지.
 
 10 auditor 모두 완료 대기.
 
-> `content` 차원 = ITEM 본문(description·goal·user_story)이 **제목·구조 필드가 말하는 그 ITEM 을 정확·명료하게** 서술하는지 검토. 제목↔본문 의미 불일치(CNT-001)·형제 ITEM rotation 오염(CNT-002, D006 DFEAT-025/073/074 실증)·과잉 장황(CNT-003)·핵심 매몰(CNT-004)·변경이력 본문 혼입(CNT-005)·중복/빈약(CNT-006/007). 구조(링크·필드)는 멀줦한데 자연어 본문이 틀리거나 장황한 **다른 차원들의 사각지대**를 잡는다. dimensions/content.md 룰. 사용자가 "설명이 제목과 맞는지"·"장황하지 않은지"·"내용 검토"를 요청하면 단독 실행 가능. **read-only — 명료화 초안만 제시, 실제 재작성은 mc-logi-update.**
+> `content` 차원 = ITEM 본문(description·goal·user_story)이 **제목·구조 필드가 말하는 그 ITEM 을 정확·명료하게** 서술하는지 검토. 제목↔본문 의미 불일치(CNT-001)·형제 ITEM rotation 오염(CNT-002, D006 DFEAT-025/073/074 실증)·과잉 장황(CNT-003)·핵심 매몰(CNT-004)·변경이력 본문 혼입(CNT-005)·중복/빈약(CNT-006/007). 구조(링크·필드)는 멀쩡한데 자연어 본문이 틀리거나 장황한 **다른 차원들의 사각지대**를 잡는다. dimensions/content.md 룰. 사용자가 "설명이 제목과 맞는지"·"장황하지 않은지"·"내용 검토"를 요청하면 단독 실행 가능. **read-only — 명료화 초안만 제시, 실제 재작성은 mc-logi-update.**
 
 ### Phase 4 — 결과 합산
 
@@ -202,7 +202,7 @@ STEP F YAML 한 블록만 출력하고 종료. 자유 텍스트 금지.
    - auto_fixable=true → "자동 수정 후보"
    - auto_fixable=false → "사용자 결정 필요"
 
-### Phase 5 — 갑 리포트 출력
+### Phase 5 — 갭 리포트 출력
 
 **Markdown 표 (사용자 노출)**:
 ```markdown
@@ -249,7 +249,7 @@ STEP F YAML 한 블록만 출력하고 종료. 자유 텍스트 금지.
    - session 번호: MEMORY.md 최근 entry에서 자동 추출
 3. **메모리 파일 작성**: ~/.claude/projects/<project>/memory/<filename>.md
 4. **MEMORY.md 인덱스 자동 추가**: 최상단 (가장 최근 작업)
-   - 형식: `- **★★★★ [Session NN D<NNN> 도메인 감사 (mc-logi-domain-review, YYYY-MM-DD HH:MM)](filename)** — 10 차원 ... P0/P1/P2 ... 핵심 ...`
+   - 형식: `- **★★★★ [Session NN D<NNN> 도메인 감사 (mc-logi-domain-review, YYYY-MM-DD HH:MM)](filename)** — 8 차원 ... P0/P1/P2 ... 핵심 ...`
 
 저장 완료 후 사용자에게 파일명만 보고. 별도 확인 묻지 않음.
 
@@ -298,13 +298,13 @@ STEP A~F 완료 후 YAML 한 블록만 출력하고 종료.
 - 여러 도메인 동시 audit: 도메인별 순차 권장 (8×N auditor 동시 = rate limit 위험)
 - 상한 초과·rate limit 시 배치 분할
 
-## 갑 우선순위 매김 (Phase 4)
+## 갭 우선순위 매김 (Phase 4)
 
 | Severity | 조건 |
 |---|---|
 | P0 | 시스템 동작 불가 / link 깨짐 / schema 불일치 / ADR 정책 위반 / deprecated 활성 참조 / AC 가 폐기·deprecated 모델 검증 (ACC-004/005) / must REQ 가 폐기 모델 서술 (RQ-002 must) / **제목↔본문 다른 기능 서술 (CNT-001) / 형제 ITEM rotation 오염 (CNT-002)** |
-| P1 | stale / coverage 갑 / link 단방향 / brownfield 메타 누락 / required_roles 비어있음 / 활성 UC·DFEAT 검증 AC 부재 (ACC-001/002) / AC scenario 현행 불일치 (ACC-006) / 완전 고립 AC·UC forward 등록 누락 (ACC-007) / REQ 가 도메인보다 stale (RQ-002) / REQ↔RFP 미연결 (RQ-001) / RFP divergence 미명시 (RQ-003) / **본문 과잉 장황 (CNT-003) / 핵심 매몰 (CNT-004) / 변경이력 본문 혼입 (CNT-005)** |
-| P2 | description 부족 / prominent 필드 비어있음 / 정보 풍부화 권장 / AC scenario 부재 (ACC-008) / negative AC 부재 / AC→UC 역방향 link 비대칭 (ACC-007, derived_from_use_cases 비→파생 UC/도메인 빈칸) / RFP 핵심요구 도메인 REQ 미하향 (RQ-004) / REQ acceptance_criteria 빈약 (RQ-005) / RFP 비책임 부분 미명시 advisory (RQ-006) / **본문 중복 서술 (CNT-006) / 빈약·일반론 (CNT-007)** |
+| P1 | stale / coverage 갭 / link 단방향 / brownfield 메타 누락 / required_roles 비어있음 / 활성 UC·DFEAT 검증 AC 부재 (ACC-001/002) / AC scenario 현행 불일치 (ACC-006) / 완전 고립 AC·UC forward 등록 누락 (ACC-007) / REQ 가 도메인보다 stale (RQ-002) / REQ↔RFP 미연결 (RQ-001) / RFP divergence 미명시 (RQ-003) / **본문 과잉 장황 (CNT-003) / 핵심 매몰 (CNT-004) / 변경이력 본문 혼입 (CNT-005)** |
+| P2 | description 부족 / prominent 필드 비어있음 / 정보 풍부화 권장 / AC scenario 부재 (ACC-008) / negative AC 부재 / AC→UC 역방향 link 비대칭 (ACC-007, derived_from_use_cases 빔→파생 UC/도메인 빈칸) / RFP 핵심요구 도메인 REQ 미하향 (RQ-004) / REQ acceptance_criteria 빈약 (RQ-005) / RFP 비책임 부분 미명시 advisory (RQ-006) / **본문 중복 서술 (CNT-006) / 빈약·일반론 (CNT-007)** |
 
 ## TaskList 관리
 
@@ -327,7 +327,7 @@ STEP A~F 완료 후 YAML 한 블록만 출력하고 종료.
 
 본 스킬은 **read-only**. 수정은 절대 수행 안 함.
 
-검출된 갑은:
+검출된 갭은:
 1. Markdown 표 + YAML 원본으로 사용자에게 보고
 2. auto_fixable=true 항목은 별도 섹션으로 분리 + mc-logi-update 입력 포맷 미리 변환
 3. 사용자가 별도로 `/mc-logi-update` 호출 시 위 입력 그대로 사용
@@ -352,7 +352,7 @@ STEP A~F 완료 후 YAML 한 블록만 출력하고 종료.
 사용자: "D001 정책 위반만 확인해줘"
 → Phase 1: dimension=policy 단일
 → Phase 3: auditor 1건만 호출
-→ Phase 5: policy 갑 리포트만
+→ Phase 5: policy 갭 리포트만
 ```
 
 ### 예시 2b: D001 인수기준(AC) 차원만
@@ -360,12 +360,12 @@ STEP A~F 완료 후 YAML 한 블록만 출력하고 종료.
 사용자: "D001 인수기준 검토해줘" / "D001 AC 빠진 거 찾아줘"
 → Phase 1: dimension=acceptance 단일
 → Phase 3: auditor 1건만 호출 (acceptance)
-→ Phase 5: AC 커버리지 누락(ACC-001/002) + stale AC(ACC-004/005/006) 갑 리포트
+→ Phase 5: AC 커버리지 누락(ACC-001/002) + stale AC(ACC-004/005/006) 갭 리포트
 ```
 
 ### 예시 3: 여러 도메인 동시
 ```
-사용자: "D001, D002 갑 검출"
+사용자: "D001, D002 갭 검출"
 → Phase 1: 2 도메인 × 8 dim = 16 auditor
 → Phase 3: 도메인별 8 병렬 (도메인 간 순차)
 → Phase 5: 도메인별 섹션 분리 리포트
