@@ -13,6 +13,10 @@
       "source": "./plugins/mc-logi-figma-wireframe"
     },
     {
+      "name": "mc-logi-implement",
+      "source": "./plugins/mc-logi-implement"
+    },
+    {
       "name": "mc-logi-implement-kit",
       "source": "./plugins/mc-logi-implement-kit"
     },

@@ -1,0 +1,16 @@
+{
+  "name": "mc-logi-implement",
+  "version": "1.0.0",
+  "description": "mc-logi-implement-kit 이 만든 로컬 구현 키트(./docs/design/{slug}-{DOMAIN-ID}/)를 단일 진실원으로 삼아, 도메인 구현을 스펙→플랜→TDD구현→반영→logicraft 추적까지 phase 게이트로 완주하는 오케스트레이터 스킬. 사용자가 \"D005 구현해줘\", \"키트대로 구현하자\", \"구현 계획 세우고 구현까지\", \"DOMAIN-003 구현 시작\", \"/mc-logi-implement\" 등 logicraft 도메인의 실제 코드 구현을 요청할 때 실행. 키트가 없으면 mc-logi-implement-kit 을 먼저 호출하고, 키트가 stale 이면 재동기화부터 한다. 도메인 규칙(보존 정책·제약·빌드 순서)은 스킬에 없고 전부 키트에서 읽는다. phase 인자로 중단 지점부터 재개 가능 (\"플랜부터\", \"구현만\", \"추적만\").",
+  "summary": "mc-logi-implement-kit 로컬 키트를 단일 진실원으로 도메인 구현을 스펙→플랜→TDD구현→반영→IMPREC 추적까지 phase 게이트로 완주하는 오케스트레이터. superpowers(brainstorming/writing-plans/subagent-driven) 재사용 + 키트 컨텍스트 주입 + logicraft 왕복 접착.",
+  "author": {
+    "name": "노명철"
+  },
+  "license": "MIT",
+  "logicraft": {
+    "publisher_user_id": "4b805dc4-6d13-42c5-9710-f5a34bf2e73e",
+    "publisher_email": "mc_1024@cudo.co.kr",
+    "published_at": "2026-06-13T04:40:06.614Z",
+    "source": "mcp"
+  }
+}
