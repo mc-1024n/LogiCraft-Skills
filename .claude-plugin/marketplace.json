@@ -29,6 +29,10 @@
       "source": "./plugins/mc-logi-implement-kit"
     },
     {
+      "name": "mc-logi-implement-review",
+      "source": "./plugins/mc-logi-implement-review"
+    },
+    {
       "name": "mc-logi-integration-bootstrap",
       "source": "./plugins/mc-logi-integration-bootstrap"
     },
