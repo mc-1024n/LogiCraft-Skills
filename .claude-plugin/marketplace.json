@@ -5,6 +5,10 @@
   },
   "plugins": [
     {
+      "name": "mc-logi-brainstorming",
+      "source": "./plugins/mc-logi-brainstorming"
+    },
+    {
       "name": "mc-logi-domain-review",
       "source": "./plugins/mc-logi-domain-review"
     },
