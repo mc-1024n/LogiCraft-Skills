@@ -17,6 +17,10 @@
       "source": "./plugins/mc-logi-figma-wireframe"
     },
     {
+      "name": "mc-logi-glossary-align",
+      "source": "./plugins/mc-logi-glossary-align"
+    },
+    {
       "name": "mc-logi-implement",
       "source": "./plugins/mc-logi-implement"
     },
