@@ -37,6 +37,10 @@
       "source": "./plugins/mc-logi-integration-bootstrap"
     },
     {
+      "name": "mc-logi-module-register",
+      "source": "./plugins/mc-logi-module-register"
+    },
+    {
       "name": "mc-logi-scene-sketch",
       "source": "./plugins/mc-logi-scene-sketch"
     },
