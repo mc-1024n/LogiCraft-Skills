@@ -1,5 +1,8 @@
 # checklist.md — mc-logi-module-register hard rules
 
+## 범위 (★ 매번 묻지 않음)
+- [ ] 등록 범위 기본 = **코드 자산 전체**(컨트롤러·서비스·워커·엔티티·리포·config·util). 갭 보고 후 AskUserQuestion 없이 바로 전체 등록. 사용자가 호출에서 명시적으로 범위를 한정한 경우(또는 갭이 100+ 로 비정상적으로 큰 경우)에만 1회 확인.
+
 ## 등록 전 (필수)
 - [ ] `get_item_schema("code_module")` 로 필드·링크 타입·enum 확인(처음/가물거리면). 특히 register_module 의 파라미터엔 `domain_id` 가 **없음**을 재확인.
 - [ ] 코드 스캔 결과의 file_path 가 **실재**하는지(Glob/Explore 근거). 추정 경로 금지.

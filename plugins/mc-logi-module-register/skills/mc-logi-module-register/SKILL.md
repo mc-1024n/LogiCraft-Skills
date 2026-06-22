@@ -1,13 +1,13 @@
 ---
 name: mc-logi-module-register
-description: 구현된 실제 코드(컨트롤러·서비스·워커·엔티티·리포·config)를 logicraft code_module ITEM 으로 등록·정합시키는 오케스트레이터 스킬. 코드는 구현됐는데 logicraft code_module 에 안 잡히거나(미등록), 등록은 됐지만 도메인 미연결(register_module 의 domain 미지원 잔재)이거나, 코드에 없는 死모듈이 남아있는 상태를 도메인 단위로 해소한다. 사용자가 "코드모듈 등록해줘", "D002 코드모듈 정합", "구현한 클래스 logicraft 에 등록", "code_module 등록 검토", "코드↔logicraft 모듈 정합", "MOD 등록 누락 찾아줘", "/mc-logi-module-register <도메인>" 등을 요청하면 트리거. 코드 자산을 그래프에 인지시켜 다음 세션이 어느 클래스가 어느 API/DFEAT/CONST 를 구현하는지 탐색 가능하게 만든다. 검출(코드 스캔·갭 분석)은 자동, 실제 등록은 범위를 사용자와 확정한 뒤 수행. mc-logi-implement-review(코드↔키트 표류 검출)와 다름 — 이건 코드↔logicraft code_module ITEM 의 등록 자체를 정합.
+description: 구현된 실제 코드(컨트롤러·서비스·워커·엔티티·리포·config)를 logicraft code_module ITEM 으로 등록·정합시키는 오케스트레이터 스킬. 코드는 구현됐는데 logicraft code_module 에 안 잡히거나(미등록), 등록은 됐지만 도메인 미연결(register_module 의 domain 미지원 잔재)이거나, 코드에 없는 死모듈이 남아있는 상태를 도메인 단위로 해소한다. 사용자가 "코드모듈 등록해줘", "D002 코드모듈 정합", "구현한 클래스 logicraft 에 등록", "code_module 등록 검토", "코드↔logicraft 모듈 정합", "MOD 등록 누락 찾아줘", "/mc-logi-module-register <도메인>" 등을 요청하면 트리거. 코드 자산을 그래프에 인지시켜 다음 세션이 어느 클래스가 어느 API/DFEAT/CONST 를 구현하는지 탐색 가능하게 만든다. 검출(코드 스캔·갭 분석)은 자동이고, 등록은 갭을 보고한 뒤 코드 자산 전체를 기본 등록한다(매번 범위를 되묻지 않음 — 호출에서 명시적으로 한정한 경우만 좁힘). mc-logi-implement-review(코드↔키트 표류 검출)와 다름 — 이건 코드↔logicraft code_module ITEM 의 등록 자체를 정합.
 metadata:
-  version: 0.1.0
+  version: 0.2.0
 ---
 
 # mc-logi-module-register — 코드 ↔ logicraft code_module 등록 정합
 
-구현된 실제 코드 클래스를 logicraft `code_module` ITEM 으로 빠짐없이 등록하고, 도메인 연결·상태(approved)·링크(ADR/CONST/SCREEN/MOD)를 정합시킨다. **검출은 자동(read-only 코드 스캔 + 갭 분석), 등록(쓰기)은 범위를 사용자와 확정한 뒤 수행.**
+구현된 실제 코드 클래스를 logicraft `code_module` ITEM 으로 빠짐없이 등록하고, 도메인 연결·상태(approved)·링크(ADR/CONST/SCREEN/MOD)를 정합시킨다. **검출은 자동(read-only 코드 스캔 + 갭 분석), 등록은 갭 보고 후 코드 자산 전체를 기본 등록**(범위를 매번 되묻지 않음 — 호출에서 명시적으로 한정한 경우만 좁힘).
 
 ## When to Use
 - 도메인 구현이 한참 진행됐는데 logicraft code_module 이 코드 실태를 못 따라온 경우
@@ -28,9 +28,10 @@ metadata:
 
 ## 작업 정책 (logicraft 쓰기 정책 준수)
 - 코드 스캔·logicraft 조회(list/get/find)는 **자동 OK**.
-- **등록·수정(register_module/update_item)은 범위를 사용자와 확정한 뒤** 수행. AI 임의 추정으로 박지 말 것.
+- ★ **등록 범위 기본 = 코드 자산 전체** (컨트롤러·서비스·워커·엔티티·리포·config·util 전부). **매번 범위를 묻지 않는다** — 갭을 보고한 뒤 바로 전체 등록한다. 코드 자산을 그래프에 빠짐없이 인지시키는 게 이 스킬의 목적이라, 부분 등록은 추적 구멍을 남긴다. **예외: 사용자가 호출에서 범위를 명시적으로 한정한 경우**(예 "컨트롤러·서비스만 등록", "TUS 모듈만")에만 그 범위로 좁힌다.
+- 부수정리(domain 미연결 backfill · draft→approved 승격)는 **기본 수행**. 死모듈 deprecated 는 코드 부재를 Grep 으로 **확인한 뒤** 기본 수행(보고에 명시).
 - 각 모듈 메타(file_path·역할·API/DFEAT 매핑·ADR·CONST)는 **코드 근거**로 채운다(파일 실재·실제 구현 기준). logicraft 에 없는 값을 상상해 채우지 말 것 — 모르면 비우고 보고에 명시.
-- 死모듈 deprecated·draft→approved 같은 상태 변경도 사용자 승인 후.
+- 등록 전 갭 표를 **보고**(투명성)하되, 범위 확정용 질문으로 멈추지 않는다. 실제 등록 내역·결과는 Phase 8 에서 표로 보고한다.
 
 ---
 
@@ -56,19 +57,20 @@ list_orphan_code_modules(project_id)                 # realizes 링크 없는 �
 - 각 클래스: 상대 file_path(배포모듈 prefix 포함) + export 명 + 역할 1줄 + 관련 API/DFEAT.
 - 출력은 모듈별·종류별 구조화 목록. (프롬프트 골격은 `references/code-scan-agent.md` 참조)
 
-### Phase 4 — 갭 분석 + 범위 확정 (AskUserQuestion)
+### Phase 4 — 갭 분석 + 등록 계획 (★ 범위 묻지 않음)
 코드 ↔ logicraft 대조로 3 버킷 산출:
 1. **미등록** — 코드에 있는데 logicraft code_module 에 없음 (신규 register 대상)
 2. **domain 미연결** — 등록됐으나 belongs_to_domain 없음 (backfill 대상)
 3. **死모듈** — logicraft 에 있는데 코드에 없음 (deprecated 후보)
 + **draft 다수** — 구현 완료인데 status=draft (approved 승격 후보)
 
-갭 표를 사용자에게 제시하고 `AskUserQuestion` 으로 **등록 범위** 확정:
-- 컨트롤러+서비스+워커 (로직 단위 — 추적가치 높음, 기본 권장)
-- + 엔티티·리포·config (데이터/인프라 계층 포함)
-- 전부 (유틸·예외까지)
+**기본 동작 — 범위 확정 질문 없이 전체 등록.** 갭 표를 사용자에게 **보고**(어떤 클래스를 등록/backfill/deprecated/승격하는지 투명하게)한 뒤, `AskUserQuestion` 없이 **바로 Phase 5~7 로 진행**한다. 등록 대상 = 코드 자산 전체(컨트롤러·서비스·워커·엔티티·리포·config·util).
 
-부수정리(domain backfill·死모듈 deprecated·draft→approved)도 함께 할지 multiSelect 로 확인.
+범위를 묻는 것은 다음 경우뿐:
+- 사용자가 호출에서 범위를 명시적으로 한정했고("컨트롤러·서비스만") 그 해석이 모호할 때 → 1회 확인.
+- 갭이 비정상적으로 큼(예 100+ 미등록)이라 일괄 등록 전 한 번 규모를 알릴 필요가 있을 때 → 규모만 보고하고 진행 여부 확인.
+
+그 외에는 **묻지 말고 전체 등록**한다. 부수정리(domain backfill · draft→approved 승격 · 死모듈 deprecated[코드 부재 Grep 확인 후])도 기본 포함.
 
 ### Phase 5 — 신규 등록 (register_module)
 확정 범위의 미등록 클래스를 `register_module` 로 등록. 한 메시지에 병렬(8~11개씩 배치). 각 호출:
@@ -84,7 +86,7 @@ list_orphan_code_modules(project_id)                 # realizes 링크 없는 �
 - `domain_id="DOMAIN-XXX"` + `status="approved"` + `base_version=1` + `change_summary`
 - 한 메시지에 병렬 배치.
 
-### Phase 7 — 부수정리 (사용자 승인분만)
+### Phase 7 — 부수정리 (기본 포함 — 死모듈만 코드 부재 확인 후)
 - **domain 미연결 backfill**: 해당 MOD `update_item(domain_id=..., status=approved)`. base_version 은 Phase 2 조회값.
 - **死모듈 deprecated**: `update_item(status="deprecated", change_summary=폐기근거)`.
 - **draft→approved 승격**: 기존 구현완료 MOD `update_item(status="approved")`. base_version 정확히(조회값).
@@ -105,7 +107,7 @@ list_orphan_code_modules(project_id)                 # realizes 링크 없는 �
 "mc-logi-module-register 시작합니다.
 
 대상: `<DOMAIN-ID> <도메인명>` / 프로젝트: `<project>`
-모드: 코드↔logicraft code_module 등록 정합 (검출 자동 · 등록은 범위 확정 후)
-범위: logicraft 등록만 (docs/·git 무변경)
+모드: 코드↔logicraft code_module 등록 정합 (검출 자동 · 갭 보고 후 바로 등록)
+범위: **코드 자산 전체 등록** (기본 — 따로 한정 안 하면 컨트롤러·서비스·워커·엔티티·리포·config 전부) · logicraft 등록만(docs/·git 무변경)
 
-현재 등록 카탈로그 조회 + 코드 전수 스캔 후 갭을 제시하고, 등록 범위를 확정해 진행합니다."
+현재 등록 카탈로그 조회 + 코드 전수 스캔 후 갭을 보고하고, 전체 등록으로 진행합니다 (범위 한정은 호출 시 명시한 경우만)."
