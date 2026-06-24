@@ -1,16 +1,16 @@
 ---
 name: mc-logi-implement
-description: mc-logi-implement-kit 이 만든 로컬 구현 키트(./docs/design/{slug}-{DOMAIN-ID}/)를 단일 진실원으로 삼아, 도메인 구현을 스펙→플랜→TDD구현→반영→logicraft 추적까지 phase 게이트로 완주하는 오케스트레이터 스킬. 사용자가 "D005 구현해줘", "키트대로 구현하자", "구현 계획 세우고 구현까지", "DOMAIN-003 구현 시작", "/mc-logi-implement" 등 logicraft 도메인의 실제 코드 구현을 요청할 때 실행. 키트가 없으면 mc-logi-implement-kit 을 먼저 호출하고, 키트가 stale 이면 재동기화부터 한다. 도메인 규칙(보존 정책·제약·빌드 순서)은 스킬에 없고 전부 키트에서 읽는다. phase 인자로 중단 지점부터 재개 가능 ("플랜부터", "구현만", "추적만").
+description: mc-logi-implement-kit 이 만든 로컬 구현 키트(./docs/design/{slug}-{DOMAIN-ID}/)를 단일 진실원으로 삼아, 도메인 구현을 스펙→플랜→TDD구현→반영→logicraft 추적까지 phase 게이트로 완주하는 오케스트레이터 스킬. 사용자가 "D005 구현해줘", "키트대로 구현하자", "구현 계획 세우고 구현까지", "DOMAIN-003 구현 시작", "/mc-logi-implement" 등 logicraft 도메인의 실제 코드 구현을 요청할 때 실행. 키트가 없으면 mc-logi-implement-kit 을 먼저 호출하고, 키트가 stale 이면 재동기화부터 한다. 도메인 규칙(보존 정책·제약·빌드 순서)은 스킬에 없고 전부 키트에서 읽는다. phase 인자로 중단 지점부터 재개 가능 ("플랜부터", "구현만", "추적만"). ★ 이 스킬은 **백엔드·도메인 기능 위주 구현**(API·ERD/DB·domain_event·service·NFR)이며, **프론트엔드 화면(screen_spec) 구현은 `mc-logi-screen-implement` 가 담당**한다. 범위에 화면이 포함돼 있어도 화면을 직접 구현하지 않고, Phase 0 에서 사용자에게 화면은 screen-implement 로 진행하라고 안내한 뒤 기본 제외한다(중복 구현 방지).
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   domain: logicraft-orchestration
   triggers: 키트 구현, 도메인 구현, 구현해줘, 키트대로 구현, 구현 계획, 구현 시작, D001 구현, DOMAIN-XXX 구현, 스펙 플랜 구현, 구현 추적, implement
   role: orchestrator
   scope: logicraft-domain-implementation
   output-format: feature 브랜치 코드 + 스펙·플랜 문서 + IMPREC 구현 추적 + 키트 현황 갱신
-  related-skills: mc-logi-implement-kit, mc-logi-update, mc-logi-implement-review, mc-logi-domain-review
+  related-skills: mc-logi-implement-kit, mc-logi-screen-implement, mc-logi-update, mc-logi-implement-review, mc-logi-domain-review
 ---
 
 # mc-logi-implement — 키트 기반 구현 오케스트레이터
@@ -35,6 +35,14 @@ phase 게이트로 완주한다. 이 스킬은 **절차만** 안다 — 무엇�
 5. **superpowers 재사용** — 스펙은 `superpowers:brainstorming`, 플랜은 `superpowers:writing-plans`,
    구현은 `superpowers:subagent-driven-development` 를 그대로 쓴다. 이 스킬은 그 사이에
    "키트 컨텍스트 주입"과 "logicraft 왕복"을 접착한다.
+6. **★ 백엔드·도메인 기능 위주 — 화면 구현은 분리** — 이 스킬은 **백엔드/도메인 로직**
+   (api_endpoint·erd→DB·domain_event·service·nfr·infra 등) 구현을 담당한다. **프론트엔드 화면
+   (screen_spec) 구현은 `mc-logi-screen-implement`** 가 담당한다(전용 화면 키트 `docs/screen-design/` 기반,
+   DS 토큰·ui_component·와이어프레임·디자인 시안 소비). implement-kit 번들에 screen_spec 이 포함돼 있어도
+   **이 스킬은 화면을 직접 구현하지 않는다.** Phase 0 에서 범위에 화면이 있으면 사용자에게
+   "화면은 mc-logi-screen-implement 로 진행" 이라고 **안내하고 기본 제외**한다. **자동 중복 방지 장치는
+   없으므로**(두 경로가 같은 screen_spec 을 각자 구현할 수 있음) 범위 분담을 명시적으로 처리한다.
+   권장 순서: 화면은 screen-implement(목업·컴포넌트·라우팅) → 이 스킬이 백엔드(API/DB/이벤트) → 연동.
 
 ## Phase 개요
 
@@ -70,6 +78,16 @@ Phase 5  추적           IMPREC 기록 + 키트 현황 갱신 + mc-logi-update 
    구현 현황(이미 구현된 영역 — 재구현 방지).
 4. **이미 구현된 영역 감지**: 키트 구현 현황과 logicraft `get_implementation_coverage(scope=domain)` 로
    기구현 ITEM 을 식별 — 이번 범위에서 제외하거나 "재구현/수정" 인지 사용자에게 확인.
+5. **★ 화면(screen_spec) 범위 분리 안내 (중복 구현 방지 — 런타임 필수 안내)**: 키트/도메인 범위에
+   `screen_spec` 이 포함돼 있으면, 사용자에게 다음을 **명시적으로 안내**한다:
+   > "이 스킬은 **백엔드·도메인 위주**입니다. **화면(SCREEN-NNN) 구현은 `mc-logi-screen-implement`**
+   > (화면 키트 `docs/screen-design/`) 가 담당하니, 화면은 이번 구현 범위에서 **제외**합니다.
+   > (화면을 여기서 함께 구현하길 원하시면 말씀해 주세요.)"
+   - 기본 동작: screen_spec 을 이번 구현 범위에서 **제외**(빌드 순서·플랜 태스크에 화면 빌드 미포함).
+     남은 백엔드/도메인 ITEM(api_endpoint·erd·domain_event·service·nfr 등)만 대상으로 진행.
+   - 사용자가 "화면도 여기서" 라고 **명시**한 경우에만 화면을 포함(그땐 screen-implement 와 중복되지
+     않도록 어느 경로가 소유하는지 확정).
+   - 화면이 screen-implement 로 이미 구현됐으면(IMPREC/coverage 로 확인) 그 사실을 보고에 반영.
 
 ## Phase 1 — 스펙 (brainstorming 위임 + 키트 주입)
 
@@ -170,5 +188,6 @@ Phase 5  추적           IMPREC 기록 + 키트 현황 갱신 + mc-logi-update 
 대상: `<DOMAIN-ID> <도메인명>` / 프로젝트: `<project>`
 키트: `<경로>` (last sync `<시각>`, 모드 `<신선/SYNC 필요/없음→implement-kit 선행>`)
 재개 지점: `<Phase 0~5>`
+범위: **백엔드·도메인 위주** (API·DB·이벤트·서비스). 화면(screen_spec)은 `mc-logi-screen-implement` 담당 — 범위에 화면이 있으면 안내 후 기본 제외합니다.
 
 키트 게이트부터 진행합니다."
