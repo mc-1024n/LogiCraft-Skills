@@ -49,6 +49,10 @@
       "source": "./plugins/mc-logi-screen-design"
     },
     {
+      "name": "mc-logi-screen-kit",
+      "source": "./plugins/mc-logi-screen-kit"
+    },
+    {
       "name": "mc-logi-update",
       "source": "./plugins/mc-logi-update"
     }
