@@ -45,6 +45,10 @@
       "source": "./plugins/mc-logi-scene-sketch"
     },
     {
+      "name": "mc-logi-screen-design",
+      "source": "./plugins/mc-logi-screen-design"
+    },
+    {
       "name": "mc-logi-update",
       "source": "./plugins/mc-logi-update"
     }
