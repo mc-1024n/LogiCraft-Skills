@@ -13,10 +13,6 @@
       "source": "./plugins/mc-logi-domain-review"
     },
     {
-      "name": "mc-logi-figma-wireframe",
-      "source": "./plugins/mc-logi-figma-wireframe"
-    },
-    {
       "name": "mc-logi-glossary-align",
       "source": "./plugins/mc-logi-glossary-align"
     },
