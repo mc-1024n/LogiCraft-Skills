@@ -4,7 +4,7 @@ description: mc-logi-screen-kit 이 만든 로컬 화면 키트(./docs/screen-de
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
   domain: logicraft-orchestration
   triggers: 화면 디자인, 화면 디자인해줘, screen design, 고충실도 목업, 고충실도 디자인, SCREEN-NNN 디자인, D001 화면 디자인, 화면 비주얼 디자인, 디자인 목업 만들어줘
   role: orchestrator
@@ -37,8 +37,15 @@ mc-logi-screen-kit 이 만든 로컬 화면 키트를 읽고, **키트 게이트
    창작용 `frontend-design` 영역 — 규격 환경엔 부적합). "절제를 장인정신으로" 가 핵심.
 3. **골격 보존, 디자인 추가** — 와이어프레임이 정한 sections/components/API 바인딩 골격은 유지하고,
    그 위에 디자인 시스템 톤으로 디자인을 완성한다. 골격을 바꾸지 않는다.
-4. **DS 토큰 강제** — 색·간격·타이포는 `_shared/design-system.md` 토큰만. 임의 hex/px 금지
-   (implement D6 룰과 동일 기준). 회수 후 raw hex grep 으로 가볍게 검출한다.
+4. **DS 토큰 강제 + 접근성 검증** — 색·간격·타이포는 `_shared/design-system.md` 토큰만. 임의 hex/px 금지
+   (implement D6 룰과 동일 기준). 회수 후 raw hex grep 으로 가볍게 검출(D4)하고, **토큰 색 조합의 명암대비는
+   이 스킬에 동봉된 `scripts/contrast_checker.py`(WCAG) 로 검증(D5)** — 토큰을 *생성*하는 게 아니라 *이미 있는 조합*을
+   검사할 뿐이라 "DS 진실원=logicraft" 원칙과 무충돌. ★ **자기완결 원칙**: 이 스킬은 logicraft 에 올려 누구나 쓰는
+   공용 스킬이므로 **외부 형제 스킬(ui-design-system / ui-ux-pro-max 등)에 의존하지 않는다.** WCAG 검사 스크립트는
+   표준 라이브러리만 쓰는 자립 스크립트로 **스킬 폴더에 동봉**(vendored)했다 — 외부 스킬 설치 불필요. ★ **디자인
+   *생성* 은 Claude 직접** 한다 — `mc-design-master` 를 라우터로 호출하지 않고, `frontend-design`(창작 비주얼)·토큰/
+   스펙 *생성* 스킬도 통합하지 않는다(원칙2 와 진실원 원칙에 어긋남). 외부 디자인 스킬에서 가져온 것은 "코드"가 아니라
+   "공개 표준(WCAG 2.1 공식)의 자립 구현" 뿐이다.
 5. **디자인 산출물 = screen_design(SD-NNN) ITEM 에 upload_design_render(css 분리)** — 확정 디자인을 SCREEN 을
    `designs` 하는 **screen_design 전용 ITEM** 에 올린다(Phase 5). HTML 은 `html`, 스타일은 **`css` 파라미터로 분리**
    → `{render_id}.css` 서빙·wireframe.css 미주입(고충실 시안). SD 는 screen_spec 과 별 ITEM 이라 **render_id·surface 를
@@ -68,7 +75,8 @@ Phase 1   디자인 입력 합성   kit-input.md 매핑대로 design-system.md(�
                             design-prompt.md 템플릿 슬롯에 주입.
 Phase 2   로컬 디자인 작성  Claude 가 surface 별 고충실 HTML+CSS 를 design/ 에 직접 작성(외부 도구 없음).
                             DS 토큰만·골격 보존·AI slop 회피·무 JS. → [게이트1: 로컬/렌더 URL 프리뷰 → 반복]
-Phase 3   검증 & 노트       raw hex 검출(D4) + notes-template.md 로 design-notes.md 작성.
+Phase 3   검증 & 노트       raw hex 검출(D4) + WCAG 대비 검증(D5·contrast_checker.py) + notes-template.md 로
+                            design-notes.md 작성.
 Phase 4   키트 반영         SCREENS.md 에 design 산출물 인덱스 행 추가(로컬).
 Phase 5   logicraft 역등록  확정 디자인을 screen_design(SD) ITEM 에 upload_design_render(css 분리)로 올림.
                             render_id=와이어프레임과 동일 → 비교 뷰 짝지음 / wireframe.css 미주입.
@@ -163,9 +171,28 @@ Phase 6   ui_component 보강  디자인에서 쓴 컴포넌트 ↔ ui-catalog.m
    토큰/컴포넌트로 교체 재작성, ② 남기면 그 hex 목록을 `design-notes.md` § 컴포넌트·토큰 매핑에
    `⚠️ 토큰 미정 — 레포 base 컴포넌트(예: Badge)로 매핑 또는 토큰 추가 필요` 로 기록한다(raw hex 를 구현에
    그대로 넘기지 않기 위함).
-2. **design-notes.md 작성**: `notes-template.md` 형식대로 — ① 와이어프레임 대비 추가된 디자인 결정
-   ② 영역별 컴포넌트(ui-catalog UI-NNN)·DS 토큰 매핑(폰트 포함) ③ surface 파일 인덱스
-   ④ SD 디자인 렌더 URL(Phase 5 역등록 후 기입) ⑤ 역등록 기록란(Phase 5 에서 채움 — SD-NNN·render_id·surface·action).
+2. **WCAG 대비 검증(D5) — 동봉 스크립트(외부 의존 없음)**: 디자인에서 실제로 쓴 **텍스트/배경 색 조합**(본문
+   글자색 × 배경, 상태 뱃지 글자 × tint, 보조 텍스트(muted) × 배경 등)을 `_shared/design-system.md` 의 토큰 hex 로
+   환산해 명암대비를 검사한다. **공공 시스템이므로 본문은 WCAG AA(4.5:1), 큰글씨(≥18pt/14pt bold)는 3:1 이 하한.**
+   - 도구: **이 스킬 폴더에 동봉된** `scripts/contrast_checker.py`(표준 라이브러리만 — 외부 스킬 설치 불필요, 출력
+     ASCII 라 Windows cp949 에서도 인코딩 가드 불필요). 경로는 **이 스킬의 base directory** 기준으로 결합한다:
+     ```bash
+     SKILL_DIR="<이 스킬의 base directory>"   # 예: ~/.claude/skills/mc-logi-screen-design (배포 환경마다 다름)
+     # 쌍 검사 (fg bg)
+     python "$SKILL_DIR/scripts/contrast_checker.py" "<text-hex>" "<bg-hex>"
+     # 토큰 팔레트 전체 조합 검사 (DS 토큰을 {"name":"#hex",...} JSON 으로 저장 후)
+     python "$SKILL_DIR/scripts/contrast_checker.py" --palette tokens.json
+     ```
+     (토큰을 새로 *만들지* 않는다 — DS 의 *기존* 값만 넣는다.)
+   - **파이썬이 없는 환경**이면 D5 를 하드 게이트로 강제하지 말고, 검증을 스킵하되 `design-notes.md` 에
+     `⚠️ WCAG 대비 미검증(python 부재) — 수동 확인 필요` 로 명기 + 사용자 보고(조용히 넘기지 않는다).
+   - **AA 실패 조합**이 나오면 → ① 게이트1 로 돌아가 그 텍스트에 **더 진한 DS 토큰 색**(예: gray-500→gray-700)으로
+     교체 재작성. ② DS 토큰 조합만으로 AA 가 불가하면(토큰 자체 한계) `design-notes.md` 에
+     `⚠️ WCAG AA 미달(<ratio>:1) — DS 토큰 보강 필요(접근성)` 로 기록 + 사용자 보고. **임의 색을 새로 추가하지 않는다**
+     (그건 DS 진실원 침범 — 보강은 logicraft DS 갱신 소관).
+3. **design-notes.md 작성**: `notes-template.md` 형식대로 — ① 와이어프레임 대비 추가된 디자인 결정
+   ② 영역별 컴포넌트(ui-catalog UI-NNN)·DS 토큰 매핑(폰트 포함) ③ WCAG 대비 검증 결과(D5 — 조합·대비·판정·조치)
+   ④ surface 파일 인덱스 ⑤ SD 디자인 렌더 URL(Phase 5 역등록 후 기입) ⑥ 역등록 기록란(Phase 5 에서 채움 — SD-NNN·render_id·surface·action).
 
 ## Phase 4 — 키트 반영 (로컬)
 
@@ -263,7 +290,9 @@ Phase 6   ui_component 보강  디자인에서 쓴 컴포넌트 ↔ ui-catalog.m
 | DS 에 font-family 없음 | 폰트 토큰이 안 내려온 것 → 임의 폰트 추정 금지. 키트 SYNC 로 DS 갱신 시도 → 그래도 없으면 시스템 폴백 + design-notes 에 "폰트 토큰 미정" 기록 |
 | 디자인이 와이어프레임 골격 이탈 | 게이트1 에서 골격 재강조해 재작성 |
 | raw hex 검출됨 (토큰 밖 색/폰트/장식) | 게이트1 로 돌아가 "토큰만" 재강조 후 재작성 (AI slop 회피는 규격 내에서만) |
-| 역등록 권한 거부 / 오프로젝트 | `E_AUTH_FORBIDDEN` 또는 SD/SCREEN 미존재 → 토큰 RBAC·project_id(키트 frontmatter 진실원) 확인. 우회 불가 — 사용자에게 알리고 중단 |
+| WCAG 대비 실패 (본문 < 4.5:1 / 큰글씨 < 3:1, 동봉 `scripts/contrast_checker.py` D5) | 게이트1 로 돌아가 해당 텍스트를 더 진한 DS 토큰 색으로 교체 재작성. 토큰 조합만으로 AA 불가하면 design-notes 에 `⚠️ WCAG AA 미달 — DS 토큰 보강 필요` 기록 + 사용자 보고 (임의 색 추가 금지 — DS 보강은 logicraft 소관) |
+| 파이썬 부재로 D5 검사 불가 | 하드 게이트 강제 안 함 — 검증 스킵하되 design-notes 에 `⚠️ WCAG 대비 미검증(python 부재)` 명기 + 사용자 보고 |
+| 역등록 권한 거부 / 오프프로젝트 | `E_AUTH_FORBIDDEN` 또는 SD/SCREEN 미존재 → 토큰 RBAC·project_id(키트 frontmatter 진실원) 확인. 우회 불가 — 사용자에게 알리고 중단 |
 | SD 생성 시 E_VALIDATION(title) | `create_item(screen_design)` 은 top-level `title` 외 **`data.title` 도 필수** — data 에 title 누락 시 발생. data 에 title 추가 후 재시도 |
 | 렌더가 `<script>` 제거 | 렌더가 스크립트 strip 할 수 있음 → 시안을 무 JS·CSS-only(`:target`/`:checked`)로 작성(게이트1) |
 | 디자인에 카탈로그 밖 새 컴포넌트 생김 | 임의 등록 금지 — Phase 6 에서 신규 후보를 표로 안내·동의 후 `register_ui_components`(신규만). 거절 시 design-notes 에 미등록 기록. 기존 UI-NNN 수정은 `mc-logi-update` |
@@ -277,7 +306,9 @@ Phase 6   ui_component 보강  디자인에서 쓴 컴포넌트 ↔ ui-catalog.m
   바뀌면 이 파일만 갱신.
 - `design-prompt.md` — **Phase 2 로컬 디자인 작성 지침** (DS 토큰·폰트 + 디자인 지시 체크리스트 + AI slop
   회피 + 반복 지시). 슬롯 이름은 kit-input.md 와 1:1 일치.
-- `notes-template.md` — **design-notes.md 작성 템플릿** (디자인 결정 + 컴포넌트/토큰 매핑 + 역등록 참고).
+- `notes-template.md` — **design-notes.md 작성 템플릿** (디자인 결정 + 컴포넌트/토큰 매핑 + WCAG 검증 + 역등록 참고).
+- `scripts/contrast_checker.py` — **동봉 WCAG 대비 검사기**(Phase 3 D5). 표준 라이브러리만 쓰는 자립 스크립트 —
+  외부 스킬 의존 없음. WCAG 2.1 공식(W3C 공개 표준)의 구현. 토큰을 *생성*하지 않고 *기존* 조합만 검사한다.
 
 ---
 
