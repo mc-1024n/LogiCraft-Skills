@@ -1,8 +1,9 @@
 {
   "name": "mc-logi-implement-kit",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Logicraft 특정 프로젝트의 특정 도메인을 로컬에서 바이브코딩으로 구현할 수 있도록 구현 핵심 ITEM 세트를 ./docs/design/{도메인}-{ID}/{타입}/{ITEM} 구조로 다운로드+구현지향 요약하고, 각 ITEM 상단에 logicraft current_version 을 박아 재실행 시 버전 차이를 감지·표기·갱신하는 구현 준비 스킬. 사용자가 \"D002 구현 키트 만들어줘\", \"DOMAIN-002 다운받아 구현 준비해줘\", \"logicraft 도메인 로컬로 내려받아줘\", \"구현 키트 동기화해줘\" 등을 요청할 때 실행. logi-implement-fetcher 에이전트를 타입별 병렬 실행. 요약 + 원본 JSON 둘 다 보존. ITEM 수정 안 함 — read-only 다운로드.",
-  "summary": "Logicraft 특정 도메인의 구현 핵심 ITEM 세트를 ./docs/design/{도메인}-{ID}/ 트리로 다운로드+구현지향 요약+버전추적. read-only(수정 안 함), 재실행 시 NEW/CHANGED/RETIRED 자동 감지.",
+  "summary": "Logicraft 특정 도메인의 구현 핵심 ITEM 세트를 ./docs/design/{도메인}-{ID}/ 트리로 다운로드+구현지향 요약+버전추적. read-only(수정 안 함), 재실행 시 NEW/CHANGED/RETIRED 자동 감지. DFEAT(비즈니스 로직 진실원) 0건이면 다운로드 전 사용자에게 노티하는 게이트 포함.",
+  "category": "feature_impl",
   "author": {
     "name": "노명철"
   },
@@ -10,8 +11,7 @@
   "logicraft": {
     "publisher_user_id": "4b805dc4-6d13-42c5-9710-f5a34bf2e73e",
     "publisher_email": "mc_1024@cudo.co.kr",
-    "published_at": "2026-05-18T07:43:22.637Z",
+    "published_at": "2026-07-05T13:42:21.167Z",
     "source": "mcp"
-  },
-  "category": "feature_impl"
+  }
 }

@@ -85,7 +85,7 @@ INITIAL 모드 (version-master.md 없음): 모든 current ITEM = NEW
 - **RETIRED 식별**: `list_items(include_retired=true)` 의 `retired_items` 에 등장 OR
   current 활성 목록에서 사라짐. 두 경우 모두 RETIRED.
 - **CHANGED 인데 version 동일하나 stale 토글**: logicraft 가 stale=true 로 막 바뀐 경우
-  → UNCHANGED 로 두되 version-master 표의 stale 컴럼만 갱신 + IMPLEMENTATION 변경알림에 "stale 전파" 1줄.
+  → UNCHANGED 로 두되 version-master 표의 stale 컬럼만 갱신 + IMPLEMENTATION 변경알림에 "stale 전파" 1줄.
 - **로컬 파일 누락 + UNCHANGED**: 파일이 실제로 없으면 강제 재다운로드(NEW 취급).
 - **version 역행** (current < local, 이론상 발생 X): 경고 로깅 + CHANGED 처리 + 사용자 보고.
 
@@ -106,7 +106,7 @@ mkdir -p _retired/{type}/
 mv {type}/{ID}.md          _retired/{type}/{ID}.md
 mv {type}/_raw/{ID}.json   _retired/{type}/{ID}.json   (있으면)
 → _retired/{type}/{ID}.md frontmatter 에 status: RETIRED + retired_at + 사유(change_summary) 추가
-→ version-master 표 local file 컴럼을 _retired 경로로 갱신
+→ version-master 표 local file 컬럼을 _retired 경로로 갱신
 ```
 물리 삭제 절대 금지 (전역 정책: 사용자가 만들지 않은 산출물·구현 흔적 보존).
 

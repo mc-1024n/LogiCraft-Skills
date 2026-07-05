@@ -4,7 +4,7 @@ description: Logicraft 특정 프로젝트의 특정 도메인을 로컬에서 �
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
   domain: logicraft-orchestration
   triggers: 구현 키트, implement kit, 도메인 다운로드, 구현 준비, 구현 키트 동기화, 버전 동기화, D001 구현 키트, D002 다운로드, DOMAIN-XXX 구현 준비, logicraft 로컬 다운, 바이브코딩 준비, spec 다운로드
   role: orchestrator-readonly
@@ -134,6 +134,26 @@ list_items(type=<core type>, include_retired=true)   # RETIRED 식별
   → **현재 카탈로그(current_catalog)**
 - 큰 응답(>30KB)은 Bash + `python -c "import json"` (encoding='utf-8') 파싱
 
+#### ★ DFEAT 부재 게이트 (구현 착수 전 필수 노티)
+
+카탈로그 확정 직후, **`domain_feature`(DFEAT) 건수를 센다.** DFEAT = 도메인 비즈니스 로직 단위이자
+빌드 순서 step 4 의 서비스 계층 설계 근거(API·EVT·테이블을 오케스트레이션). **DFEAT 가 0건이면
+"무엇을 구현해야 하는지"의 진실원이 비어있는 상태** — API/ERD 만으로 구현하면 비즈니스 로직을
+구현자가 임의 추정하게 되어 설계 이탈이 발생한다. 따라서 다운로드 착수 전 아래 게이트를 통과해야 한다:
+
+- **DFEAT 0건 감지 → 진행 전 `AskUserQuestion` 으로 반드시 노티**하고 사용자 결정을 받는다:
+  - 질문 예: "`DOMAIN-XXX <도메인명>` 에 domain_feature(DFEAT) 가 **0건**입니다. DFEAT 는 비즈니스 로직
+    구현의 진실원인데, 없는 상태로 키트를 만들면 구현자가 로직을 임의 추정하게 됩니다. 어떻게 진행할까요?"
+  - 선택지:
+    1. **DFEAT 먼저 설계** (권장) — 키트 생성 중단. mc-logi-brainstorming/mc-logi-update 로 DFEAT 설계 후 재실행
+    2. **DFEAT 없이 진행** — API/ERD/SCREEN 만으로 키트 생성 (구현 시 로직 추정 리스크 감수 — 명시 동의)
+    3. **도메인 ID 재확인** — 도메인을 잘못 지정했을 가능성 (의도한 도메인엔 DFEAT 존재)
+  - 사용자가 **"DFEAT 없이 진행"** 을 명시 선택한 경우에만 Phase 2.5 로 계속. 그 외엔 중단 또는 도메인 재확인.
+- **DFEAT 는 있으나 이를 실현할 계약(API) 또는 데이터 모델(ERD)이 0건**인 경우(예: DFEAT 8 / API 0)도
+  같은 방식으로 부분 노티 — "구현 계약(API)·데이터 모델(ERD) 부재" 경고를 표시하고 진행 여부 확인.
+- 검사 결과(DFEAT/API/ERD 건수, 노티 발생 여부, 사용자 결정)를 기록해 Phase 4 IMPLEMENTATION.md 상단
+  경고 블록과 Phase 5 보고에 반영한다.
+
 ### Phase 2.5 — 버전 차이 산출 (SYNC 모드만)
 
 1. 기존 `version-master.md` 파싱 → **로컬 카탈로그(local_catalog)**: ITEM ID → version
@@ -218,16 +238,39 @@ fetcher 책무: ITEM 별 `get_item` → 원본 `_raw/<ID>.json` 저장 → 타�
    - 헤더 메타: project, domain, last sync 시각, sync_session, domain item version
 3. **`IMPLEMENTATION.md` 작성/갱신** (바이브코딩 진입점):
    - 도메인 1줄 요약 + bounded context
+   - **★ DFEAT 부재 경고 블록 (해당 시 최상단)**: Phase 2 게이트에서 DFEAT 0건(또는 API/ERD 부재)이
+     감지됐고 사용자가 "없이 진행" 을 선택한 경우, 문서 최상단에 경고 블록을 박는다:
+     `> ⚠️ **이 키트에는 DFEAT(비즈니스 로직 진실원)가 없습니다.** 구현 로직은 API/ERD 계약에서만 유추되므로
+     설계 이탈 위험이 있습니다. DFEAT 설계 후 재동기화를 권장합니다.` — DFEAT 가 정상 존재하면 이 블록 생략.
    - **빌드 순서** (`core-item-set.md` 의 build order: ADR/NFR/CONST/GUIDE → ERD → EVT → API → DFEAT → SEQ → ROLE → SCREEN → UC/AC)
    - **의존 그래프**: DFEAT ↔ API ↔ ERD ↔ EVT ↔ SCREEN 링크 맵 (get_related 결과 기반)
-   - **구속 제약 요약**: 적용 ADR 결정 / NFR 예산 / CONST 실제 값 / GUIDE 코딩 규칙
+     · `uses_constant`(API/SCREEN/ERD/DFEAT → CONST) 링크도 포함 — 어느 설계가 어느 상수를 쓰는지
+   - **구속 제약 요약**: 적용 ADR 결정 / NFR 예산 / GUIDE 코딩 규칙
+   - **★ 상수 값 표 (CONST 전수 — 매직넘버 단일 진실원)**: 도메인 소속 전 CONST 를 **실제 값과 함께** 한 표에 집계. 구현자가 enum/range/default/임계치/토큰을 추정·하드코딩하지 않고 여기서 lookup.
+     | CONST | name | value | unit | kind | 결정 ADR | 사용처(uses_constant 역링크) |
+     |---|---|---|---|---|---|---|
+     | CONST-012 | MAX_BANDWIDTH_MBPS | 1000 | Mbps | magic_value | ADR-080 | API-259, DFEAT-070 |
+     · value 는 logicraft 원문 그대로(의역 금지). 객체/배열이면 JSON 그대로.
+     · env_var(is_secret=true)는 값 대신 `<secret — env 주입>` 표기.
+     · uses_constant 역링크가 비어도 belongs_to_domain 으로 키트에 포함되니 표에는 반드시 넣고, 사용처는 "⚠️ 미연결" 로 표기.
    - **구현 현황**: `get_implementation_coverage(scope=domain)` + `list_unimplemented(domain_id)` → "이미 구현됨 / 미구현 / 어디부터 시작" 표
    - **변경 알림**: 이번 run CHANGED ITEM 목록 → "코드 재반영 필요" 강조
    - 각 ITEM 요약 파일로의 상대경로 링크 인덱스
 
+### Phase 4.5 — 프로젝트 CLAUDE.md 키트 블록 등록 (`claude-md-block.md` 규약)
+
+키트는 `docs/design/` 에만 있으면 후속 세션이 존재를 모른다 — 레포 루트 `CLAUDE.md` 의
+`<!-- mc-logi-kit:start/end -->` 마커 구간에 키트 표·작업 규칙·도메인별 주의 포인터를 작성/갱신한다.
+
+1. `claude-md-block.md` 를 읽고 템플릿·필드 추출 출처·병합 규칙을 따른다.
+2. CLAUDE.md 없으면 생성, 있으면 **마커 구간만** 교체 (사용자 작성 내용 불가침).
+3. 멀티 도메인 레포면 기존 블록의 타 도메인 행 보존 + 이번 도메인 행 추가/갱신.
+4. SYNC 에서 CHANGED/RETIRED 가 있었으면 현황에 `⚠️ 변경 N건 코드 재반영 필요` 표식
+   (코드 반영 완료 시 mc-logi-implement Phase 5 가 지움).
+
 ### Phase 5 — 결과 보고
 
-Markdown 표로 사용자에게:
+Markdown 표로 사용자에게 (CLAUDE.md 블록 등록/갱신 여부 1줄 포함):
 ```markdown
 # DOMAIN-002 영상·메타 수집 구현 키트 (SYNC 모드)
 
@@ -250,6 +293,15 @@ Markdown 표로 사용자에게:
 → 바이브코딩: IMPLEMENTATION.md 부터 읽고 빌드 순서대로 구현
 → 재동기화: 이 스킬 재실행 시 변경분만 갱신
 ```
+
+**★ DFEAT 부재 시 보고 최상단 경고 (Phase 2 게이트 발동분)**: DFEAT 0건(또는 API/ERD 부재)이었고
+사용자가 "없이 진행" 을 택했으면 보고 맨 위에 눈에 띄게 표기한다:
+```markdown
+> ⚠️ **DFEAT(비즈니스 로직 진실원) 0건 — 사용자 동의 하에 없이 진행함.**
+> 이 키트로 구현 시 로직이 API/ERD 계약에서만 유추되어 설계 이탈 위험이 있습니다.
+> 권장: mc-logi-brainstorming/mc-logi-update 로 DFEAT 설계 → 이 스킬 재실행(SYNC).
+```
+DFEAT 가 정상 존재하면 이 경고는 출력하지 않는다.
 
 ### Phase 6 — 메모리 저장 (종료 시 사용자 문의)
 
@@ -347,4 +399,5 @@ propose_change 등) 절대 호출 금지.** logicraft 변경은 mc-logi-update �
 ITEM 범위: 구현 핵심 세트 고정 (Tier 1~3)
 모드: read-only (logicraft 수정 없음, 다운로드만)
 
-카탈로그 수집 후 타입별 fetcher 병렬 실행합니다. 계속할까요?"
+카탈로그 수집 후 타입별 fetcher 병렬 실행합니다.
+(카탈로그에서 DFEAT 0건이 감지되면 다운로드 전에 별도로 노티하고 진행 여부를 확인합니다.) 계속할까요?"

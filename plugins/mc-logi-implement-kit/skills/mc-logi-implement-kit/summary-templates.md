@@ -60,6 +60,7 @@ CHANGED 면 frontmatter 직후 `version-tracking.md` 의 변경 배너 삽입.
 - 영속: persists_in_tables=[<물리 테이블명>] → 어떤 ERD
 - 분기/규칙: <비즈니스 규칙 — if/else 수준으로 구체화>
 - 예외/에러: <실패 케이스 + 처리>
+- **적용 상수**: uses_constant=[CONST-NNN(`name`=`value` unit)...] ← 상태값·임계치·기본값 등. 분기 조건의 매직넘버는 이 CONST 값 사용(인라인 하드코딩 금지)
 - 1차 보존/brownfield: <preserved/modified/new — 기존 코드 재사용 여부>
 ```
 
@@ -76,6 +77,7 @@ CHANGED 면 frontmatter 직후 `version-tracking.md` 의 변경 배너 삽입.
 - 구현 DFEAT: <어느 DFEAT 의 로직 호출>
 - 흐름: realized_by=[SEQ-...] (호출 순서는 SEQ 요약 참조)
 - 권한: required_roles=[ROLE-...]
+- **적용 상수**: uses_constant=[CONST-NNN(`name`=`value` unit)...] ← req/res enum·range·임계치 등. **값은 추정 말고 이 CONST 값 그대로**. 역링크 없으면 도메인 CONST 표(IMPLEMENTATION)에서 해당 값 확인
 ```
 
 ## erd (ERD)
@@ -85,7 +87,7 @@ CHANGED 면 frontmatter 직후 `version-tracking.md` 의 변경 배너 삽입.
 - level: logical | physical / dbms: <postgresql 등>
 - 테이블별:
   ### <물리 테이블명> (논리: <한글명>)
-  | 컴럼 | 타입 | 제약 | 설명 |
+  | 컬럼 | 타입 | 제약 | 설명 |
   |---|---|---|---|
   | id | uuid | PK | ... |
   - 인덱스: <idx 정의>
@@ -93,6 +95,7 @@ CHANGED 면 frontmatter 직후 `version-tracking.md` 의 변경 배너 삽입.
   - 파티셔닝/정책: <있으면>
 - 물리면 DDL 초안 (CREATE TABLE) 까지 작성 — 바로 마이그레이션 가능하게
 - logical_source/based_on: <논리 ERD ID> (물리일 때)
+- **적용 상수**: uses_constant=[CONST-NNN(`name`=`value` unit)...] ← 컬럼 default·CHECK range·enum 값. DDL 의 DEFAULT/CHECK 에 이 CONST 값 그대로 반영
 ```
 
 ## diagram_sequence (SEQ)
@@ -119,8 +122,9 @@ CHANGED 면 frontmatter 직후 `version-tracking.md` 의 변경 배너 삽입.
 - 페이지 고유 필터/액션/모달
 - consumes_apis: [API-...] (바인딩 표)
 - required_roles: [ROLE-...] (노출/가드 조건)
+- **적용 상수**: uses_constant=[CONST-NNN(`name`=`value` unit)...] ← 입력 validation 범위·셀렉트 옵션·레이블 등. UI 검증/옵션 값은 이 CONST 값 사용
 - static_renders: <_raw 의 static_render URL/HTML 참조 — 와이어프레임>
-- 셰(헤더/메뉴/푸터)은 범위 외 (NAV/SHELL 별도)
+- 셸(헤더/메뉴/푸터)은 범위 외 (NAV/SHELL 별도)
 ```
 
 ## use_case (UC)
@@ -171,12 +175,24 @@ CHANGED 면 frontmatter 직후 `version-tracking.md` 의 변경 배너 삽입.
 
 ## constant (CONST)
 
+> CONST = 코드/설정/스키마에 **그대로 박을 실제 값**(magic_value·enum·range·default·임계치·token·env_var).
+> 구현자가 값을 추정·하드코딩하지 않도록 **단일 진실원**으로 노출한다. `value` 는 **절대 의역 금지** — logicraft 원문 그대로.
+
 ```markdown
-## 상수 (코드/설정에 그대로 박을 값)
-| key | value | 단위/타입 | 적용처 | 변경주체 |
-|---|---|---|---|---|
-→ 절대 의역 금지. logicraft 값 그대로. 설정파일 키까지 명시
+## 상수 값 (코드/설정에 그대로 박을 값)
+- **name**: `<name>`  (예: MIN_BANDWIDTH_MBPS, JWT_EXPIRY_MS)
+- **value**: `<value>`   ← logicraft 원문 그대로. 객체/배열이면 JSON 그대로
+- **kind**: <token|enum|config|env_var|magic_value>
+- **unit**: <ms·px·count·Mbps … / 없으면 "-">
+- **의미/결정 근거**: <description 요지>
+- **결정 ADR**: based_on/decided_in=[ADR-...]  (왜 이 값인지)
+- **근거 REQ**: derived_from/derived_from_requirement=[REQ-...]  (있으면)
+- **사용 모듈**: used_in_modules=[MOD-...] (이 상수를 import 하는 기존 코드 모듈)
+- **사용 설계 ITEM**(uses_constant 역링크): [API-.../SCREEN-.../ERD-.../DFEAT-...]
+  ← 이 값이 실제로 박히는 곳. 역링크 없으면 "⚠️ uses_constant 링크 없음 — description/사용처 수동 확인"
+- **env_var 주의**: kind=env_var 이고 is_secret=true 면 값은 placeholder — 실제 시크릿은 코드에 박지 말 것
 ```
+→ enum/range 는 설계 ITEM 본문에 중복 적지 말고 **이 CONST 를 단일 진실원으로** 참조.
 
 ## adr (ADR)
 

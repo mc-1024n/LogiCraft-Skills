@@ -8,7 +8,7 @@ logicraft 35 타입 중 **코드로 구현되는** 타입만 결정 규칙으로
 | type code | 약칭 | 구현상 의미 |
 |---|---|---|
 | `domain` | DOMAIN | bounded context 본체 (`_domain.md`) — 1건 |
-| `domain_feature` | DFEAT | 도메인 기능 = 비즈니스 로직 단위 |
+| `domain_feature` | DFEAT | 도메인 기능 = 비즈니스 로직 단위. **구현의 진실원 — 0건이면 SKILL Phase 2 DFEAT 부재 게이트로 사용자 노티 필수** |
 | `api_endpoint` | API | 엔드포인트 계약 (method/path/req/res/auth/error) |
 | `erd` | ERD | 데이터 모델 (논리+물리 둘 다 — 물리는 DDL 직결) |
 | `diagram_sequence` | SEQ | 호출 흐름 = 코드 시퀀스 |
@@ -17,13 +17,13 @@ logicraft 35 타입 중 **코드로 구현되는** 타입만 결정 규칙으로
 | `domain_event` | EVT | 이벤트 계약 (payload/emitter/consumer) |
 | `acceptance` | AC | 수용 기준 = 테스트 케이스 근거 |
 | `permission_role` | ROLE | 역할-권한 매트릭스 = authz 코드 |
-| `constant` | CONST | 코드/설정에 박을 실제 상수값 |
+| `constant` | CONST | 코드/설정에 박을 실제 상수값. 설계 ITEM(API/SCREEN/ERD/DFEAT)이 `uses_constant` 로 참조 → 역참조를 따라 "이 API/화면 구현 시 박을 enum/range/default/임계치"를 코드에 정확히 반영. enum/range 는 인라인 중복 말고 CONST 단일 진실원 사용 |
 
 ## Tier 2 — 항상 다운로드 (구속 제약·기존 구현 컨텍스트)
 
 | type code | 약칭 | 구현상 의미 |
 |---|---|---|
-| `adr` | ADR | 코드가 **반드시** 지켰야 할 결정·제약 (도메인 참조분만) |
+| `adr` | ADR | 코드가 **반드시** 지켜야 할 결정·제약 (도메인 참조분만) |
 | `nfr` | NFR | 성능/보안/가용성 예산 = 비기능 구속 |
 | `implementation_guideline` | GUIDE | 프로젝트 공통 코딩 규칙 (applies_to 매칭분) |
 | `code_module` | MOD | **이미 구현된** 코드 모듈 (재구현 방지 — realizes 링크) |
@@ -65,6 +65,8 @@ logicraft 35 타입 중 **코드로 구현되는** 타입만 결정 규칙으로
 ```
 0. 제약 흡수      ADR + NFR + CONST + GUIDE
                   → 코드 전반에 적용될 불변 규칙·예산·금지사항 먼저 내재화
+                  → 각 설계 ITEM(API/SCREEN/ERD/DFEAT)의 uses_constant 를 따라가
+                    "이 단계에서 코드에 박을 실제 상수값"을 CONST 에서 확인 (인라인 추정 금지)
 1. 데이터 계층     ERD(물리)  → 마이그레이션/스키마/엔티티
 2. 이벤트 계약     EVT        → 이벤트 페이로드 타입/발행·구독 인터페이스
 3. API 계약       API        → 컨트롤러 시그니처/DTO/에러 응답
@@ -74,7 +76,7 @@ logicraft 35 타입 중 **코드로 구현되는** 타입만 결정 규칙으로
 7. 화면           SCREEN     → 컴포넌트 + consumes_apis 바인딩
 8. 검증           UC + AC    → 통합 테스트·수용 테스트
 조건부: INT/EXTSYS(외부 연동 어댑터), class_diagram(클래스 구조), AI 거버넌스
-참고: MOD(이미 구현된 모듈 — 건들지 말고 재사용), 구현 현황표(어디부터)
+참고: MOD(이미 구현된 모듈 — 건드리지 말고 재사용), 구현 현황표(어디부터)
 ```
 
 ## 의존 그래프 (IMPLEMENTATION.md 에 기재)
@@ -86,5 +88,7 @@ logicraft 35 타입 중 **코드로 구현되는** 타입만 결정 규칙으로
 - API `--realized_by-->` SEQ
 - SCREEN `--consumes_apis-->` API, SCREEN `--required_roles-->` ROLE
 - UC `--verified_by-->` AC, FEAT `--specialized_by-->` DFEAT
+- API/SCREEN/ERD/DFEAT `--uses_constant-->` CONST (설계가 쓰는 상수 — 코드에 박을 실제 enum/range/default/임계치)
+  · 커버리지 방어: uses_constant 미연결 CONST 도 도메인 소속(belongs_to_domain)으로 키트에 이미 포함됨
 
 이 그래프가 "무엇부터, 무엇과 함께 구현해야 하는지"의 핵심 — 바이브코딩 에이전트가 컨텍스트로 사용.
