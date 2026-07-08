@@ -4,7 +4,7 @@ description: ERD ITEM 1건의 전 컬럼을 LogiCraft 4계층 용어사전(도�
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   domain: logicraft-glossary
   triggers: 용어사전 정합, ERD 용어사전화, 논리 물리 명칭, 컬럼 표준화, glossary align, gov compliance, program 용어, 단어 등록, 용어 등록
   role: orchestrator
@@ -92,25 +92,39 @@ ERD 1건의 모든 컬럼(logical_column_name + 물리명)을 LogiCraft 4계층 
 컬럼 → gov 용어사전 있나? (gov_compare_erd exact)
        ↓ 없음
        → program 용어사전 있나? (program_glossary_compare_erd source=program)
-         ↓ 없음
-         → gov 도메인 있나? (gov_domain_search by classification)
-           ↓ 없으면 → 사업 도메인 신설 후보
-         → gov + program 단어 있나? (gov_word_search / program_word_search)
-           ↓ 없으면 → 사업 단어 신설 후보
-         → 단어 조합으로 용어 생성 (suggest_term_from_words)
+         ↓ 없음(term 미매칭 — ★ 신규 단정 금지, 착시 주의)
+         → ★ 물리명 단어 분해 → 각 토큰이 표준 단어(약어)인가? (gov_word_search/program_word_search)
+           ├─ 비표준 토큰인데 동일 의미 표준 단어 존재(event→EVNT 등) → A그룹 물리 rename (신규 아님)
+           ↓ 의미 단어가 사전에 아예 없음
+           → gov 도메인 있나? (gov_domain_search by classification)
+             ↓ 없으면 → 사업 도메인 신설 후보
+           → 누락 단어 신설 후보
+           → 단어 조합으로 용어 생성 (suggest_term_from_words)
        → ERD 적용 (Phase 4)
 ```
 
 #### Phase 1 도구 호출 순서
 
 1. `gov_compare_erd(erd_id=target)` — exact + similar(Jaccard). 결과 통계 + miss 목록.
-2. `program_glossary_compare_erd(erd_id=target, program_id)` — 통합 비교(★ 1차 권위). source=gov|program|none 분류.
-3. 분류:
-   - **A 그룹** — 비표준 영문(`created_at` 등) ↔ gov 표준약어(`crt_dt`) 혼재 → rename 후보
-   - **B 그룹** — program 사전 기존 있음, logical만 정합
-   - **C 그룹** — 신규 등록 필요 (도메인/단어/용어 합성)
-4. C 그룹 각 컬럼:
-   - 한글 logical을 단어로 분해 (사용자 협의 또는 명확한 경우 자동 분해)
+2. `program_glossary_compare_erd(erd_id=target, program_id)` — 통합 비교. source=gov|program|none **임시 표시**.
+   ⚠️ **이 도구는 term_en_norm(용어 전체 약어) 정확일치**라, 물리명이 표준 단어약어가 아니라 full English 를
+   쓴 drift 를 **none 으로 오분류**한다. 예: `event_type_cd` — 표준 단어는 `evnt`(EVNT)인데 `event`(full)를 써서
+   term 매칭 실패 → none. **none 을 곧바로 신규(C)로 보내지 말 것.** (term-level 착시)
+3. **★ none 컬럼 word 분해 재판정 (필수 — 근본 정합의 핵심)**:
+   용어 = 단어의 조합이고, **표준 준수의 원자 단위는 단어(word_en_abbr)** 다. 각 none 컬럼의 물리명을 단어
+   토큰으로 분해 → 각 토큰을 `gov_word_search`/`program_word_search`(한글 의미로도) 조회해 판정:
+   - **모든 토큰이 표준 단어약어와 일치** → 이미 표준 (compare 가 term-level 이라 놓친 것). coverage 재계산, 조치 없음
+   - **일부 토큰이 비표준 full English 인데 동일 의미의 표준 단어가 존재** (event→**EVNT**, relay→**RELY**,
+     server→**SRVR**, video→**VDO**, statistic→**STAT** 등) → **A 그룹(물리 rename)** 로 재분류. **신규 등록 아님.**
+     · `word_en_full`("Event")은 뜻풀이일 뿐 물리 약어가 아니다 — 컬럼은 반드시 `word_en_abbr`(EVNT)를 쓴다.
+   - **토큰의 의미 단어가 사전에 아예 없음** → 비로소 **C 그룹(신규 단어/용어 합성)**
+4. 최종 분류:
+   - **A 그룹** — 비표준 영문 컬럼(`created_at`·`event_type_cd`·`relay_server_id` 등) → 표준 단어약어
+     (`crt_dt`·`evnt_type_cd`·`rely_srvr_id`)로 물리 rename (Q1=A 디폴트)
+   - **B 그룹** — program 사전 기존 있음, logical 만 정합
+   - **C 그룹** — word 분해 결과 의미 단어가 사전 부재 → 도메인/단어/용어 합성 등록
+5. C 그룹 각 컬럼:
+   - 한글 logical + 물리 토큰을 단어로 분해 (사용자 협의 또는 명확한 경우 자동 분해)
    - `gov_word_search` / `program_word_search` 로 단어 ID 회수
    - 누락 단어 후보 목록화
    - `suggest_term_from_words` 로 합성 시뮬 + unresolved 0 검증
@@ -284,12 +298,12 @@ SCREEN.static_render 재업로드 같은 외부 파일 변경은 cascade 본 라
 
 ## 노하우 체크리스트 (REFERENCE)
 
-Session 95 실측 12 노하우 (각 Phase 진입 시 점검):
+Session 95 실측 + 근본 정합 노하우 (각 Phase 진입 시 점검):
 
 1. **용어사전 4계층 모델** 절대 의존순 (도메인→단어→용어)
 2. **영문 표준약어 혼재 발견 패턴** (event_type_mappings 표준 vs relay_* 비표준 같은 부분 표준)
 3. **MIG in-place ADD 시점에 표준 약어로 정의** → 1차 보존 원칙 저촉 0
-4. **program_glossary_compare_erd 가 통합 비교 권위** (gov_compare 는 유사만)
+4. **★ program_glossary_compare_erd 는 term-level(전체 약어 정확일치) — word drift 를 none 으로 오분류**. `event_type_cd`(표준 `evnt_type_cd`)·`relay_server_id`(표준 `rely_srvr_id`) 처럼 full English 단어를 쓴 컬럼이 none 으로 떨어짐. **none = 신규 아님**. 반드시 Phase 1 step 3(word 분해)로 재판정해 A(rename) vs C(신규) 를 가른다. compare 는 coarse 프리필터일 뿐, 권위는 word 검사
 5. **단어 등록 충돌 케이스** (카테고리/IP/초/주기/플랫폼/범위/승인 흔히 기존)
 6. **KLID-BM 표준용어정의서 기존 존재** (영문 약어 차이 발견 시 Q6)
 7. **ERD update_item 2 round 분리** (logical + 영문, atomic + base_version)
@@ -298,6 +312,7 @@ Session 95 실측 12 노하우 (각 Phase 진입 시 점검):
 10. **ERD-001 deprecated STALE warning benign** (기능 영향 0)
 11. **SCREEN cascade 특성** (한글 라벨+API 식별자 위주, 영문 컬럼 노출 적음)
 12. **API payload schema vs ERD column 분리** (대부분 별 네임스페이스, 일부만 직접 노출)
+13. **★ 용어 = 단어의 조합, 표준 준수의 원자 단위는 단어(word_en_abbr)**. 컬럼 표준 검사는 term 문자열 비교가 아니라 **물리명 → 단어 토큰 분해 → 각 토큰이 표준 단어약어인가** 로 해야 정확. `word_en_full`("Event")은 뜻풀이·설명용이지 물리 약어가 아니다 — 컬럼은 `word_en_abbr`(EVNT)를 써야 하며, full English(`event`)를 쓴 건 "신규 용어"가 아니라 **비표준 단어 사용 = 표준 위반(rename 대상)**. drift 원인 대부분이 개발자가 약어 대신 full English 를 컬럼명에 쓴 것
 
 ---
 
