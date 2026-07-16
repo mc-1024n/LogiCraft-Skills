@@ -4,7 +4,7 @@ description: Logicraft 특정 프로젝트의 특정 도메인을 로컬에서 �
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
   domain: logicraft-orchestration
   triggers: 구현 키트, implement kit, 도메인 다운로드, 구현 준비, 구현 키트 동기화, 버전 동기화, D001 구현 키트, D002 다운로드, DOMAIN-XXX 구현 준비, logicraft 로컬 다운, 바이브코딩 준비, spec 다운로드
   role: orchestrator-readonly
@@ -58,7 +58,8 @@ Logicraft 특정 프로젝트의 특정 도메인을, **로컬에서 바이브�
 │   └── _raw/API-273.json
 ├── erd/  diagram_sequence/  screen_spec/  use_case/
 ├── domain_event/  acceptance/  permission_role/  constant/
-├── adr/  nfr/  implementation_guideline/  code_module/  feature/
+├── adr/  nfr/  implementation_guideline/  feature/
+│                                 (code_module 은 다운로드 안 함 — core-item-set.md 제외 규칙)
 ├── (조건부) class_diagram/ diagram_state/ integration_point/ external_system/ ...
 └── _retired/                    ← logicraft 에서 deprecated/제거된 ITEM (삭제 안 함)
     └── api_endpoint/API-191.md
