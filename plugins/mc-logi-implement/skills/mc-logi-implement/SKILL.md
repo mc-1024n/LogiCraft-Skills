@@ -4,7 +4,7 @@ description: mc-logi-implement-kit 이 만든 로컬 구현 키트(./docs/design
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.2.0"
+  version: "1.2.1"
   domain: logicraft-orchestration
   triggers: 키트 구현, 도메인 구현, 구현해줘, 키트대로 구현, 구현 계획, 구현 시작, D001 구현, DOMAIN-XXX 구현, 스펙 플랜 구현, 구현 추적, implement
   role: orchestrator
@@ -137,7 +137,7 @@ Phase 5  추적           IMPREC 기록 + 키트 현황 갱신 + mc-logi-update 
 
 ## Phase 2 — 플랜 (writing-plans 위임)
 
-`superpowers:writing-plans` 을 호출하되:
+`superpowers:writing-plans` 를 호출하되:
 
 - **태스크 순서 = 키트 빌드 순서** (IMPLEMENTATION.md §빌드 순서)를 기본값으로. 테스트 인프라가
   레포에 없으면 Task 0 으로 신설을 추가.
