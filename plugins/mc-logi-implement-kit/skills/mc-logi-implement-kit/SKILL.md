@@ -4,7 +4,7 @@ description: Logicraft 특정 프로젝트의 특정 도메인을 로컬에서 �
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.3.0"
+  version: "1.3.1"
   domain: logicraft-orchestration
   triggers: 구현 키트, implement kit, 도메인 다운로드, 구현 준비, 구현 키트 동기화, 버전 동기화, D001 구현 키트, D002 다운로드, DOMAIN-XXX 구현 준비, logicraft 로컬 다운, 바이브코딩 준비, spec 다운로드
   role: orchestrator-readonly
