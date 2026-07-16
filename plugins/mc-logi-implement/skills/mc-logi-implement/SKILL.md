@@ -1,10 +1,10 @@
 ---
 name: mc-logi-implement
-description: mc-logi-implement-kit 이 만든 로컬 구현 키트(./docs/design/{slug}-{DOMAIN-ID}/)를 단일 진실원으로 삼아, 도메인 구현을 스펙→플랜→TDD구현→반영→logicraft 추적까지 phase 게이트로 완주하는 오케스트레이터 스킬. 사용자가 "D005 구현해줘", "키트대로 구현하자", "구현 계획 세우고 구현까지", "DOMAIN-003 구현 시작", "/mc-logi-implement" 등 logicraft 도메인의 실제 코드 구현을 요청할 때 실행. 키트가 없으면 mc-logi-implement-kit 을 먼저 호출하고, 키트가 stale 이면 재동기화부터 한다. 도메인 규칙(보존 정책·제약·빌드 순서)은 스킬에 없고 전부 키트에서 읽는다. phase 인자로 중단 지점부터 재개 가능 ("플랜부터", "구현만", "추적만"). ★ 이 스킬은 **백엔드·도메인 기능 위주 구현**(API·ERD/DB·domain_event·service·NFR)이며, **프론트엔드 화면(screen_spec) 구현은 `mc-logi-screen-implement` 가 담당**한다. 범위에 화면이 포함돼 있어도 화면을 직접 구현하지 않고, Phase 0 에서 사용자에게 화면은 screen-implement 로 진행하라고 안내한 뒤 기본 제외한다(중복 구현 방지).
+description: mc-logi-implement-kit 이 만든 로컬 구현 키트(./docs/design/{slug}-{DOMAIN-ID}/)를 단일 진실원으로 삼아, 도메인 구현을 스펙→플랜→TDD구현→반영→logicraft 추적까지 phase 게이트로 완주하는 오케스트레이터 스킬. 사용자가 "D005 구현해줘", "키트대로 구현하자", "구현 계획 세우고 구현까지", "DOMAIN-003 구현 시작", "/mc-logi-implement" 등 logicraft 도메인의 실제 코드 구현을 요청할 때 실행. 키트가 없으면 mc-logi-implement-kit 을 먼저 호출하고, 키트가 stale 이면 재동기화부터 한다. 도메인 규칙(보존 정책·제약·빌드 순서)은 스킬에 없고 전부 키트에서 읽는다. phase 인자로 중단 지점부터 재개 가능 ("플랜부터", "구현만", "추적만"). ★ 이 스킬은 **백엔드·도메인 기능 위주 구현**(API·ERD/DB·domain_event·service·NFR)이며, **프론트엔드 화면(screen_spec) 구현은 `mc-logi-screen-implement` 가 담당**한다. 범위에 화면이 포함돼 있어도 화면을 직접 구현하지 않고, Phase 0 에서 사용자에게 화면은 screen-implement 로 진행하라고 안내한 뒤 기본 제외한다(중복 구현 방지). ★ 구현 코드 주 seam 에 `@design <ITEM-ID>` traceability 태그를 심어 코드↔설계 양방향 추적을 확보하고(원칙 7, IMPREC 짝), 설계 변경 시 `grep @design` 로 영향 코드를 기계적으로 발견한다.
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
   domain: logicraft-orchestration
   triggers: 키트 구현, 도메인 구현, 구현해줘, 키트대로 구현, 구현 계획, 구현 시작, D001 구현, DOMAIN-XXX 구현, 스펙 플랜 구현, 구현 추적, implement
   role: orchestrator
@@ -43,6 +43,31 @@ phase 게이트로 완주한다. 이 스킬은 **절차만** 안다 — 무엇�
    "화면은 mc-logi-screen-implement 로 진행" 이라고 **안내하고 기본 제외**한다. **자동 중복 방지 장치는
    없으므로**(두 경로가 같은 screen_spec 을 각자 구현할 수 있음) 범위 분담을 명시적으로 처리한다.
    권장 순서: 화면은 screen-implement(목업·컴포넌트·라우팅) → 이 스킬이 백엔드(API/DB/이벤트) → 연동.
+7. **★ 코드↔설계 traceability 태그 (in-code — 원칙 4 IMPREC 의 역방향 짝)** — 구현하는 코드 seam 에
+   그것이 실현하는 키트 ITEM ID 를 코드 안에 심어 **코드→설계** 방향을 남긴다. IMPREC(logicraft, 설계→코드)와
+   짝을 이뤄 양방향 traceability 를 **구현 순간에 부산물로** 확보한다. 사후 별도 작업이 아니다.
+   - **형식(기본)**: Javadoc 태그 `@design API-259, ADR-080, AC-045` — ITEM ID 콤마 구분.
+     정규식 `(ADR|API|CONST|DFEAT|UC|AC|SEQ|ERD|INT|MOD|NFR)-\d+` 로 전 소스 추출 가능해야 한다.
+   - **대상 = 주 seam 만**: 컨트롤러 메서드 → 실현 API, 서비스 클래스/메서드 → DFEAT/UC, 엔티티/필드 →
+     ERD/CONST. 헬퍼·getter/setter·DTO 잡필드는 태그하지 않는다(잡음 방지). 한 요소에 그 요소가
+     **직접 실현하는** ITEM 만.
+   - **강제 검증 옵션**: 팀이 원하면 `@DesignRef({"API-259"})` 어노테이션(`@Retention(SOURCE)`,
+     런타임/WAR 무영향)으로 승격 + annotation processor 로 dangling ID 빌드 검증. 기본은 Javadoc 태그.
+   - **★ 어노테이션 형식 채택 시 타입 부트스트랩 (없으면 생성)**: `@DesignRef` 를 쓰기로 하면 코드에 달기
+     **전에** 레포에 타입 존재를 확인하고(`grep -rl '@interface DesignRef' src`), **없으면 1회 생성**한다 —
+     타입 없이 어노테이션만 달면 컴파일 실패하므로 필수 선행. canonical 정의(레포 패키지 규칙에 맞춰 배치,
+     예 `.../common/annotation/DesignRef.java`):
+     ```java
+     @Retention(RetentionPolicy.SOURCE)          // 컴파일 후 폐기 = WAR·런타임 무영향
+     @Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
+     public @interface DesignRef { String[] value(); }
+     ```
+     부트스트랩 자체가 부담되거나 사용자가 원치 않으면 **기본 Javadoc 태그로 진행**(파일 생성 없이).
+   - **목적**: ① 설계 변경 시 `grep @design <ITEM-ID>` 로 영향 코드를 **기계적으로 전량 발견**(Phase 0
+     신선도 게이트) ② Phase 5 에서 IMPREC 와 대조해 편측 링크/미추적 검출.
+   - ⚠️ **런타임·빌드 무영향**(주석 또는 SOURCE 리텐션). strict doclint 경고가 걸리면 라인주석
+     `// [design: API-259, ADR-080]` 대안 허용(추출 정규식 동일). 이 스킬은 **신규/수정 코드에만** 태그하고,
+     레거시 백필은 강제하지 않는다(점진적).
 
 ## Phase 개요
 
@@ -72,6 +97,9 @@ Phase 5  추적           IMPREC 기록 + 키트 현황 갱신 + mc-logi-update 
      ① 마지막 sync 가 오래됐거나 ② 사용자가 "최신으로" 류 요청을 했으면 implement-kit 을
      SYNC 모드로 재실행 권고 (간단 확인 후 실행). SYNC 결과 **CHANGED/RETIRED 가 있으면
      그 목록을 사용자에게 보여주고 구현 범위에 미치는 영향을 정리한 뒤** 진행.
+     - **영향 코드 발견(원칙 7 태그 활용)**: CHANGED 된 ITEM 마다 `grep -rl '@design.*<ITEM-ID>' src`
+       (라인주석 형식 포함) 로 **재반영 대상 코드를 기계적으로 전량 수집** → 영향 정리에 첨부.
+       태그가 아직 없는 레거시 영역은 키트 `code_module`(MOD-*)/IMPREC 로 보완 추정(불완전함을 명시).
 3. **키트 컨텍스트 적재**: `kit-contract.md` 의 "Phase 0 적재 목록"을 읽는다 —
    IMPLEMENTATION.md 전체, _domain.md, version-master 헤더. 여기서 얻는 것:
    구현 대상 영역 표 / 빌드 순서 / 의존 그래프 / 구속 제약 / 보존·경계 정책 / 키트 ⚠️ 불일치 목록 /
@@ -109,7 +137,7 @@ Phase 5  추적           IMPREC 기록 + 키트 현황 갱신 + mc-logi-update 
 
 ## Phase 2 — 플랜 (writing-plans 위임)
 
-`superpowers:writing-plans` 를 호출하되:
+`superpowers:writing-plans` 을 호출하되:
 
 - **태스크 순서 = 키트 빌드 순서** (IMPLEMENTATION.md §빌드 순서)를 기본값으로. 테스트 인프라가
   레포에 없으면 Task 0 으로 신설을 추가.
@@ -129,8 +157,14 @@ Phase 5  추적           IMPREC 기록 + 키트 현황 갱신 + mc-logi-update 
 - main 직접 작업 금지 — `feature/{slug}` 브랜치 생성.
 - **구현자 프롬프트에 포함할 것**: 플랜의 해당 태스크 전문 + 그 태스크의 키트 ITEM 요약 경로 +
   스펙의 관련 불변 규칙(키트 인용 포함). 구현자가 "왜"를 키트에서 확인할 수 있게 한다.
+- **★ traceability 태그 지시 (원칙 7)**: 구현자에게 각 태스크가 실현하는 키트 ITEM ID 를 코드
+  **주 seam** 에 `@design <ITEM-IDs>` (Javadoc, 콤마 구분) 로 심도록 지시한다. 태스크의 키트 참조
+  (플랜 Files 옆 ITEM 경로)가 곧 태그할 ID 다 — 컨트롤러 메서드=API, 서비스=DFEAT/UC, 엔티티/필드=ERD/CONST.
+  헬퍼·getter 은 제외. (팀이 `@DesignRef` 어노테이션을 채택했으면 그 형식으로 — 이때 **원칙 7 의 타입
+  부트스트랩**: 코드에 달기 전 `@interface DesignRef` 존재 확인, 없으면 canonical 정의로 1회 생성.)
 - **리뷰어 프롬프트에 포함할 것**: 스펙 리뷰어에게는 키트 계약(API .md 의 계약 표, AC 의
-  Given/When/Then)을 대조 기준으로 제공. 품질 리뷰어는 통상대로.
+  Given/When/Then)을 대조 기준으로 제공 + **`@design` 태그 누락/오참조(실현 ITEM 과 불일치) 점검**을
+  체크 항목에 포함. 품질 리뷰어는 통상대로.
 - **키트 ↔ 실코드 불일치 발견 시** (구현 중 가장 흔한 사건):
   1. 키트에 ⚠️ 우선순위가 있으면 따른다.
   2. 없으면 — 실측(코드/DB)이 이긴다는 보장이 없으므로 **중단하고 컨트롤러(메인)가 판단**:
@@ -155,6 +189,9 @@ Phase 5  추적           IMPREC 기록 + 키트 현황 갱신 + mc-logi-update 
    (status=implemented/in_progress, progress, 커밋 해시, 구현 노트 — 잔여 작업과 "구현 중 확정"
    사항 포함). 부분 구현(stub·명세 대기)은 정직하게 in_progress + 잔여 명시.
    record 생성이 design ITEM 의 implementation 필드를 자동 동기화한다.
+   - **★ 코드태그 ↔ IMPREC 양방향 정합 (원칙 7)**: `grep -rn '@design' src`(라인주석 포함) 로 심은
+     태그를 수집해 IMPREC 기록과 대조 — ① IMPREC 엔 있는데 코드 태그 없음(편측 링크) ② 코드가 참조한
+     ID 가 키트/logicraft 에 없음(dangling) 을 보고에 명시. 이번 구현 범위의 주 seam 이 전부 태그됐는지 확인.
 2. **키트 현황 갱신**: IMPLEMENTATION.md 구현 현황 표 + "구현 완료 기록" 단락 (브랜치/커밋/
    운영 전 확인 사항) — 커밋. **프로젝트 CLAUDE.md 의 `mc-logi-kit` 블록**도 갱신
    (해당 도메인 행의 구현 현황 1줄 + `⚠️ 변경 N건 재반영 필요` 표식 해제 + 운영 전 확인 잔여 —
@@ -189,5 +226,6 @@ Phase 5  추적           IMPREC 기록 + 키트 현황 갱신 + mc-logi-update 
 키트: `<경로>` (last sync `<시각>`, 모드 `<신선/SYNC 필요/없음→implement-kit 선행>`)
 재개 지점: `<Phase 0~5>`
 범위: **백엔드·도메인 위주** (API·DB·이벤트·서비스). 화면(screen_spec)은 `mc-logi-screen-implement` 담당 — 범위에 화면이 있으면 안내 후 기본 제외합니다.
+traceability: 구현 코드 주 seam 에 `@design <ITEM-ID>` 태그를 심어 코드↔설계를 잇습니다(원칙 7, IMPREC 양방향 짝).
 
 키트 게이트부터 진행합니다."

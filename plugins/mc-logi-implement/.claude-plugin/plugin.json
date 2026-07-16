@@ -1,7 +1,7 @@
 {
   "name": "mc-logi-implement",
-  "version": "1.1.0",
-  "description": "mc-logi-implement-kit 이 만든 로컬 구현 키트(./docs/design/{slug}-{DOMAIN-ID}/)를 단일 진실원으로 삼아, 도메인 구현을 스펙→플랜→TDD구현→반영→logicraft 추적까지 phase 게이트로 완주하는 오케스트레이터 스킬. 사용자가 \"D005 구현해줘\", \"키트대로 구현하자\", \"구현 계획 세우고 구현까지\", \"DOMAIN-003 구현 시작\", \"/mc-logi-implement\" 등 logicraft 도메인의 실제 코드 구현을 요청할 때 실행. 키트가 없으면 mc-logi-implement-kit 을 먼저 호출하고, 키트가 stale 이면 재동기화부터 한다. 도메인 규칙(보존 정책·제약·빌드 순서)은 스킬에 없고 전부 키트에서 읽는다. phase 인자로 중단 지점부터 재개 가능 (\"플랜부터\", \"구현만\", \"추적만\"). ★ 이 스킬은 **백엔드·도메인 기능 위주 구현**(API·ERD/DB·domain_event·service·NFR)이며, **프론트엔드 화면(screen_spec) 구현은 `mc-logi-screen-implement` 가 담당**한다. 범위에 화면이 포함돼 있어도 화면을 직접 구현하지 않고, Phase 0 에서 사용자에게 화면은 screen-implement 로 진행하라고 안내한 뒤 기본 제외한다(중복 구현 방지).",
+  "version": "1.2.0",
+  "description": "mc-logi-implement-kit 이 만든 로컬 구현 키트(./docs/design/{slug}-{DOMAIN-ID}/)를 단일 진실원으로 삼아, 도메인 구현을 스펙→플랜→TDD구현→반영→logicraft 추적까지 phase 게이트로 완주하는 오케스트레이터 스킬. 사용자가 \"D005 구현해줘\", \"키트대로 구현하자\", \"구현 계획 세우고 구현까지\", \"DOMAIN-003 구현 시작\", \"/mc-logi-implement\" 등 logicraft 도메인의 실제 코드 구현을 요청할 때 실행. 키트가 없으면 mc-logi-implement-kit 을 먼저 호출하고, 키트가 stale 이면 재동기화부터 한다. 도메인 규칙(보존 정책·제약·빌드 순서)은 스킬에 없고 전부 키트에서 읽는다. phase 인자로 중단 지점부터 재개 가능 (\"플랜부터\", \"구현만\", \"추적만\"). ★ 이 스킬은 **백엔드·도메인 기능 위주 구현**(API·ERD/DB·domain_event·service·NFR)이며, **프론트엔드 화면(screen_spec) 구현은 `mc-logi-screen-implement` 가 담당**한다. 범위에 화면이 포함돼 있어도 화면을 직접 구현하지 않고, Phase 0 에서 사용자에게 화면은 screen-implement 로 진행하라고 안내한 뒤 기본 제외한다(중복 구현 방지). ★ 구현 코드 주 seam 에 `@design <ITEM-ID>` traceability 태그를 심어 코드↔설계 양방향 추적을 확보하고(원칙 7, IMPREC 짝), 설계 변경 시 `grep @design` 로 영향 코드를 기계적으로 발견한다.",
   "summary": "mc-logi-implement-kit 로컬 키트를 단일 진실원으로 도메인 구현을 스펙→플랜→TDD구현→반영→IMPREC 추적까지 phase 게이트로 완주하는 오케스트레이터. 백엔드·도메인 기능 위주 — 화면(screen_spec) 구현은 mc-logi-screen-implement 가 담당.",
   "category": "feature_impl",
   "author": {
@@ -11,7 +11,7 @@
   "logicraft": {
     "publisher_user_id": "4b805dc4-6d13-42c5-9710-f5a34bf2e73e",
     "publisher_email": "mc_1024@cudo.co.kr",
-    "published_at": "2026-06-24T12:38:21.499Z",
+    "published_at": "2026-07-16T05:33:18.058Z",
     "source": "mcp"
   }
 }
