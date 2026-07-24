@@ -1,10 +1,10 @@
 ---
 name: mc-logi-implement-kit
-description: Logicraft 특정 프로젝트의 특정 도메인을 로컬에서 바이브코딩으로 구현할 수 있도록 구현 핵심 ITEM 세트를 ./docs/design/{도메인}-{ID}/{타입}/{ITEM} 구조로 다운로드+구현지향 요약하고, 각 ITEM 상단에 logicraft current_version 을 박아 재실행 시 버전 차이를 감지·표기·갱신하는 구현 준비 스킬. 사용자가 "D002 구현 키트 만들어줘", "DOMAIN-002 다운받아 구현 준비해줘", "logicraft 도메인 로컬로 내려받아줘", "구현 키트 동기화해줘" 등을 요청할 때 실행. logi-implement-fetcher 에이전트를 타입별 병렬 실행. 요약 + 원본 JSON 둘 다 보존. ITEM 수정 안 함 — read-only 다운로드.
+description: Logicraft 특정 프로젝트의 특정 도메인을 로컬에서 바이브코딩으로 구현할 수 있도록 구현 핵심 ITEM 세트를 ./docs/design/{도메인}-{ID}/{타입}/{ITEM} 구조로 다운로드+구현지향 요약하고, 각 ITEM 상단에 logicraft current_version 을 박아 재실행 시 버전 차이를 감지·표기·갱신하는 구현 준비 스킬. 사용자가 "D002 구현 키트 만들어줘", "DOMAIN-002 다운받아 구현 준비해줘", "logicraft 도메인 로컬로 내려받아줘", "구현 키트 동기화해줘" 등을 요청할 때 실행. 결정적 다운로더(bin/download-kit.mjs)가 배치 export(API-152)를 호출해 서버 verbatim 스켈레톤 + 원본 JSON 을 받아 기록 — LLM 0·초 단위·content-hash 무열화(ADR-026, 옛 logi-implement-fetcher LLM 요약 폐기). ITEM 수정 안 함 — read-only 다운로드.
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.3.1"
+  version: "1.4.0"
   domain: logicraft-orchestration
   triggers: 구현 키트, implement kit, 도메인 다운로드, 구현 준비, 구현 키트 동기화, 버전 동기화, D001 구현 키트, D002 다운로드, DOMAIN-XXX 구현 준비, logicraft 로컬 다운, 바이브코딩 준비, spec 다운로드
   role: orchestrator-readonly
@@ -36,11 +36,12 @@ Logicraft 특정 프로젝트의 특정 도메인을, **로컬에서 바이브�
 
 1. ✅ **이름**: `mc-logi-implement-kit`
 2. ✅ **ITEM 범위**: 구현 핵심 세트 고정 (`core-item-set.md` 의 Tier 1~3 결정 규칙)
-3. ✅ **산출물**: 구현지향 요약(.md) + 원본 raw JSON(.json) **둘 다**
-4. ✅ **실행**: ITEM 타입별 `logi-implement-fetcher` 병렬 에이전트
-5. ✅ **버전 추적**: 각 ITEM 헤더에 `current_version` 박음 + `version-master.md` 마스터 + 재실행 시 정수 비교로 NEW/CHANGED/UNCHANGED/RETIRED 판정
+3. ✅ **산출물**: 서버 결정적 스켈레톤(.md, verbatim·무열화) + 원본 raw JSON(.json) **둘 다**
+4. ✅ **실행**: **결정적 다운로더 `bin/download-kit.mjs`** (배치 export API-152 호출, LLM 0·초 단위·content-hash 무열화). 옛 `logi-implement-fetcher`(LLM 요약)는 폐기·폴백용(ADR-026)
+5. ✅ **버전 추적**: 다운로더가 `.kit-manifest.json`(id→version/hash)으로 델타 자동 산출 + `version-master.md` 생성 + frontmatter 에 version/status/prev_version. 재실행 시 변경분만
 6. ✅ **read-only**: logicraft 쓰기 도구 호출 금지. 로컬 파일만 생성/갱신
 7. ✅ **삭제 안 함**: RETIRED ITEM 도 `_retired/` 로 이동만, 물리 삭제 금지
+8. ⚠️ **배포**: `publish_skill`/플러그인 배포 시 **`download-kit-src.md`(소스 캐리어)를 files[] 에 반드시 포함**한다 — 이게 있으면 `bin/download-kit.mjs` 가 없어도 Phase 3 가용성 게이트가 캐리어 코드블록에서 재생성한다(설치본은 첫 실행 시 사용자 확인 후 생성). `bin/download-kit.mjs` 자체는 배포 안 해도 됨(생성물). 또한 배치 export 엔드포인트(API-152)가 **대상 LogiCraft 서버에 배포**돼 있어야 다운로더가 동작(미배포 서버는 404→exit 4→fetcher 폴백).
 
 ## 디렉터리 구조 (산출물)
 
@@ -155,32 +156,53 @@ list_items(type=<core type>, include_retired=true)   # RETIRED 식별
 - 검사 결과(DFEAT/API/ERD 건수, 노티 발생 여부, 사용자 결정)를 기록해 Phase 4 IMPLEMENTATION.md 상단
   경고 블록과 Phase 5 보고에 반영한다.
 
-### Phase 2.5 — 버전 차이 산출 (SYNC 모드만)
+### Phase 2.5 — 버전 차이 산출 → **Phase 3 다운로더가 자동 처리**
 
-1. 기존 `version-master.md` 파싱 → **로컬 카탈로그(local_catalog)**: ITEM ID → version
-2. current_catalog 와 비교해 상태 분류 (`version-tracking.md` 알고리즘):
+버전 diff(NEW/CHANGED/UNCHANGED/RETIRED)는 이제 **별도 단계가 아니다** — Phase 3 의 결정적 다운로더가 `.kit-manifest.json`(id→version/hash)과 서버 export 를 비교해 자동 산출한다. UNCHANGED 는 페치·재렌더 skip, RETIRED 는 `_retired/` 이동, 변경분만 다운로드. 상태 분류표는 `version-tracking.md` 참고(개념 동일). 메인은 버전 카탈로그를 손으로 파싱하지 않는다.
 
-| 상태 | 조건 | 처리 |
-|---|---|---|
-| **NEW** | current 에 있고 local 에 없음 | 신규 다운로드 |
-| **CHANGED** | 양쪽 존재, `current_version` 다름 | 재다운로드 + 변경 배너 + prev_version 기록 |
-| **UNCHANGED** | 양쪽 존재, version 동일 | 다운로드 skip (토큰 절약) — 파일 존재만 검증 |
-| **RETIRED** | local 에 있고 current 활성 목록에 없음/deprecated | `_retired/` 이동 + version-master 표기 (삭제 X) |
+### Phase 3 — 결정적 다운로드 (download-kit.mjs · LLM 0)  ★ ADR-026
 
-3. INITIAL 모드는 전부 NEW 취급
+**★ 가용성 게이트 (Phase 3 진입 시 먼저 판정 → 폴백 결정)**:
+1. **스크립트 탐색 + (없으면) 재생성 문의**: `Glob("**/mc-logi-implement-kit/bin/download-kit.mjs")`.
+   - **찾음** → 그대로 사용(→ 2·3단계).
+   - **없음**(스킬만 배포되고 `bin/` 누락) → **`AskUserQuestion` 으로 사용자에게 먼저 묻는다**(임의 폴백 금지):
+     - 질문 예: "결정적 다운로더 스크립트(`bin/download-kit.mjs`)가 이 환경에 없습니다. 어떻게 진행할까요?"
+     - 선택지: ① **지금 생성하고 결정적 다운로드로 진행 (권장)** — 빠르고 무열화 / ② **옛 fetcher 방식으로 진행** — 느리고 30~40% 열화
+     - **①(생성) 선택 시**: `Glob("**/mc-logi-implement-kit/download-kit-src.md")` → Read → 그 안의 ```js 코드블록 **전체를 한 글자도 바꾸지 말고** `<스킬 디렉터리>/bin/download-kit.mjs` 로 Write(부모 dir 생성) → `node --check` 로 문법 확인 → 정상이면 2·3단계로 진행(결정적 다운로드).
+     - **②(옛 방식) 선택 시**: 이 Phase 아래 옛 fetcher 절차로 폴백.
+     - `download-kit-src.md`(캐리어)마저 없으면 → 생성 불가 → 옛 fetcher 폴백 + "다운로더·소스 캐리어 모두 미배포" 보고.
+2. **환경**: node 미가용 → 폴백. `LOGICRAFT_API_KEY`(lc_ 키) 미설정 → 사용자에게 설정 요청(MCP 와 동일 키). base 는 개발기 `LOGICRAFT_API_BASE`(기본 :14000/api), 상용은 해당 서버.
+3. **다운로더 실행 후 종료코드 분기**:
+   - **0** = 성공 → Phase 4.
+   - **4** = 엔드포인트 미배포(서버에 `/kit-export` 없음 = 구버전 LogiCraft, 배치 export 미배포) → **폴백**(옛 fetcher, MCP `get_item` 기반).
+   - **2** = 네트워크/인증 오류(서버 다운·키/스코프 문제) → **사용자에게 보고 + 수정 요청.** 자동 fetcher 폴백 금지(고칠 수 있는 설정 문제를 느린·열화 폴백으로 숨기지 말 것).
+   - **1** = 인자 오류 → 호출 인자 수정.
 
-### Phase 3 — 타입별 병렬 fetch (logi-implement-fetcher)
+→ 폴백은 이 Phase 아래 "#### ★ Agent 이름 해석 + 등록 fallback" 이후 옛 fetcher 절차를 그대로 따른다(동일 디렉터리 구조 산출, 단 요약이 LLM 이라 **느리고 30~40% 열화**). 폴백 사용 시 Phase 5 보고에 "⚠️ 다운로더 미가용 — fetcher 폴백 사용(원인: 스크립트 미배포 / 엔드포인트 미배포). 서버·스크립트 배포 확인 권장" 명시.
 
-다운로드 필요 타입(NEW/CHANGED 가 1건 이상인 타입)별로 한 메시지에 병렬 Agent:
+옛 fetcher(LLM 에이전트) 병렬 방식을 **결정적 노드 다운로더 하나로 대체**한다. 서버(LogiCraft 배치 export `GET /projects/:id/kit-export`, API-152)가 **원본 JSON + 서버 결정적 스켈레톤(verbatim·무열화) + content_hash + 그래프 links** 를 반환하고, 다운로더가 델타(version 비교)로 변경분만 받아 아래를 기록한다:
+- `{type}/_raw/{ID}.json` — 원본(기존 `{item:...}` 포맷)
+- `{type}/{ID}.md` — 서버 스켈레톤 body(verbatim) + 다운로더 재구성 frontmatter(`logicraft_item·type·version·domain·synced_at·status·prev_version·content_hash·stale·raw·links`)
+- `version-master.md` — 다운스트림 신선도 게이트·changelog·ITEM 표
+- `.kit-manifest.json` — 델타 판별용(id→version/hash)
 
-```python
-Agent(subagent_type="logi-implement-fetcher",
-      description="Fetch D002 domain_feature kit",
-      prompt=<아래 호출 패턴>)
-Agent(subagent_type="logi-implement-fetcher",
-      description="Fetch D002 api_endpoint kit", prompt=...)
-# ... 타입 수만큼 (상한 8 병렬, 초과 시 배치 분할)
+**LLM 0 · 초 단위 · 설계 내용 무손실**(옛 fetcher 요약의 30~40% 열화 문제 해소 — content-hash 로 기계 검증).
+
+실행 (스크립트 위치는 설치 무관하게 `Glob("**/mc-logi-implement-kit/bin/download-kit.mjs")` 로 탐색):
+```bash
+LOGICRAFT_API_KEY=<lc_ 키 — MCP 와 동일한 그 키> \
+LOGICRAFT_API_BASE=http://localhost:14000/api \
+node <download-kit.mjs> \
+  --project <project_id> --out docs/design/{slug}-{DOMAIN-ID} \
+  [--domain DOMAIN-NNN] [--types adr,domain_feature,api_endpoint,...] [--dry-run]
 ```
+- **api-key**: MCP 와 동일한 `LOGICRAFT_API_KEY`(lc_) env. 개발기는 `logicraft-dev`(:14000), base 는 `LOGICRAFT_API_BASE`(기본 `http://localhost:14000/api`).
+- **--types**: `core-item-set.md` Tier 1~3 규칙으로 확정한 타입 CSV(생략 시 도메인 전체 타입). code_module 제외 등 Tier 규칙은 --types 로 반영.
+- **--domain**: 도메인 스코프. **--out**: 키트 루트.
+- **델타·RETIRED·무결성**: 재실행 시 변경분만, UNCHANGED skip, 서버에서 사라진 것은 `_retired/` 이동. 쓰기 후 read-back 바이트 검증(무열화).
+- 출력이 `📊 … 변경 N` + `✅ SYNC 완료` 이면 성공. 오류 시 종료코드(1 인자/2 HTTP·인증/3 무결성)·stderr 확인.
+
+> ⚠️ **옛 `logi-implement-fetcher`(LLM 요약) 방식은 폐기(ADR-026).** ITEM 본문 "요약"은 서버 결정적 스켈레톤이 대체한다(의역 0). 구현지향 "해석"(MUST/체크리스트)은 버리는 게 아니라 Phase 4 IMPLEMENTATION.md 합성 + 구현 착수 시 지연 생성으로 이동. 아래 fetcher 절차는 **다운로더 미배포/실패 시 폴백 참고용**으로만 남긴다.
 
 #### ★ Agent 이름 해석 + 등록 fallback (mc-logi-domain-review 와 동일)
 
@@ -233,10 +255,7 @@ fetcher 책무: ITEM 별 `get_item` → 원본 `_raw/<ID>.json` 저장 → 타�
 ### Phase 4 — 도메인 본체 + 버전 마스터 + 진입점 작성 (메인)
 
 1. `_domain.md` + `_raw/_domain.json` 작성 (도메인 요약: bounded context / 책임 / ubiquitous language / 외부 의존 / ADR 정책)
-2. **`version-master.md` 재작성** (`version-tracking.md` 포맷):
-   - 전체 ITEM 버전 표 (ID / type / title / version / last_updated_at / stale / local file / status)
-   - 이번 run **Changelog 섹션**: NEW n건 / CHANGED n건(각 prev→cur + change_summary) / RETIRED n건
-   - 헤더 메타: project, domain, last sync 시각, sync_session, domain item version
+2. **`version-master.md` — 다운로더가 이미 생성**(Phase 3): 헤더 메타(project_id·domain·last sync·mode) + Changelog(NEW/CHANGED/RETIRED) + ITEM 표(ID/type/version/status). 메인은 재작성하지 않는다. 필요 시 도메인 item 버전·sync_session 등 부가 헤더만 보강 가능(선택).
 3. **`IMPLEMENTATION.md` 작성/갱신** (바이브코딩 진입점):
    - 도메인 1줄 요약 + bounded context
    - **★ DFEAT 부재 경고 블록 (해당 시 최상단)**: Phase 2 게이트에서 DFEAT 0건(또는 API/ERD 부재)이
