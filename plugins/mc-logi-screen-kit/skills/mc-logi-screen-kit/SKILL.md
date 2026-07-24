@@ -1,10 +1,10 @@
 ---
 name: mc-logi-screen-kit
-description: Logicraft 특정 프로젝트의 특정 화면(screen_spec)과 그 화면이 의존하는 디자인 ITEM 세트(design_system / ui_component / app_shell / navigation_tree / api_endpoint / constant / permission_role / implementation_guideline + 화면별 use_case / acceptance / wireframe)를 ./docs/screen-design/{도메인슬러그}-{DOMAIN-ID}/ 구조로 다운로드 + 구현지향 요약 + 버전 추적하는 화면 특화 키트 다운로더. 사용자가 "SCREEN-011 화면 키트 만들어줘", "D002 화면 다운로드", "화면 키트 준비해줘", "logicraft 화면 로컬로 내려받아줘", "화면 키트 동기화해줘" 등을 요청할 때 실행. logi-implement-fetcher 에이전트를 타입별 병렬 실행. 요약 + 원본 JSON 둘 다 보존. ITEM 수정 안 함 — read-only 다운로드.
+description: Logicraft 특정 프로젝트의 특정 화면(screen_spec)과 그 화면이 의존하는 디자인 ITEM 세트(design_system / ui_component / app_shell / navigation_tree / api_endpoint / constant / permission_role / implementation_guideline + 화면별 use_case / acceptance / wireframe / 디자인 렌더)를 ./docs/screen-design/{도메인슬러그}-{DOMAIN-ID}/ 화면 중심 구조로 다운로드 + 버전 추적하는 화면 특화 키트 다운로더. 사용자가 "SCREEN-011 화면 키트 만들어줘", "D002 화면 다운로드", "화면 키트 준비해줘", "logicraft 화면 로컬로 내려받아줘", "화면 키트 동기화해줘" 등을 요청할 때 실행. 결정적 다운로더(bin/download-kit.mjs, 배치 export API-152)로 서버 verbatim 스켈레톤 + 원본 JSON + 렌더 정적파일을 받고, arranger(bin/arrange-screen-kit.mjs)가 화면 중심 레이아웃 + 인덱스로 정리 — LLM 0·초 단위·content-hash 무열화(ADR-026, 옛 logi-implement-fetcher LLM 요약 폐기). ITEM 수정 안 함 — read-only 다운로드.
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.0.3"
+  version: "1.1.0"
   domain: logicraft-orchestration
   triggers: 화면 키트, screen kit, 화면 다운로드, 화면 구현 준비, 화면 키트 동기화, SCREEN-NNN 키트, SCREEN-NNN 다운로드, 화면 로컬 다운, 화면 구현 준비해줘, logicraft 화면 로컬로 내려받아, screen-design 동기화, D001 화면 키트, D002 화면 다운로드
   role: orchestrator-readonly
@@ -39,13 +39,14 @@ Logicraft 특정 프로젝트의 화면(screen_spec)과 그 화면이 의존하�
 
 ## 핵심 원칙
 
-1. ✅ **ITEM 범위**: 화면 핵심 세트 고정 (`core-item-set.md` 공유 ITEM + 화면별 ITEM)
-2. ✅ **산출물**: 구현지향 요약(.md) + 원본 raw JSON(.json) **둘 다**
-3. ✅ **실행**: ITEM 타입별 `logi-implement-fetcher` 병렬 에이전트 (기존 에이전트 재사용)
-4. ✅ **버전 추적**: 각 ITEM 헤더에 `current_version` + `version-master.md` 마스터 + 재실행 시 NEW/CHANGED/UNCHANGED/RETIRED 판정
+1. ✅ **ITEM 범위**: 화면 핵심 세트 고정 (`core-item-set.md` 공유 ITEM + 화면별 ITEM). Phase 2 가 화면+의존 id 집합을 산출해 다운로더에 `--ids` 로 전달
+2. ✅ **산출물**: 서버 verbatim 스켈레톤(.md) + 원본 raw JSON(.json) **둘 다** (요약/의역 0 = 무열화)
+3. ✅ **실행**: **결정적 2-스크립트** — `bin/download-kit.mjs`(배치 export API-152, 무열화 전송) + `bin/arrange-screen-kit.mjs`(화면 중심 레이아웃·인덱스 정리, 네트워크 0). 옛 `logi-implement-fetcher`(LLM 요약)는 폐기·폴백용(ADR-026)
+4. ✅ **버전 추적**: 각 ITEM 헤더에 `current_version`·`content_hash` + `version-master.md` 마스터 + 재실행 시 NEW/CHANGED/UNCHANGED/RETIRED 판정(다운로더 델타 + run-report)
 5. ✅ **read-only**: logicraft 쓰기 도구 호출 금지. 로컬 파일만 생성/갱신
 6. ✅ **삭제 안 함**: RETIRED ITEM 도 `_retired/` 로 이동만, 물리 삭제 금지
-7. ✅ **ui_component 카탈로그 감지**: 0건이면 SCREENS.md 헤더에 경고 플래그 기록
+7. ✅ **ui_component 카탈로그 감지**: 0건이면 SCREENS.md 헤더에 경고 플래그 기록 (arranger 자동)
+8. ⚠️ **배포**: `publish_skill`/플러그인 배포 시 **소스 캐리어 `download-kit-src.md`·`arrange-screen-kit-src.md` 를 files[] 에 반드시 포함** — bin/ 이 없어도 Phase 3 가용성 게이트가 캐리어에서 재생성. 배치 export 엔드포인트(API-152)가 대상 서버에 배포돼 있어야 동작(미배포=404→exit 4→fetcher 폴백)
 
 ## 디렉터리 구조 (산출물)
 
@@ -181,8 +182,17 @@ list_items(type=implementation_guideline)      # GUIDE (applies_to_types 매칭�
 # 화면들의 required_roles 합집합 → ROLE 목록
 # 화면/API 의 uses_constant 링크 합집합 + 도메인 소속 CONST → CONST 목록
 
+# ★ 화면별 UC/AC/SD 수집 (다운로더 --ids 에 반드시 포함 — 다른 도메인일 수 있음):
+#   get_related(SCREEN, depth=2, direction="both") 로 화면당:
+#     - UC = 화면에 references/realizes 로 연결된 use_case
+#     - AC = 그 UC 들의 covered_by acceptance (depth-2 — AC 는 화면에 직접 안 붙음)
+#     - SD = 화면을 designs 하는 screen_design (고충실 디자인)
+#   (UC/AC 는 DOMAIN 경계를 넘을 수 있으므로 domain 스코프가 아니라 id 로 명시 수집)
+
 # 각 ITEM 의 id / type / current_version / last_updated_at / stale / change_summary / slug 수집
 # → current_catalog 완성
+# → ★ id_set = 위 전부의 id CSV (SCREEN + API + ROLE + CONST + GUIDE + UC + AC + SD + DS + UI + SHELL + NAV)
+#    = Phase 3 다운로더 --ids 인자. screen_ids = 피벗 SCREEN CSV = arranger --screens 인자.
 ```
 
 `ui_component` **0건 감지**:
@@ -214,20 +224,55 @@ list_items(type=implementation_guideline)      # GUIDE (applies_to_types 매칭�
 
 ---
 
-### Phase 3 — 타입별 병렬 fetcher (logi-implement-fetcher)
+### Phase 3 — 결정적 다운로드 + 정리(arrange) (LLM 0)  ★ ADR-026
 
-다운로드 필요 타입(NEW/CHANGED 가 1건 이상인 타입)별로 **한 메시지에 병렬 Agent**:
+옛 `logi-implement-fetcher`(LLM 요약, 30~40% 열화) 병렬 방식을 **결정적 2-스크립트**로 대체한다:
+1. **`bin/download-kit.mjs`** — 배치 export(API-152)로 원본 JSON + 서버 verbatim 스켈레톤 + content_hash + 그래프 links + **렌더 정적파일**(와이어프레임·SD 디자인, css self-contain)을 받아 **평평한 스테이징**(`<kit>/.staging/{type}/…`)에 기록. 델타(version/hash)로 변경분만.
+2. **`bin/arrange-screen-kit.mjs`** — 네트워크 0·순수 로컬. 스테이징을 **screen-implement 가 기대하는 화면 중심 레이아웃**(`screens/SCREEN-NNN/…` + `_shared/…`)으로 재배치하고, `SCREENS.md`·`version-master.md`·`_shared/ui-catalog.md`·`_shared/shell-nav.md`·`_shared/design-system.md` 를 결정적 합성. 본문은 verbatim(요약/변형 0 → 열화 원천 차단).
+
+**★ 가용성 게이트 (Phase 3 진입 시 먼저 판정)**:
+1. **스크립트 탐색 + (없으면) 재생성 문의**: `Glob("**/mc-logi-screen-kit/bin/download-kit.mjs")` 와 `Glob("**/mc-logi-screen-kit/bin/arrange-screen-kit.mjs")`.
+   - 둘 다 있으면 결정적 경로로 진행.
+   - 하나라도 없으면 `AskUserQuestion`: ① **지금 생성하고 결정적 다운로드로 진행 (권장)** — 빠르고 무열화 / ② **옛 fetcher 방식** — 느리고 30~40% 열화.
+     - **①(생성) 선택 시**: 없는 스크립트마다 `Glob("**/mc-logi-screen-kit/download-kit-src.md")`·`Glob("**/mc-logi-screen-kit/arrange-screen-kit-src.md")` → Read → 그 안의 ```js 코드블록 **전체를 한 글자도 바꾸지 말고** `<스킬 디렉터리>/bin/<파일>` 로 Write(부모 dir 생성) → `node --check` 로 문법 확인 → 정상이면 진행. (download-kit.mjs 는 `**/mc-logi-implement-kit/bin/download-kit.mjs` 에 있으면 그걸 써도 됨 — 동일 파일.)
+     - **②(옛 방식) 선택 시**: 이 Phase 아래 옛 fetcher 절차로 폴백.
+     - 캐리어마저 없으면 → 생성 불가 → 옛 fetcher 폴백 + "다운로더/arranger·소스 캐리어 미배포" 보고.
+2. **환경**: node 미가용 → 폴백. `LOGICRAFT_API_KEY`(lc_ 키, MCP 와 동일) 미설정 → 사용자에게 설정 요청. base 는 개발기 `LOGICRAFT_API_BASE`(기본 `http://localhost:14000/api`), 상용은 해당 서버.
+
+**실행** (Phase 2 에서 확정한 **화면+공유 의존 ITEM id 집합**을 `--ids` 로 전달 — 화면 집합만 정확히 받도록):
+
+```bash
+KIT=<cwd>/docs/screen-design/{slug}-{DOMAIN}
+IDS=<Phase2 가 산출한 id CSV: SCREEN들 + consumes_apis/required_roles/uses_constant + guideline + UC(references/realizes) + AC(UC covered_by, depth-2) + SD(designs) + DS + UI + SHELL + NAV>
+SCREENS=<피벗 SCREEN id CSV>
+
+# 1) 다운로드 → 평평한 스테이징 (+ run-report)
+LOGICRAFT_API_KEY=<lc_ 키> LOGICRAFT_API_BASE=<base> \
+  node <download-kit.mjs> --project <uuid> --out "$KIT/.staging" --ids "$IDS" --report "$KIT/.staging/.run-report.json"
+
+# 2) 정리(arrange) → 화면 키트 레이아웃 + 인덱스 (네트워크 0)
+node <arrange-screen-kit.mjs> --staging "$KIT/.staging" --out "$KIT" \
+  --report "$KIT/.staging/.run-report.json" --project <uuid> \
+  --domain <DOMAIN-NNN> --domain-name "<도메인명>" --slug <slug> --sync-session <n> --screens "$SCREENS"
+```
+
+**종료코드 분기** (다운로더): **0**=성공(이어서 arrange) · **4**=엔드포인트 미배포(구버전 서버, `/kit-export` 없음) → **옛 fetcher 폴백** · **2**=네트워크/인증 오류 → **사용자 보고 + 수정 요청**(자동 폴백 금지 — 고칠 설정 문제를 느린·열화 폴백으로 숨기지 말 것) · **1/3**=인자/무결성 오류 → stderr 확인. arranger 성공 출력은 `✅ arrange 완료 — 화면 N …`.
+
+- `--ids` 집합이 커도 다운로더가 40개씩 청크로 나눠 호출(414 회피). UNCHANGED 는 스테이징에 유지되어 재다운로드 skip.
+- 렌더 css: 와이어프레임의 공통 `/api/static/wireframe/wireframe.css` 는 다운로더가 self-contain(상대 `wireframe.css`)하고, SD 디자인 css_url 은 함께 받아 `design-{rid}.css` 로 arranger 가 상대화 → **오프라인 렌더 가능**.
+- `_no-wireframe.md`·`_sd-meta.md`·orphan 처리는 arranger 가 결정적 수행. UC/AC 는 screen→UC(직접)·screen→UC→AC(depth-2)로 화면 아래 중첩.
+
+> ⚠️ **옛 `logi-implement-fetcher`(LLM 요약) 방식은 폐기(ADR-026).** ITEM 본문 "요약"은 서버 결정적 스켈레톤이 대체(의역 0). 아래 fetcher 절차는 **다운로더/arranger 미배포·실패 시 폴백 참고용**으로만 남긴다. 폴백 사용 시 Phase 5 보고에 "⚠️ 다운로더 미가용 — fetcher 폴백(느리고 30~40% 열화)" 명시.
+
+---
+
+#### (폴백 참고) 옛 타입별 병렬 fetcher
+
+다운로드 필요 타입별로 **한 메시지에 병렬 Agent** (다운로더/arranger 미가용 시에만):
 
 ```python
 Agent(subagent_type="logi-implement-fetcher",
-      description="Fetch DOMAIN-002 screen_spec kit (SCREEN-011, SCREEN-012)",
-      prompt=<아래 호출 패턴>)
-Agent(subagent_type="logi-implement-fetcher",
-      description="Fetch DOMAIN-002 design_system kit", prompt=...)
-Agent(subagent_type="logi-implement-fetcher",
-      description="Fetch DOMAIN-002 ui_component catalog", prompt=...)
-Agent(subagent_type="logi-implement-fetcher",
-      description="Fetch DOMAIN-002 api_endpoint kit", prompt=...)
+      description="Fetch DOMAIN-002 screen_spec kit (SCREEN-011, SCREEN-012)", prompt=...)
 # ... 타입 수만큼 (상한 8 병렬, 초과 시 배치 분할)
 ```
 
@@ -305,9 +350,11 @@ fetcher 책무: ITEM 별 `get_item` → 원본 `_raw/<ID>.json` 저장 → 해�
 
 ---
 
-### Phase 4 — SCREENS.md + version-master.md + 산출물 작성 (메인)
+### Phase 4 — SCREENS.md + version-master.md + 산출물 (★ arranger 가 자동 생성)
 
-#### 4-1. version-master.md 작성/갱신 (`version-tracking.md` 포맷)
+> **결정적 경로에서는 `SCREENS.md`·`version-master.md`·`_shared/{ui-catalog,shell-nav,design-system}.md` 를 `arrange-screen-kit.mjs` 가 이미 생성한다** — 메인은 재작성하지 않고 **존재·건수만 검증**하고 Phase 5 로 보고한다. 아래 4-1/4-2 템플릿은 **arranger 산출 형식의 참고**이자 **폴백(옛 fetcher) 경로에서 메인이 직접 작성할 때의 규격**이다.
+
+#### 4-1. version-master.md 형식 (`version-tracking.md` 포맷 — 폴백 시 메인 작성)
 
 ```markdown
 # Version Master — {도메인명} ({DOMAIN-ID}) — 화면 키트
@@ -341,7 +388,7 @@ Changelog 는 **append-only** — 매 run 새 블록 추가, 기존은 "이전 C
 
 `ui-catalog.md` 버전 집약 규칙: 버전 표에는 각 UI-NNN 을 개별 행으로 기록하되 local file 은 모두 `_shared/ui-catalog.md`. 어느 한 UI-NNN 이라도 CHANGED/NEW 이면 카탈로그 전체 재생성.
 
-#### 4-2. SCREENS.md 작성/갱신 (바이브코딩 진입점)
+#### 4-2. SCREENS.md 형식 (바이브코딩 진입점 — arranger 자동 생성; 폴백 시 메인 작성)
 
 `mc-logi-implement-kit` 의 `IMPLEMENTATION.md` 에 대응하는 화면 키트 진입점.
 
