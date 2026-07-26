@@ -55,6 +55,10 @@
     {
       "name": "mc-logi-update",
       "source": "./plugins/mc-logi-update"
+    },
+    {
+      "name": "mc-logi-upload-kit",
+      "source": "./plugins/mc-logi-upload-kit"
     }
   ]
 }
