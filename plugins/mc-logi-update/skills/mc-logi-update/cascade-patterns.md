@@ -1,6 +1,11 @@
-# Cascade Patterns — MVP 8 타입
+# Cascade Patterns — 주요 타입 토폴로지
 
 logi-update-specialist가 STEP D 검증 + STEP F cascade 후보 분류 시 참조.
+
+> ★ **미등재 타입 기본 규칙**: 이 표에 없는 타입(서버에 타입이 계속 추가됨 — 진실원은
+> `get_item_schema(type)` 응답의 링크 정의)을 수정할 때는 ① `get_item_schema` 의
+> from/to 링크 목록과 `cascade_hint` 로 하류를 판정하고 ② `analyze_impact` 결과를 병행한다.
+> 표는 자주 다루는 타입의 캐시일 뿐 — 표에 없다고 "cascade 없음" 단정 금지.
 
 ## 토폴로지 의존 (선행 처리 우선순위)
 
@@ -9,14 +14,18 @@ logi-update-specialist가 STEP D 검증 + STEP F cascade 후보 분류 시 참�
 | 순위 | 타입 | 사유 |
 |---|---|---|
 | 1 | `adr` | 다른 ITEM이 description/brownfield.decided_by로 인용 |
-| 2 | `erd` | DFEAT.persists_in_tables / SCREEN sections 참조 |
+| 2 | `erd` | DFEAT.persists_in_tables / SCREEN sections / IAPI.operates_on / DP.reads_from·writes_to 참조 |
 | 3 | `api_endpoint` | DFEAT.implemented_by_endpoints / SEQ.invokes_apis / SCREEN.consumes_apis 참조 |
+| 3 | `service_interface` / `module_api` | **경계 계약 — api_endpoint 와 동급.** DFEAT 가 `implements` 로 실현(SVC·IAPI 수정 → 실현 DFEAT 재검토), MOD 가 implements/implemented_by. AC `verifies` 짝 |
+| 3 | `library_api` | 경계 계약. implemented_by MOD / verifies AC / uses_constant CONST |
 | 4 | `domain_feature` | UC / SCREEN backing |
 | 5 | `use_case` | SEQ.realizes_use_cases |
 | 6 | `diagram_sequence` | 잎 노드 (보통 더 이상 cascade 없음) |
 | 6 | `screen_spec` | 잎 노드 (단, NAV에 영향 시 5순위) |
-| 6 | `diagram_c4_component` / `class_diagram` | 잎 노드 — ★ `depicts_dfeats`(DFEAT 레벨)만 연결, 필드 변경 analyze_impact 미surface → **모델 대전환 시 수동 큐잉 필요**(아래 전용 섹션) |
+| 6 | `diagram_c4_component` / `class_diagram` | 잎 노드 — ★ `depicts_dfeats`(DFEAT 레벨)만 연결, 필드 변경·**범위 확장(신규 모듈/컴포넌트/클래스 추가)** 시 analyze_impact 미surface → **모델 대전환·범위 확장 시 수동 큐잉 필요**(아래 전용 섹션) |
 | 6 | `test_scenario` / `acceptance` | 잎 노드 — 검증 산출물. UC/SCREEN/REQ/NFR/API/ERD 의미 변경 시 steps/scenario stale → 약-link 라 **수동 큐잉**(아래 test_scenario 전용 섹션) |
+| 6 | `data_pipeline` | 잎에 가까움 — 하류는 emits EVT·implemented_by MOD 정도. 반대로 ERD/EXTSYS 변경 시 DP 의 reads_from/writes_to·stages 가 cascade 대상(하류)임에 주의 |
+| 6 | `permission_manifest` / `settings_schema` | 잎 노드 — 전용 링크 없음(범용 links 만). desktop 프로파일 산출물. FEAT(requested_by_features)·CONST(uses_constants) 변경 시 **수동 큐잉** |
 | 5 | `navigation_tree` | SCREEN route 변경 cascade |
 | 0 | `requirement` | ★ 상류(upstream). 도메인/DFEAT 의 부모 — 의미 변경 시 상류로 sync (아래 별도 섹션) |
 
@@ -25,10 +34,10 @@ logi-update-specialist가 STEP D 검증 + STEP F cascade 후보 분류 시 참�
 기존 cascade 는 **하류**(변경 ITEM → 의존 ITEM). 그러나 산출물은 `RFP(rfp_item) → requirement → domain/DFEAT/UC...` 파생 구조라,
 **도메인 기준으로 수정을 반복하면 부모 requirement 가 가장 stale** 해지는 역전이 발생한다 (Session 71 D004 실증: REQ-025/026 이 폐기 모델 잔존). 따라서 도메인 계층 ITEM 을 **의미 변경**할 때 부모 REQ 를 상류 cascade 후보로 함께 점검한다.
 
-### 트리거 (★ 과잉 방지 가드 — 의미 변경만)
+### 트리거 (★ 과익 방지 가드 — 의미 변경만)
 다음 **의미(모델·범위·계약) 변경** 시에만 부모 REQ 를 cascade 후보로 플래그:
 - DFEAT/domain 의 책임·모델·범위 재정의 (예 sample 매트릭스→ver 타임라인, mode 폐기, 책임 외부 위임)
-- ERD 의 테이블/컬럼 모델 대전환, 핵심 enum/식별자 변경
+- ERD 의 테이블/컴럼 모델 대전환, 핵심 enum/식별자 변경
 - ADR 대전환이 도메인 책임을 바꾼 경우
 
 다음은 **상류 트리거 안 함** (가드):
@@ -158,13 +167,13 @@ sections 변경 시 surface 별로 `upload_static_render` 재호출 필요 — �
 - 논리(한글)·물리(영문) 페어 항상 동시 갱신
 - tables[N] remove op 작동 (index 기반)
 - tables[name=foo].columns[name=bar] path-by-key 작동
-- columns[].description 모든 컬럼 필수
+- columns[].description 모든 컴럼 필수
 - DBMS별: PostgreSQL은 bigserial/jsonb/timestamptz/PostGIS+GIST 등
 
 **cascade 후보**
 - DFEAT.persists_in_tables 인용 ITEM (텍스트 매칭이라 grep 필요)
-- API request_body/responses에 컬럼명 인용
-- SCREEN sections에 컬럼명 인용 (KeyValue label 등)
+- API request_body/responses에 컴럼명 인용
+- SCREEN sections에 컴럼명 인용 (KeyValue label 등)
 
 **페어 처리**: ERD-021(논리)/ERD-022(물리) 등 페어 ID는 항상 한 라운드에 둘 다 큐 추가
 
@@ -229,10 +238,13 @@ sections 변경 시 surface 별로 `upload_static_render` 재호출 필요 — �
 ### diagram_c4_component (CMP-XXX) / class_diagram (CDIAG-XXX) — ★ 정형 cascade 종착 + 본문 수동 refresh
 
 **문제 (D002 CMP-002 실증)**: C4 컴포넌트(CMP)·클래스(CDIAG) 다이어그램은 도메인/DFEAT 에 `depicts_dfeats`(DFEAT 레벨) 로만 연결된다. ADR/ERD/API 의 **필드 레벨 모델 변경**(ADR-078 배치/썸네일 제거, ADR-055 push 전환, ADR-075 식별자 변경, cron→push 등)은 `depicts_dfeats` 가 그대로 활성 DFEAT 를 가리키면 link 무변 → **analyze_impact 에 CMP/CDIAG 를 dependent 로 안 띄운다**. 그래서 C4/CDIAG 는 cascade 에서 자동 누락되어 **본문(components[].description·classes[].description·relationships)이 구 모델로 표류**한다 (CMP-002 = ADR-078/055/075/278 누적 미반영 → batches·썸네일·8:30 cron·API-009/010 잔재).
+
+> **★ 2차 실증 (ADR-081 D004, 2026-06-12) — 범위 확장(scope-expand)도 동일 사각지대**: ADR-081(데이터마트 배포 3종, `change_kind=[scope-expand, new-policy]`)은 신규 클래스 6개·신규 모듈 3개를 **추가**했는데, ADR-081 의 `analyze_impact` backward dependents = MOD/NAV/REQ/FEAT 뿐 **C4 없음**(시드에서 도달 불가). 같은 cascade 에서 CDIAG-004(클래스=데이터 모델 자체라 자명)·SEQ·SCREEN·AC·UC 는 전부 갱신됐으나 **CMP-003 만 누락**됐다(v9 잔존). 원인: (a) 시드 ADR 가 C4 미surface (b) **수동 큐잉 트리거 키워드에 `scope-expand` 부재** → 안전장치 미발동 (c) CMP 는 `backward=[]` 진짜 leaf 라 누락이 하류에 안 보임(컴포넌트 설계서 동기화에서야 발각). ★ 단 **수정된 DFEAT(DFEAT-068, deploy_type 추가) 의 `analyze_impact` 는 CMP-003 을 depicts·notify_strong 으로 정상 surface** → 시드가 아니라 **변경 DFEAT 를 기점으로 점검하면 잡힌다**(아래 필수 규칙 2 참조).
 > ★★ **mc-logi-domain-review 의 diagram 차원(DIAG-001~004)도 못 잡는다** — 그건 depicts 레벨(활성 DFEAT 를 그리나)만 보므로 depicts 정상·본문 구모델이면 통과. (DIAG-005 본문-구모델 신설로 검출 보강됨.)
 
 **필수 — 메인/specialist 책임**
-- **도메인 모델 대전환 ADR 를 cascade 할 때는 해당 도메인의 CMP·CDIAG 를 cascade 후보로 수동 큐잉**한다 (analyze_impact 가 안 띄워도). 트리거 = 처리 ADR/ITEM 의 `change_kind` 에 `model-change`/`data-model-redesign`/`semantic-redefinition` 포함, 또는 ERD 테이블/컬럼 대전환·API path/계약 재정의·식별자 변경·컴포넌트 책임 이동·엔티티 폐기.
+- **(규칙 1) 도메인 모델 대전환·범위 확장 ADR 를 cascade 할 때는 해당 도메인의 CMP·CDIAG 를 cascade 후보로 수동 큐잉**한다 (analyze_impact 가 안 띄워도). 트리거 = 처리 ADR/ITEM 의 `change_kind` 에 `model-change`/`data-model-redesign`/`semantic-redefinition`/**`scope-expand`/`scope-shift`/`new-policy`** 포함, 또는 ERD 테이블/컴럼 대전환·API path/계약 재정의·식별자 변경·컴포넌트 책임 이동·엔티티 폐기·**신규 모듈/컴포넌트/엔티티·클래스 추가(범위 확장)**. ★ ADR-081 실증: `scope-expand`(신규 모듈 추가)도 반드시 포함 — "기존 모델 재설계"만이 아니라 "범위 확장"도 C4 본문 갱신이 필요하다.
+- **(규칙 2 — ★ 신설, 가장 확실) 변경된 DFEAT 를 기점으로 C4 를 잡아라**: ADR/ERD/API 시드의 `analyze_impact` 는 C4 를 미surface 하지만, **수정된 DFEAT 의 `analyze_impact(DFEAT-XXX)` 는 그 DFEAT 를 `depicts` 하는 CMP/CDIAG 를 hop1 backward(notify_strong)로 정상 surface 한다**(ADR-081 실증: DFEAT-068 → CMP-003 정상 노출). 따라서 cascade 라운드에서 **DFEAT 를 처리·수정할 때마다 `analyze_impact(그 DFEAT)` 의 backward dependents 중 `diagram_c4_component`/`class_diagram` 타입을 빠짐없이 큐에 추가**한다. 신규 DFEAT(077/078 류)면 그걸 depicts 할 CMP/CDIAG 가 아직 없으므로 규칙 1(도메인 CMP/CDIAG 수동 큐잉)로 커버. → 규칙 1(도메인 단위 안전망) + 규칙 2(변경 DFEAT 기점 정밀 포착) **이중 가드**.
 - C4/CDIAG 처리 = **본문 전면 대조**: components/classes 의 description·name 이 (a) 폐기 테이블/엔티티 (b) deprecated API id (c) 구 식별자/계약 (d) superseded ADR 인용 을 참조하면 현행 모델로 재작성. **depicts_dfeats 가 활성 DFEAT 정상이어도 본문이 구 모델이면 갱신 대상.**
 - ★ **부분 수정 금지** — 한 다이어그램에서 일부(예: heatmap)만 고치고 batches/썸네일 잔재를 두면 또 표류(CMP-002 1차 부분수정 → 재지적 실증). `update_item` patch op set 으로 `components`/`relationships`/`external_dependencies`/`description` 통째 현행화.
 - 구현 상태 알면 `components[].implementation.status` (implemented/planned) 도 반영.
@@ -255,8 +267,8 @@ sections 변경 시 surface 별로 `upload_static_render` 재호출 필요 — �
 - SCREEN sections/route 변경 → `exercises_screens`·`steps[].screen_ref` 가진 TEST stale.
 - API path/계약 재정의 → `related_apis` 가진 TEST steps stale.
 - REQ/NFR 의미 변경 → `verifies_requirements`/`verifies_nfrs` 가진 system TEST stale.
-- ERD 테이블/컬럼 대전환 → `steps.input_data/expected` 가 그 데이터 인용 시 stale.
-> ★ test_scenario 의 위 link 는 cascade_hint 가 약하거나(notify_weak/없음) project-level 이라 **analyze_impact 에 backward 로 안 뜰 수 있다**(C4 와 유사 사각지대). UC/SCREEN/API/REQ/NFR/ERD 를 **의미 변경**할 때는 `list_items(type=test_scenario)` 로 covers/exercises/verifies/related 교차해 후보를 수동 점검.
+- ERD 테이블/컴럼 대전환 → `steps.input_data/expected` 가 그 데이터 인용 시 stale.
+> ★ test_scenario 의 위 link 는 cascade_hint 가 약하거나(notify_weak/없음) project-level 이라 **analyze_impact 에 backward 로 안 뜸 수 있다**(C4 와 유사 사각지대). UC/SCREEN/API/REQ/NFR/ERD 를 **의미 변경**할 때는 `list_items(type=test_scenario)` 로 covers/exercises/verifies/related 교차해 후보를 수동 점검.
 
 **cascade 후보**: 종착(하류 없음).
 **auto_propagate**: trivial(명칭·stale-ack·field-count)=false 무시 / **의미 변경**(흐름·화면·계약·데이터)=true 자동 큐잉. `steps` 재작성은 시험 내용이라 specialist + Phase 5 보고에 명시(시험 산출물 변경은 사용자 가시화). ※ AC(acceptance) 도 동일 패턴 — use_case 섹션 cascade 후보 + 본 원칙 적용.

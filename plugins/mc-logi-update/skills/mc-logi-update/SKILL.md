@@ -4,7 +4,7 @@ description: Logicraft ITEM 수정을 가이드대로 정확히 수행하고 cas
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.3.0"
+  version: "1.4.0"
   domain: logicraft-orchestration
   triggers: logicraft 수정, logicraft cascade, ITEM 수정, ITEM 정합, SEQ 수정, DFEAT 수정, API 정합, SCREEN 수정, ERD 정합, ADR 추가, cascade 처리, 영향 추적
   role: orchestrator
@@ -34,9 +34,9 @@ Logicraft ITEM 수정을 가이드대로 정확히 수행하고 cascade 영향�
 
 ## 핵심 원칙 (사용자 결정 반영)
 
-1. **단일 specialist 에이전트 + item_type 파라미터** — 35 타입을 한 에이전트가 schema 동적 로드로 처리
+1. **단일 specialist 에이전트 + item_type 파라미터** — 전 타입(서버 진실원 `ITEM_TYPES`, 계속 늘어남 — 2026-08 기준 57종)을 한 에이전트가 `get_item_schema` 동적 로드로 처리. **타입 목록을 스킬에 하드코딩하지 않는다**
 2. **batch 모드 기본** — 자동 진행. 라운드별 사용자 승인 생략
-3. **MVP 8 타입**: api_endpoint, screen_spec, diagram_sequence, use_case, domain_feature, erd, adr, navigation_tree
+3. **cascade 토폴로지 캐시**: 자주 다루는 타입은 `cascade-patterns.md` 표 참조(경계 계약 SVC/IAPI/LIB 포함). **표에 없는 타입은 `get_item_schema` 링크 정의 + `analyze_impact` 로 판정**(표 부재 ≠ cascade 없음)
 4. **자동 추정 후 보고** — brownfield 메타·외부 식별자는 specialist가 자동 추정, 실패 항목만 종료 시 보고
 5. **종료 시 메모리 저장 문의** — 작업 완료 후 사용자에게 메모리 저장 여부 확인
 
