@@ -116,7 +116,7 @@ Phase 5  추적           IMPREC 기록 + 키트 현황 갱신 + mc-logi-update 
    - 기본 동작: screen_spec 을 이번 구현 범위에서 **제외**(빌드 순서·플랜 태스크에 화면 빌드 미포함).
      남은 백엔드/도메인 ITEM(경계 계약 4종 api_endpoint·service_interface·module_api·library_api ·
      erd·domain_event·data_pipeline·service·nfr·permission_manifest·settings_schema 등)만 대상으로 진행.
-   - 사용자가 "화면도 여기서" 라고 **명시**한 경우에만 화면을 포함(그때 씨 screen-implement 와 중복되지
+   - 사용자가 "화면도 여기서" 라고 **명시**한 경우에만 화면을 포함(그땐 screen-implement 와 중복되지
      않도록 어느 경로가 소유하는지 확정).
    - 화면이 screen-implement 로 이미 구현됐으면(IMPREC/coverage 로 확인) 그 사실을 보고에 반영.
 
@@ -128,7 +128,7 @@ Phase 5  추적           IMPREC 기록 + 키트 현황 갱신 + mc-logi-update 
   테스트 인프라 유무). 키트의 "보존 영역·기존 모듈(code_module 요약)"과 실코드를 매칭해
   **위임 지점**(재사용할 기존 클래스)을 확인한다 — 키트는 설계를 말하고, 코드의 현재 모습은
   레포가 말한다. 둘이 다르면 그 자체가 스펙에 기록할 발견이다.
-- **질문 후보**: 키트가 미확정으로 표기한 것들이 곳 사용자 결정 사항이다 — 예: spec-pending
+- **질문 후보**: 키트가 미확정으로 표기한 것들이 곧 사용자 결정 사항이다 — 예: spec-pending
   외부 연동(stub 로 갈지/제외할지), 마이그레이션 적용 방식, 테스트 수준, 구현 범위(영역 전체 vs 단계).
   키트가 이미 답을 가진 것(빌드 순서, 제약)은 묻지 않는다.
 - **스펙 작성 규칙**: 모든 요구·제약·불변 규칙에 **키트 ITEM ID 와 파일 경로를 인용**한다
@@ -162,7 +162,7 @@ Phase 5  추적           IMPREC 기록 + 키트 현황 갱신 + mc-logi-update 
   스펙의 관련 불변 규칙(키트 인용 포함). 구현자가 "왜"를 키트에서 확인할 수 있게 한다.
 - **★ traceability 태그 지시 (원칙 7)**: 구현자에게 각 태스크가 실현하는 키트 ITEM ID 를 코드
   **주 seam** 에 `@design <ITEM-IDs>` (Javadoc, 콤마 구분) 로 심도록 지시한다. 태스크의 키트 참조
-  (플랜 Files 옆 ITEM 경로)가 곷 태그할 ID 다 — 컨트롤러 메서드=API, 서비스=DFEAT/UC, 엔티티/필드=ERD/CONST.
+  (플랜 Files 옆 ITEM 경로)가 곧 태그할 ID 다 — 컨트롤러 메서드=API, 서비스=DFEAT/UC, 엔티티/필드=ERD/CONST.
   헬퍼·getter 은 제외. (팀이 `@DesignRef` 어노테이션을 채택했으면 그 형식으로 — 이때 **원칙 7 의 타입
   부트스트랩**: 코드에 달기 전 `@interface DesignRef` 존재 확인, 없으면 canonical 정의로 1회 생성.)
 - **리뷰어 프롬프트에 포함할 것**: 스펙 리뷰어에게는 키트 계약(API .md 의 계약 표, AC 의
