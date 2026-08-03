@@ -1,8 +1,8 @@
 ---
 name: mc-logi-brainstorming
-description: 대화형 브레인스토밍으로 시나리오를 발굴해 흐름으로 정리하고, mc-logi-scene-sketch로 등록한 뒤, 기존 logicraft ITEM과 대조해 필요 산출물(ADR/ERD/API/SCREEN/UC/domain_event/NFR/migration/integration/infra/AI 6종)을 Gap 책정하는 얇은 오케스트레이터 스킬. 사용자가 "시나리오 발굴하고 산출물 책정해줘" / "브레인스토밍해서 로지크래프트 책정까지" / "/mc-logi-brainstorming" 호출 시 트리거. 산출물 책정은 조회+리포트만 (AI 임의 등록 안 함).
+description: 대화형 브레인스토밍으로 시나리오를 발굴해 흐름으로 정리하고, mc-logi-scene-sketch로 등록한 뒤, 기존 logicraft ITEM과 대조해 필요 산출물(ADR/ERD/경계 계약 4종 API·SVC·IAPI·LIB/SCREEN/UC/domain_event/NFR/migration/integration/infra/data_pipeline/desktop PMAN·SETT/AI 6종)을 Gap 책정하는 얇은 오케스트레이터 스킬. 사용자가 "시나리오 발굴하고 산출물 책정해줘" / "브레인스토밍해서 로지크래프트 책정까지" / "/mc-logi-brainstorming" 호출 시 트리거. 산출물 책정은 조회+리포트만 (AI 임의 등록 안 함).
 metadata:
-  version: 0.1.0
+  version: 0.2.0
   author: mc.claude.dev@gmail.com
   category: logicraft
 ---
