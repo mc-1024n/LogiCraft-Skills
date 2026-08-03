@@ -268,8 +268,8 @@ fetcher 책무: ITEM 별 `get_item` → 원본 `_raw/<ID>.json` 저장 → 타�
      감지됐고 사용자가 "없이 진행" 을 선택한 경우, 문서 최상단에 경고 블록을 박는다:
      `> ⚠️ **이 키트에는 DFEAT(비즈니스 로직 진실원)가 없습니다.** 구현 로직은 API/ERD 계약에서만 유추되므로
      설계 이탈 위험이 있습니다. DFEAT 설계 후 재동기화를 권장합니다.` — DFEAT 가 정상 존재하면 이 블록 생략.
-   - **빌드 순서** (`core-item-set.md` 의 build order: ADR/NFR/CONST/GUIDE → ERD → EVT → 경계 계약(API/SVC/IAPI/LIB) → DFEAT(+DP) → SEQ → ROLE → SCREEN → UC/AC)
-   - **의존 그래프**: DFEAT ↔ 경계 계약 ↔ ERD ↔ EVT ↔ SCREEN 링크 맵 (get_related 결과 기반)
+   - **빌드 순서** (`core-item-set.md` 의 build order: ADR/NFR/CONST/GUIDE → ERD → EVT → API → DFEAT → SEQ → ROLE → SCREEN → UC/AC)
+   - **의존 그래프**: DFEAT ↔ API ↔ ERD ↔ EVT ↔ SCREEN 링크 맵 (get_related 결과 기반)
      · `uses_constant`(API/SCREEN/ERD/DFEAT → CONST) 링크도 포함 — 어느 설계가 어느 상수를 쓰는지
    - **구속 제약 요약**: 적용 ADR 결정 / NFR 예산 / GUIDE 코딩 규칙
    - **★ 상수 값 표 (CONST 전수 — 매직넘버 단일 진실원)**: 도메인 소속 전 CONST 를 **실제 값과 함께** 한 표에 집계. 구현자가 enum/range/default/임계치/토큰을 추정·하드코딩하지 않고 여기서 lookup.
