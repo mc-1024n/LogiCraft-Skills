@@ -4,7 +4,7 @@ description: Logicraft 특정 프로젝트의 특정 도메인을 로컬에서 �
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.4.0"
+  version: "1.5.0"
   domain: logicraft-orchestration
   triggers: 구현 키트, implement kit, 도메인 다운로드, 구현 준비, 구현 키트 동기화, 버전 동기화, D001 구현 키트, D002 다운로드, DOMAIN-XXX 구현 준비, logicraft 로컬 다운, 바이브코딩 준비, spec 다운로드
   role: orchestrator-readonly
@@ -59,6 +59,7 @@ Logicraft 특정 프로젝트의 특정 도메인을, **로컬에서 바이브�
 │   └── _raw/API-273.json
 ├── erd/  diagram_sequence/  screen_spec/  use_case/
 ├── domain_event/  acceptance/  permission_role/  constant/
+├── service_interface/  module_api/  library_api/  data_pipeline/   (경계 계약·파이프라인 — 존재 시)
 ├── adr/  nfr/  implementation_guideline/  feature/
 │                                 (code_module 은 다운로드 안 함 — core-item-set.md 제외 규칙)
 ├── (조건부) class_diagram/ diagram_state/ integration_point/ external_system/ ...
@@ -194,10 +195,15 @@ LOGICRAFT_API_KEY=<lc_ 키 — MCP 와 동일한 그 키> \
 LOGICRAFT_API_BASE=http://localhost:14000/api \
 node <download-kit.mjs> \
   --project <project_id> --out docs/design/{slug}-{DOMAIN-ID} \
-  [--domain DOMAIN-NNN] [--types adr,domain_feature,api_endpoint,...] [--dry-run]
+  [--domain DOMAIN-NNN] [--exclude-types code_module,rfp_item,...] [--dry-run]
 ```
 - **api-key**: MCP 와 동일한 `LOGICRAFT_API_KEY`(lc_) env. 개발기는 `logicraft-dev`(:14000), base 는 `LOGICRAFT_API_BASE`(기본 `http://localhost:14000/api`).
-- **--types**: `core-item-set.md` Tier 1~3 규칙으로 확정한 타입 CSV(생략 시 도메인 전체 타입). code_module 제외 등 Tier 규칙은 --types 로 반영.
+- **★ 타입 선택 — `--exclude-types` 방식이 기본(권장)**: `--types`(포함 목록)를 **생략**하고
+  `core-item-set.md` 의 "제외" 목록만 `--exclude-types` CSV 로 전달한다 → "도메인 전체 − 제외" 를 받아
+  **서버에 ITEM 타입이 새로 추가되어도 키트에 자동 포함**(fail-open — 2026-08 신규 6종 누락 재발 방지).
+  Tier 3 조건 미충족 타입(예: 웹 프로파일에서 permission_manifest)은 서버에 해당 ITEM 이 없으면 자연히 0건이라
+  별도 제외가 필요 없다 — 제외 목록에는 "항상 구현 무관"인 타입만 넣는다.
+- **--types**(포함 목록)는 특정 타입만 부분 재동기화할 때만 사용 — 이 방식은 신규 타입이 자동 포함되지 않음.
 - **--domain**: 도메인 스코프. **--out**: 키트 루트.
 - **델타·RETIRED·무결성**: 재실행 시 변경분만, UNCHANGED skip, 서버에서 사라진 것은 `_retired/` 이동. 쓰기 후 read-back 바이트 검증(무열화).
 - 출력이 `📊 … 변경 N` + `✅ SYNC 완료` 이면 성공. 오류 시 종료코드(1 인자/2 HTTP·인증/3 무결성)·stderr 확인.
@@ -262,8 +268,8 @@ fetcher 책무: ITEM 별 `get_item` → 원본 `_raw/<ID>.json` 저장 → 타�
      감지됐고 사용자가 "없이 진행" 을 선택한 경우, 문서 최상단에 경고 블록을 박는다:
      `> ⚠️ **이 키트에는 DFEAT(비즈니스 로직 진실원)가 없습니다.** 구현 로직은 API/ERD 계약에서만 유추되므로
      설계 이탈 위험이 있습니다. DFEAT 설계 후 재동기화를 권장합니다.` — DFEAT 가 정상 존재하면 이 블록 생략.
-   - **빌드 순서** (`core-item-set.md` 의 build order: ADR/NFR/CONST/GUIDE → ERD → EVT → API → DFEAT → SEQ → ROLE → SCREEN → UC/AC)
-   - **의존 그래프**: DFEAT ↔ API ↔ ERD ↔ EVT ↔ SCREEN 링크 맵 (get_related 결과 기반)
+   - **빌드 순서** (`core-item-set.md` 의 build order: ADR/NFR/CONST/GUIDE → ERD → EVT → 경계 계약(API/SVC/IAPI/LIB) → DFEAT(+DP) → SEQ → ROLE → SCREEN → UC/AC)
+   - **의존 그래프**: DFEAT ↔ 경계 계약 ↔ ERD ↔ EVT ↔ SCREEN 링크 맵 (get_related 결과 기반)
      · `uses_constant`(API/SCREEN/ERD/DFEAT → CONST) 링크도 포함 — 어느 설계가 어느 상수를 쓰는지
    - **구속 제약 요약**: 적용 ADR 결정 / NFR 예산 / GUIDE 코딩 규칙
    - **★ 상수 값 표 (CONST 전수 — 매직넘버 단일 진실원)**: 도메인 소속 전 CONST 를 **실제 값과 함께** 한 표에 집계. 구현자가 enum/range/default/임계치/토큰을 추정·하드코딩하지 않고 여기서 lookup.

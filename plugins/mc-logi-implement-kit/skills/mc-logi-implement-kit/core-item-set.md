@@ -1,7 +1,13 @@
-# core-item-set.md — 구현 핵심 세트 (고정) + 빌드 순서
+# core-item-set.md — 구현 핵심 세트 + 빌드 순서
 
-logicraft 35 타입 중 **코드로 구현되는** 타입만 결정 규칙으로 다운로드한다.
-사용자 결정: "구현 핵심 세트 고정". Tier 규칙은 결정적(deterministic) — 매 실행 동일.
+logicraft ITEM 타입(**서버 진실원 = `packages/schemas` `ITEM_TYPES`, 2026-08 기준 57종 — 계속 늘어남**) 중
+**코드로 구현되는** 타입만 결정 규칙으로 다운로드한다. Tier 규칙은 결정적(deterministic) — 매 실행 동일.
+
+> ★ **신규 타입 기본 정책 (fail-open)**: 이 문서의 Tier 표에 **없는 미지의 타입**을 서버가 반환하면
+> "제외"가 아니라 **"포함"이 기본**이다 — 다운로더를 `--types`(포함 목록) 대신
+> **`--exclude-types`(아래 제외 목록 CSV)** 로 호출하면 서버에 타입이 새로 추가되어도 키트에 자동 포함된다.
+> 설계에 존재하는데 키트에 안 내려와 구현이 설계를 못 보는 사고(2026-08 신규 6종 누락 사례)를 막는 구조.
+> 미지의 타입을 발견하면 보고에 "⚠️ Tier 미분류 신규 타입 N종 포함됨 — core-item-set.md 갱신 권장" 을 남긴다.
 
 ## Tier 1 — 항상 다운로드 (구현 본체)
 
@@ -17,6 +23,10 @@ logicraft 35 타입 중 **코드로 구현되는** 타입만 결정 규칙으로
 | `domain_event` | EVT | 이벤트 계약 (payload/emitter/consumer) |
 | `acceptance` | AC | 수용 기준 = 테스트 케이스 근거 |
 | `permission_role` | ROLE | 역할-권한 매트릭스 = authz 코드 |
+| `service_interface` | SVC | **비-HTTP 서비스 계약**(MCP 도구·CLI·데몬 등) — api_endpoint 와 동급 경계 계약. core capability(프로파일 무관 항상 노출, ADR-016) |
+| `module_api` | IAPI | **in-process 앱 모듈 공개 API** — local-first(모바일/데스크톱) 앱의 4번째 경계 타입. DFEAT 가 implements 로 실현, persists_in 으로 ERD 연결 |
+| `library_api` | LIB | **라이브러리 공개 API** 계약(함수/클래스 시그니처) — 라이브러리성 코드의 경계. core capability(ADR-017) |
+| `data_pipeline` | DP | **배치/파이프라인** — reads_from/writes_to(ERD·EXTSYS)·emits(EVT)·implemented_by(MOD). 도메인에 없으면 0건으로 무해 |
 | `constant` | CONST | 코드/설정에 박을 실제 상수값. 설계 ITEM(API/SCREEN/ERD/DFEAT)이 `uses_constant` 로 참조 → 역참조를 따라 "이 API/화면 구현 시 박을 enum/range/default/임계치"를 코드에 정확히 반영. enum/range 는 인라인 중복 말고 CONST 단일 진실원 사용 |
 
 ## Tier 2 — 항상 다운로드 (구속 제약·기존 구현 컨텍스트)
@@ -49,6 +59,7 @@ logicraft 35 타입 중 **코드로 구현되는** 타입만 결정 규칙으로
 | `ui_component` / `design_system` | SCREEN 이 3건 이상이고 design_system/ui_component 링크 존재 시 |
 | `diagram_c4_container` / `diagram_c4_component` | 도메인 전용 C4 컨테이너/컴포넌트 다이어그램 링크 존재 시 |
 | `migration_plan` | 도메인 ERD 가 brownfield migration 대상일 때 (brownfield_migration 링크) |
+| `permission_manifest` / `settings_schema` | **프로젝트 프로파일이 desktop**(capability `desktop_ui`)일 때 (ADR-021 — OS 권한 매니페스트·환경설정 스키마). 프로파일은 프로젝트 profile/capabilities 로 판정(`packages/schemas` profiles.ts 매핑이 진실원) — 웹 전용 프로젝트면 자동 0건 |
 
 ### 제외 (구현 무관 — 다운로드 안 함)
 `code_module`(★ **이미 구현된** 코드 모듈의 역참조 매핑(file_path→설계) — **구현의 입력 스펙이 아니라 구현 결과의 사후 추적 문서**다. 무엇을 구현할지는 DFEAT/API/ERD 로 충분하고, 코드↔설계 접합은 소스의 `@DesignRef` 코드주석이 담당하므로 키트에 불필요. 매 SYNC 마다 대량 신규로 떠서 노이즈만 됨),
@@ -69,13 +80,20 @@ logicraft 35 타입 중 **코드로 구현되는** 타입만 결정 규칙으로
                     "이 단계에서 코드에 박을 실제 상수값"을 CONST 에서 확인 (인라인 추정 금지)
 1. 데이터 계층     ERD(물리)  → 마이그레이션/스키마/엔티티
 2. 이벤트 계약     EVT        → 이벤트 페이로드 타입/발행·구독 인터페이스
-3. API 계약       API        → 컨트롤러 시그니처/DTO/에러 응답
-4. 비즈니스 로직   DFEAT      → 서비스 계층 (API·EVT·테이블 오케스트레이션)
+3. 경계 계약       API + SVC + IAPI + LIB
+                  → REST 는 컨트롤러 시그니처/DTO/에러 응답 (API)
+                  → 비-HTTP 서비스(MCP 도구·CLI)는 SVC 계약의 request/response_schema
+                  → in-process 모듈 공개 API 는 IAPI 시그니처 (owner_module·language 명시)
+                  → 라이브러리 공개 API 는 LIB 시그니처
+                  ※ 프로젝트 성격에 따라 넷 중 존재하는 것만 — 전부 "외부에서 호출되는 계약" 동급
+4. 비즈니스 로직   DFEAT      → 서비스 계층 (경계 계약·EVT·테이블 오케스트레이션)
+                  + DP        → 배치/파이프라인 구현 (reads/writes 테이블·외부시스템, 존재 시)
 5. 흐름 배선       SEQ        → DFEAT 내부 호출 순서·외부 연동 와이어링
 6. 인가 계층       ROLE       → 엔드포인트/리소스 권한 가드
 7. 화면           SCREEN     → 컴포넌트 + consumes_apis 바인딩
 8. 검증           UC + AC    → 통합 테스트·수용 테스트
-조건부: INT/EXTSYS(외부 연동 어댑터), class_diagram(클래스 구조), AI 거버넌스
+조건부: INT/EXTSYS(외부 연동 어댑터), class_diagram(클래스 구조), AI 거버넌스,
+        PMAN/SETT(desktop 프로파일 — OS 권한 매니페스트·설정 스키마는 화면(7) 전에 셸/부트스트랩 단계에서)
 참고: 구현 현황표(어디부터 — get_implementation_coverage / list_unimplemented)
       · code_module(MOD)은 키트에 다운로드하지 않는다(구현 결과 추적 문서 — 위 제외 규칙).
         기구현 재사용 범위 판단은 구현 현황표와 소스의 @DesignRef 태그로 확인
@@ -85,6 +103,10 @@ logicraft 35 타입 중 **코드로 구현되는** 타입만 결정 규칙으로
 
 `get_related(DOMAIN-XXX, depth=2, both)` 결과에서 다음 링크를 추출해 표/머메이드로:
 - DFEAT `--implemented_by_endpoints-->` API
+- DFEAT `--implements-->` SVC / IAPI (비-HTTP·in-process 경계 계약의 실현 — 존재 시)
+- SVC/IAPI/LIB `--implements-->` FEAT, `--verifies-->` AC, `--uses_constant-->` CONST (경계 계약 공통)
+- IAPI `--persists_in-->` ERD, SVC/IAPI `--triggers-->` EVT
+- DP `--reads_from/writes_to-->` ERD·EXTSYS, DP `--emits-->` EVT (파이프라인 존재 시)
 - DFEAT `--triggers-->` EVT, DFEAT `--consumes-->` EVT
 - DFEAT `--persists_in_tables-->` ERD(물리 테이블)
 - API `--realized_by-->` SEQ

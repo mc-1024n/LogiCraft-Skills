@@ -1,8 +1,8 @@
 {
   "name": "mc-logi-implement-kit",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "Logicraft 특정 프로젝트의 특정 도메인을 로컬에서 바이브코딩으로 구현할 수 있도록 구현 핵심 ITEM 세트를 ./docs/design/{도메인}-{ID}/{타입}/{ITEM} 구조로 다운로드+구현지향 요약하고, 각 ITEM 상단에 logicraft current_version 을 박아 재실행 시 버전 차이를 감지·표기·갱신하는 구현 준비 스킬. 사용자가 \"D002 구현 키트 만들어줘\", \"DOMAIN-002 다운받아 구현 준비해줘\", \"logicraft 도메인 로컬로 내려받아줘\", \"구현 키트 동기화해줘\" 등을 요청할 때 실행. 결정적 다운로더(bin/download-kit.mjs)가 배치 export(API-152)를 호출해 서버 verbatim 스켈레톤 + 원본 JSON 을 받아 기록 — LLM 0·초 단위·content-hash 무열화(ADR-026, 옛 logi-implement-fetcher LLM 요약 폐기). ITEM 수정 안 함 — read-only 다운로드.",
-  "summary": "Logicraft 도메인 구현 핵심 ITEM 세트를 결정적 다운로더(배치 export API-152)로 무열화 다운로드 — LLM 0·초 단위·content-hash 검증. 서버 verbatim 스켈레톤 + 원본 JSON + links + version-master. 옛 LLM 요약(fetcher) 폐기·폴백. read-only.",
+  "summary": "Logicraft 도메인 구현 핵심 ITEM 세트를 결정적 다운로더(배치 export API-152)로 무열화 다운로드 — LLM 0·초 단위·content-hash 검증. --exclude-types fail-open으로 신규 타입 자동 포함. 경계 계약 4종(API/SVC/IAPI/LIB)·DP·desktop PMAN/SETT 지원. read-only.",
   "category": "feature_impl",
   "author": {
     "name": "노명철"
@@ -11,7 +11,7 @@
   "logicraft": {
     "publisher_user_id": "4b805dc4-6d13-42c5-9710-f5a34bf2e73e",
     "publisher_email": "mc_1024@cudo.co.kr",
-    "published_at": "2026-07-24T11:23:28.000Z",
+    "published_at": "2026-08-03T11:14:03.927Z",
     "source": "mcp"
   }
 }
