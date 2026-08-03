@@ -4,7 +4,7 @@ description: mc-logi-implement-kit 이 만든 로컬 구현 키트(./docs/design
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.2.1"
+  version: "1.3.0"
   domain: logicraft-orchestration
   triggers: 키트 구현, 도메인 구현, 구현해줘, 키트대로 구현, 구현 계획, 구현 시작, D001 구현, DOMAIN-XXX 구현, 스펙 플랜 구현, 구현 추적, implement
   role: orchestrator
@@ -47,7 +47,9 @@ phase 게이트로 완주한다. 이 스킬은 **절차만** 안다 — 무엇�
    그것이 실현하는 키트 ITEM ID 를 코드 안에 심어 **코드→설계** 방향을 남긴다. IMPREC(logicraft, 설계→코드)와
    짝을 이뤄 양방향 traceability 를 **구현 순간에 부산물로** 확보한다. 사후 별도 작업이 아니다.
    - **형식(기본)**: Javadoc 태그 `@design API-259, ADR-080, AC-045` — ITEM ID 콤마 구분.
-     정규식 `(ADR|API|CONST|DFEAT|UC|AC|SEQ|ERD|INT|MOD|NFR)-\d+` 로 전 소스 추출 가능해야 한다.
+     정규식 `(ADR|API|SVC|IAPI|LIB|DP|CONST|DFEAT|UC|AC|SEQ|ERD|INT|MOD|NFR|EVT|ROLE|PMAN|SETT)-\d+` 로 전 소스 추출 가능해야 한다
+     (경계 계약 4종 API/SVC/IAPI/LIB + 파이프라인 DP + 데스크톱 PMAN/SETT 포함 — prefix 는 서버 `ID_PREFIX` 가 진실원,
+     새 타입 추가 시 이 정규식도 함께 갱신).
    - **대상 = 주 seam 만**: 컨트롤러 메서드 → 실현 API, 서비스 클래스/메서드 → DFEAT/UC, 엔티티/필드 →
      ERD/CONST. 헬퍼·getter/setter·DTO 잡필드는 태그하지 않는다(잡음 방지). 한 요소에 그 요소가
      **직접 실현하는** ITEM 만.
@@ -112,8 +114,9 @@ Phase 5  추적           IMPREC 기록 + 키트 현황 갱신 + mc-logi-update 
    > (화면 키트 `docs/screen-design/`) 가 담당하니, 화면은 이번 구현 범위에서 **제외**합니다.
    > (화면을 여기서 함께 구현하길 원하시면 말씀해 주세요.)"
    - 기본 동작: screen_spec 을 이번 구현 범위에서 **제외**(빌드 순서·플랜 태스크에 화면 빌드 미포함).
-     남은 백엔드/도메인 ITEM(api_endpoint·erd·domain_event·service·nfr 등)만 대상으로 진행.
-   - 사용자가 "화면도 여기서" 라고 **명시**한 경우에만 화면을 포함(그땐 screen-implement 와 중복되지
+     남은 백엔드/도메인 ITEM(경계 계약 4종 api_endpoint·service_interface·module_api·library_api ·
+     erd·domain_event·data_pipeline·service·nfr·permission_manifest·settings_schema 등)만 대상으로 진행.
+   - 사용자가 "화면도 여기서" 라고 **명시**한 경우에만 화면을 포함(그때 씨 screen-implement 와 중복되지
      않도록 어느 경로가 소유하는지 확정).
    - 화면이 screen-implement 로 이미 구현됐으면(IMPREC/coverage 로 확인) 그 사실을 보고에 반영.
 
@@ -125,7 +128,7 @@ Phase 5  추적           IMPREC 기록 + 키트 현황 갱신 + mc-logi-update 
   테스트 인프라 유무). 키트의 "보존 영역·기존 모듈(code_module 요약)"과 실코드를 매칭해
   **위임 지점**(재사용할 기존 클래스)을 확인한다 — 키트는 설계를 말하고, 코드의 현재 모습은
   레포가 말한다. 둘이 다르면 그 자체가 스펙에 기록할 발견이다.
-- **질문 후보**: 키트가 미확정으로 표기한 것들이 곧 사용자 결정 사항이다 — 예: spec-pending
+- **질문 후보**: 키트가 미확정으로 표기한 것들이 곳 사용자 결정 사항이다 — 예: spec-pending
   외부 연동(stub 로 갈지/제외할지), 마이그레이션 적용 방식, 테스트 수준, 구현 범위(영역 전체 vs 단계).
   키트가 이미 답을 가진 것(빌드 순서, 제약)은 묻지 않는다.
 - **스펙 작성 규칙**: 모든 요구·제약·불변 규칙에 **키트 ITEM ID 와 파일 경로를 인용**한다
@@ -159,7 +162,7 @@ Phase 5  추적           IMPREC 기록 + 키트 현황 갱신 + mc-logi-update 
   스펙의 관련 불변 규칙(키트 인용 포함). 구현자가 "왜"를 키트에서 확인할 수 있게 한다.
 - **★ traceability 태그 지시 (원칙 7)**: 구현자에게 각 태스크가 실현하는 키트 ITEM ID 를 코드
   **주 seam** 에 `@design <ITEM-IDs>` (Javadoc, 콤마 구분) 로 심도록 지시한다. 태스크의 키트 참조
-  (플랜 Files 옆 ITEM 경로)가 곧 태그할 ID 다 — 컨트롤러 메서드=API, 서비스=DFEAT/UC, 엔티티/필드=ERD/CONST.
+  (플랜 Files 옆 ITEM 경로)가 곷 태그할 ID 다 — 컨트롤러 메서드=API, 서비스=DFEAT/UC, 엔티티/필드=ERD/CONST.
   헬퍼·getter 은 제외. (팀이 `@DesignRef` 어노테이션을 채택했으면 그 형식으로 — 이때 **원칙 7 의 타입
   부트스트랩**: 코드에 달기 전 `@interface DesignRef` 존재 확인, 없으면 canonical 정의로 1회 생성.)
 - **리뷰어 프롬프트에 포함할 것**: 스펙 리뷰어에게는 키트 계약(API .md 의 계약 표, AC 의
