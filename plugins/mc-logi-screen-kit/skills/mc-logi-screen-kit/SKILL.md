@@ -4,7 +4,7 @@ description: Logicraft 특정 프로젝트의 특정 화면(screen_spec)과 그 
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
   domain: logicraft-orchestration
   triggers: 화면 키트, screen kit, 화면 다운로드, 화면 구현 준비, 화면 키트 동기화, SCREEN-NNN 키트, SCREEN-NNN 다운로드, 화면 로컬 다운, 화면 구현 준비해줘, logicraft 화면 로컬로 내려받아, screen-design 동기화, D001 화면 키트, D002 화면 다운로드
   role: orchestrator-readonly
@@ -591,6 +591,53 @@ kit_type: screen
 | cwd 가 레포 아님 | 사용자에게 출력 경로 확인 요청 |
 | SCREEN 의 domain_id 비어있음 | get_neighbors 역추적으로 도메인 추론; 불가 시 프로젝트 레벨 처리 + 사용자 알림 |
 | MCP 도구 다운 | ToolSearch 재시도 → 실패 시 부분 보고 후 중단 |
+| **`--out` 을 키트 루트로 줌** | ★ 아래 §함정 1 참조 — 타입별 디렉토리가 쏟아져 화면 중심 구조를 오염시킨다. `git clean -fd <키트경로>` + `git checkout -- <키트경로>` 로 복구 |
+
+---
+
+## ⚠️ 함정 (실제로 밟은 것)
+
+### 1. ★ `download-kit.mjs --out` 은 **반드시 `$KIT/.staging`** 이다 (2026-08-10)
+
+`mc-logi-implement-kit` 의 동명 스크립트와 **인자 의미가 다르다.** implement-kit 은 `--out` 이 키트 루트지만,
+screen-kit 은 **스테이징이 먼저**고 `arrange-screen-kit.mjs` 가 화면 중심 레이아웃으로 재배치한다.
+
+```bash
+# ✅ 올바름
+node download-kit.mjs --project <uuid> --out "$KIT/.staging" --ids "$IDS" --report "$KIT/.staging/.run-report.json"
+node arrange-screen-kit.mjs --staging "$KIT/.staging" --out "$KIT" --report … --screens "$SCREENS"
+
+# ❌ 실제로 저지른 실수 — 키트 루트에 직접 쏟음
+node download-kit.mjs --project <uuid> --domain DOMAIN-003 --out "$KIT"
+```
+
+잘못 주면 키트 루트에 `acceptance/` `adr/` `api_endpoint/` … **타입별 디렉토리 17개가 새로 생겨**
+기존 화면 중심 구조(`screens/` `_shared/` `SCREENS.md` `version-master.md`)와 **뒤섞인다.**
+7개 도메인에 돌려 미추적 파일 126건이 생겼고, `version-master.md` 7건이 덮였다.
+
+**복구**: 새로 생긴 것은 전부 미추적이므로 `git clean -fd <screen-design 경로>` + `git checkout -- <경로>`.
+(기존 구조는 추적 중이라 살아남는다 — 다만 이건 **키트가 git 에 있을 때만** 통하는 복구다.)
+
+### 2. `--ids` 를 Phase 2 없이 구할 수 있다 — 기존 `.staging` 에서 뽑아라
+
+재싱크(SYNC)일 때는 그래프 탐색(Phase 2)을 다시 돌리지 않아도 된다.
+직전 스테이징에 이미 그 도메인의 ITEM 집합이 들어 있다:
+
+```bash
+IDS=$(ls $KIT/.staging/*/ | grep -oE "^[A-Z]+-[0-9]+" | sort -u | paste -sd, -)
+SCREENS=$(ls $KIT/screens | paste -sd, -)
+```
+
+같은 세트를 최신 버전으로 받는 것이 곧 SYNC 다. D003 에서 187 ID·7 화면이 이렇게 복원됐다.
+
+⚠️ **`.staging` 이 없는 도메인에는 안 통한다.** 실제로 D002·D004·D005 는 `.staging` 이 git 에 추적된 적이
+없어 이 방법으로 싱크하지 못했다(그 도메인은 Phase 2 부터 정식 수행 필요). **`.staging` 이 없다고
+`--out` 을 키트 루트로 바꾸지 마라** — 그게 함정 1이다.
+
+### 3. arrange 는 RETIRED 를 `_retired/` 로 옮긴다 — 삭제(D)로 보이는 게 정상
+
+싱크 후 `git status` 에 삭제가 잡혀도 놀라지 마라. logicraft 에서 폐기된 ITEM 이
+`.staging/<type>/` 에서 `_retired/` 로 **이동**한 결과다(D003 API-311·UC-061, D001 API-324/325·CONST-015).
 
 ---
 
