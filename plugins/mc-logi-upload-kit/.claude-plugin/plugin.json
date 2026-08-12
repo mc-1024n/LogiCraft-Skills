@@ -1,8 +1,8 @@
 {
   "name": "mc-logi-upload-kit",
-  "version": "1.1.0",
-  "description": "로컬 파일을 LogiCraft 에 REST 로 직접 올리는 업로더 스킬. 두 트랙 — ⑴ 산출물 업로드(HTML 데모·아티팩트·디자인 렌더·markdown 첨부) ⑵ 스킬 발행(로컬 스킬 폴더를 마켓플레이스에 publish). 본문이 AI 컨텍스트를 거치지 않아 5MB 데모도 토큰 0 이고, 스킬은 잘림·줄번호 오염·재타이핑 오타 없이 바이트 그대로 올라간다. 사용자가 \"이 파일 데모로 올려줘\", \"demo.html 업로드\", \"이 HTML 아티팩트 등록\", \"디자인 렌더 파일 올려줘\", \"이 스킬 올려줘\", \"스킬 마켓에 발행\", \"스킬 업데이트해서 올려줘\", \"/mc-logi-upload-kit\" 등 로컬 파일·스킬을 LogiCraft 에 등록하려 할 때 실행. download-kit(키트 다운로더)의 역방향 업로더.",
-  "summary": "로컬 파일을 LogiCraft REST 로 직송하는 두 트랙 업로더 — ⑴ 산출물(데모·아티팩트·디자인렌더·md첨부) ⑵ 스킬 발행(로컬 폴더→마켓, upsert·소멸가드·dry-run·_plugin/agents). 본문이 AI 컨텍스트를 안 거쳐 토큰 0·바이트 무손실.",
+  "version": "1.2.0",
+  "description": "로컬에 작업해둔 파일(HTML 데모·아티팩트·디자인 렌더·markdown 첨부)을 LogiCraft 에 REST 로 직접 업로드하는 스킬. 본문이 AI 컨텍스트를 거치지 않아 5MB 데모도 토큰 0 으로 등록된다. 사용자가 \"이 파일 데모로 올려줘\", \"demo.html 업로드\", \"이 HTML 아티팩트 등록\", \"디자인 렌더 파일 올려줘\", \"/mc-logi-upload-kit\" 등 로컬 파일을 LogiCraft 산출물로 등록하려 할 때 실행. download-kit(키트 다운로더)의 역방향 업로더.",
+  "summary": "로컬 HTML/markdown 파일을 LogiCraft REST 로 직접 업로드 — 본문이 AI 컨텍스트를 안 거쳐 5MB 데모도 토큰 0 으로 등록. app_demo·project_artifact·design_render·attachment 5타입 어댑터. mc-logi-implement-kit(다운로더)의 역방향.",
   "category": "feature_impl",
   "author": {
     "name": "노명철"
@@ -10,7 +10,7 @@
   "logicraft": {
     "publisher_user_id": "4b805dc4-6d13-42c5-9710-f5a34bf2e73e",
     "publisher_email": "mc_1024@cudo.co.kr",
-    "published_at": "2026-08-12T08:34:34.817Z",
+    "published_at": "2026-08-12T11:27:58.102Z",
     "source": "mcp"
   }
 }
