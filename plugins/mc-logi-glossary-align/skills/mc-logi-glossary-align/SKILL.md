@@ -4,7 +4,7 @@ description: ERD ITEM 1건의 전 컬럼을 LogiCraft 4계층 용어사전(도�
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion
 metadata:
-  version: "1.1.1"
+  version: "1.1.2"
   domain: logicraft-glossary
   triggers: 용어사전 정합, ERD 용어사전화, 논리 물리 명칭, 컬럼 표준화, glossary align, gov compliance, program 용어, 단어 등록, 용어 등록
   role: orchestrator
