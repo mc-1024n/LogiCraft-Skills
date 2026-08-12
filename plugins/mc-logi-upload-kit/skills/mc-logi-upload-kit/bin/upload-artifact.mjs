@@ -26,7 +26,7 @@
  */
 import { readFile } from "node:fs/promises";
 
-// ── 인자 파싱 ────────────────────────────────
+// ── 인자 파싱 ─────────────────────────────────────────────
 function parseArgs(argv) {
   const out = {};
   for (let i = 0; i < argv.length; i++) {
@@ -75,7 +75,7 @@ const API_KEY = process.env.LOGICRAFT_API_KEY;
 if (!API_KEY) die(2, "LOGICRAFT_API_KEY 환경변수 필요(MCP 와 동일한 lc_ 키).");
 const BASE = (process.env.LOGICRAFT_API_BASE || "http://localhost:14000/api").replace(/\/$/, "");
 
-// ── 파일 읽기 ─────────────────────────────────
+// ── 파일 읽기 ─────────────────────────────────────────────
 let body;
 try {
   body = await readFile(file, "utf8");
@@ -83,7 +83,7 @@ try {
   die(3, `파일 읽기 실패: ${file} — ${e.message}`);
 }
 
-// ── 쿼리스트링 조립 ───────────────────────────
+// ── 쿼리스트링 조립 ───────────────────────────────────────
 function qs(params) {
   const u = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
@@ -96,7 +96,7 @@ function qs(params) {
 const enc = encodeURIComponent;
 const auth = { Authorization: `Bearer ${API_KEY}` };
 
-// ── 타입별 요청 구성 ──────────────────────────
+// ── 타입별 요청 구성 ──────────────────────────────────────
 let url, init;
 switch (type) {
   case "app_demo":
@@ -141,7 +141,7 @@ switch (type) {
   }
 }
 
-// ── 전송 ──────────────────────────────────
+// ── 전송 ─────────────────────────────────────────────────
 let res;
 try {
   res = await fetch(url, init);
