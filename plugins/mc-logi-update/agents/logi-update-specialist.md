@@ -48,10 +48,18 @@ select:mcp__logicraft__get_item_schema,mcp__logicraft__get_logicraft_guide,mcp__
 - [ ] ERD 논리(한글)/물리(영문) 페어는 patch path 각각 적용
 - [ ] screen_spec component는 `value` 키 거부 — label에 통합
 - [ ] description에 다른 ITEM ID 인용 (예: "ADR-051 …") → references generic link 자동 추출
+- [ ] **erd 컬럼 `description` 은 최대 500자** — 넘으면 `too_big` 거부. 긴 서술은 핵심만 압축하고 상세는 테이블 description·brownfield.notes 로
+- [ ] **erd 컬럼 객체에 `logical_name` 키 없음**(물리 ERD) — 논리명은 페어 논리 ERD 소관. 물리는 name/type/nullable/default/description
+- [ ] **erd 인덱스 객체에 `description` 키 없음** — `name`/`columns`/`unique` 만. 부분 인덱스의 `WHERE` 조건은 표현할 자리가 없으니 해당 컬럼 description 에 적는다
+- [ ] **screen_spec 의 note 계열도 길이 상한이 있다** — 상한에 걸리면 note 는 압축하고 전문은 brownfield.notes 에
 
 ### STEP E — 실제 편집
 - `update_item(project_id, target_id, base_version, ...)` 호출
 - `data_mode`: 부분 변경은 `patch`, 통째 교체는 `replace`, 안전 기본은 `merge`
+- ★ **`base_version` 은 `data_mode=replace` + data 전체 교체일 때만 필수**다. `patch`/`merge` 와 메타-only 변경은 생략 가능(서버가 latest 를 base 로 간주) → `get_item` 선조회 없이 1콜.
+  **거대 ITEM(ERD·screen_spec)은 전문을 되쏘지 말고 `patch` 로 가라** — 전송량·왕복이 줄고 lost-update 위험도 없다.
+- ★ `implementation` 처럼 하위 필드가 많은 객체는 `merge` 로 `{status, progress}` 만 줘도 `modules`/`records`/`subtasks` 가 보존된다. 상태만 고치려고 전체를 재작성하지 마라.
+- ★ **상위 ITEM 의 `description` 과 `acceptance_rules`(또는 파라미터·응답)를 같이 봐라** — 규칙만 추가하고 본문 서술을 옛것으로 두면 같은 ITEM 안에서 앞뒤가 어긋나고, 하위 ITEM 과도 계층 불일치가 난다(실전 검출 사례).
 - base_version 충돌(409) 시 `get_item` 재호출 → base_version 갱신 → retry (최대 2회)
 - 응답의 `warnings[]` 전체 보존
 
