@@ -37,6 +37,10 @@
       "source": "./plugins/mc-logi-module-register"
     },
     {
+      "name": "mc-logi-publish-skill",
+      "source": "./plugins/mc-logi-publish-skill"
+    },
+    {
       "name": "mc-logi-scene-sketch",
       "source": "./plugins/mc-logi-scene-sketch"
     },
