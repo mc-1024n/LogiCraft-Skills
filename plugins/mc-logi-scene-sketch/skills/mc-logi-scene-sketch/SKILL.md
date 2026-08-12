@@ -2,7 +2,7 @@
 name: mc-logi-scene-sketch
 description: 사용자 자연어 시나리오를 ./docs/scene-sketch/ .md 파일(진실원)로 정제 + Logicraft scenario_sketch ITEM으로 자동 등록하는 스킬. 다중 시나리오는 자동 분해해 독립 SKETCH N건으로 분리 등록. SK-001 (배경이미지 요청) 작업 패턴 표준화. 사용자가 "시나리오 스케치 만들어줘" / "이 흐름 logicraft 에 등록해줘" / "기획안 sketch 로 만들어" / "/mc-logi-scene-sketch" 호출 시 트리거.
 metadata:
-  version: 0.1.0
+  version: 0.2.0
   author: mc.claude.dev@gmail.com
   category: logicraft
 ---
@@ -130,11 +130,6 @@ ID 자동 발급 (SKETCH-NNN). 발급 후 .md 파일 frontmatter 에 ID 백필.
 - `chapters[].role` enum 불일치 → references/scenario_sketch_schema.md 의 매핑 표 참조
 - `documented_emitters/consumers` pattern 거부 (^[A-Z]+-\d+$ 형식만) → 빈 배열로 등록, 본문 description 에 자유 텍스트로 보존
 - 폴더 권한 오류 → 사용자에게 경로 변경 제안
-
-### ★ scenario_sketch enum 차단 시 (MCP 연결 불안정)
-Phase 7 진입 전 `get_item_schema('scenario_sketch')` 로 enum 가용성 사전 검증 권장:
-- 차단 시 (enum 누락) → MCP 재연결 문제. .md 파일까지만 생성(Phase 5) + frontmatter 에 registration_blocked 명시 + 신규 세션 재시도 안내
-- 복구 후 (ToolSearch 재로드 또는 신규 세션) → .md 기반 create_item 등록
 
 ## 등록 후 후속 액션 (사용자 안내만, 자동 진입 X)
 - 결정 hotspot 수집 → 후속 update_item 으로 hotspot → policy/event 승급
