@@ -5,10 +5,6 @@
   },
   "plugins": [
     {
-      "name": "co033-probe",
-      "source": "./plugins/co033-probe"
-    },
-    {
       "name": "mc-logi-brainstorming",
       "source": "./plugins/mc-logi-brainstorming"
     },
