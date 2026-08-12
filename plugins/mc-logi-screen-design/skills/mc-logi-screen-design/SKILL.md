@@ -4,7 +4,7 @@ description: mc-logi-screen-kit 이 만든 로컬 화면 키트(./docs/screen-de
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.3.2"
+  version: "1.3.3"
   domain: logicraft-orchestration
   triggers: 화면 디자인, 화면 디자인해줘, screen design, 고충실도 목업, 고충실도 디자인, SCREEN-NNN 디자인, D001 화면 디자인, 화면 비주얼 디자인, 디자인 목업 만들어줘
   role: orchestrator
@@ -292,7 +292,7 @@ Phase 6   ui_component 보강  디자인에서 쓴 컴포넌트 ↔ ui-catalog.m
 | raw hex 검출됨 (토큰 밖 색/폰트/장식) | 게이트1 로 돌아가 "토큰만" 재강조 후 재작성 (AI slop 회피는 규격 내에서만) |
 | WCAG 대비 실패 (본문 < 4.5:1 / 큰글씨 < 3:1, 동봉 `scripts/contrast_checker.py` D5) | 게이트1 로 돌아가 해당 텍스트를 더 진한 DS 토큰 색으로 교체 재작성. 토큰 조합만으로 AA 불가하면 design-notes 에 `⚠️ WCAG AA 미달 — DS 토큰 보강 필요` 기록 + 사용자 보고 (임의 색 추가 금지 — DS 보강은 logicraft 소관) |
 | 파이썬 부재로 D5 검사 불가 | 하드 게이트 강제 안 함 — 검증 스킵하되 design-notes 에 `⚠️ WCAG 대비 미검증(python 부재)` 명기 + 사용자 보고 |
-| 역등록 권한 거부 / 오프프로젝트 | `E_AUTH_FORBIDDEN` 또는 SD/SCREEN 미존재 → 토큰 RBAC·project_id(키트 frontmatter 진실원) 확인. 우회 불가 — 사용자에게 알리고 중단 |
+| 역등록 권한 거부 / 오프로젝트 | `E_AUTH_FORBIDDEN` 또는 SD/SCREEN 미존재 → 토큰 RBAC·project_id(키트 frontmatter 진실원) 확인. 우회 불가 — 사용자에게 알리고 중단 |
 | SD 생성 시 E_VALIDATION(title) | `create_item(screen_design)` 은 top-level `title` 외 **`data.title` 도 필수** — data 에 title 누락 시 발생. data 에 title 추가 후 재시도 |
 | 렌더가 `<script>` 제거 | 렌더가 스크립트 strip 할 수 있음 → 시안을 무 JS·CSS-only(`:target`/`:checked`)로 작성(게이트1) |
 | 디자인에 카탈로그 밖 새 컴포넌트 생김 | 임의 등록 금지 — Phase 6 에서 신규 후보를 표로 안내·동의 후 `register_ui_components`(신규만). 거절 시 design-notes 에 미등록 기록. 기존 UI-NNN 수정은 `mc-logi-update` |
