@@ -31,7 +31,7 @@ docs/design/{slug}-{DOMAIN-ID}/
 | 1 스펙 | `adr/*.md` 의 "구현 영향" / `nfr/*.md` 의 강제사항 | 스펙 불변 규칙·예산 (ID 인용) |
 | 1 스펙 | `code_module/*.md` (기구현 모듈) | 레포 실코드와 매칭 → 재사용·위임 지점 확정 |
 | 1 스펙 | frontmatter `stale`·본문 spec-pending 표기 | 사용자 결정 질문 후보 |
-| 2 플랜 | `erd/*.md`(DDL·컴럼) `migration_plan/*.md`(forward/rollback 원문·검증 절차) | 데이터 계층 태스크 — **원문 집행 기준** |
+| 2 플랜 | `erd/*.md`(DDL·컬럼) `migration_plan/*.md`(forward/rollback 원문·검증 절차) | 데이터 계층 태스크 — **원문 집행 기준** |
 | 2 플랜 | **경계 계약 4종** — `api_endpoint/*.md`(REST 계약 표) `service_interface/*.md`(비-HTTP 서비스: MCP 도구·CLI — request/response_schema·error_model) `module_api/*.md`(in-process 모듈 API: methods·owner_module — local-first 앱 경계) `library_api/*.md`(라이브러리 공개 심볼: exports) + `domain_feature/*.md`(비즈니스 규칙) `diagram_sequence/*.md`(호출 순서) | 태스크별 구현 명세 + 참조 경로. **프로젝트 성격에 따라 넷 중 존재하는 것만 — 전부 "외부에서 호출되는 계약" 동급** |
 | 2 플랜 | `permission_role/*.md`(권한·data scope) `constant/*.md`(실값) | 인가·설정 태스크 |
 | 2 플랜 | `data_pipeline/*.md`(sources→stages→sinks·trigger·멱등성) — 존재 시 | 배치/파이프라인 태스크 |
@@ -44,7 +44,7 @@ docs/design/{slug}-{DOMAIN-ID}/
 ## 해석 규칙
 
 1. **⚠️ 표기 우선순위**: 키트 요약이 ⚠️ 로 명시한 불일치(예: "forward_ddl 원문이 집행 기준",
-   "인덱스 컴럼명 정정 필요")는 그 지시를 그대로 따른다. 키트가 답을 안 줬으면 사용자에게.
+   "인덱스 컬럼명 정정 필요")는 그 지시를 그대로 따른다. 키트가 답을 안 줬으면 사용자에게.
 2. **deprecated/retired ITEM**: `_retired/` 와 frontmatter status, version-master 의 표기를 따라
    **구현하지 않는다**. 다운로드됐지만 "logicraft상 deprecated" 배너가 있는 ITEM 도 동일
    (테스트화·코드화 제외).

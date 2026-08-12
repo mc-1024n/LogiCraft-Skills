@@ -4,7 +4,7 @@ description: mc-logi-implement-kit 이 만든 로컬 구현 키트(./docs/design
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.3.0"
+  version: "1.3.1"
   domain: logicraft-orchestration
   triggers: 키트 구현, 도메인 구현, 구현해줘, 키트대로 구현, 구현 계획, 구현 시작, D001 구현, DOMAIN-XXX 구현, 스펙 플랜 구현, 구현 추적, implement
   role: orchestrator
