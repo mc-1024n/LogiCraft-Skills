@@ -1,0 +1,17 @@
+{
+  "name": "mc-logi-update",
+  "version": "1.4.0",
+  "description": "Logicraft ITEM 수정을 가이드대로 정확히 수행하고 cascade 영향을 재귀적으로 추적해 처리하는 오케스트레이터 스킬. 사용자가 logicraft ITEM 수정·갱신·정합을 요청하면(예 \"SEQ-020 수정해줘\", \"DFEAT-064 정합해줘\", \"ADR 추가하고 cascade 해줘\") logi-update-specialist 에이전트를 띄워 1 ITEM씩 처리하고 분석된 cascade 후보를 재귀 처리. 일괄 일관성 보장 + AI 추정 금지 정책 + brownfield 메타 자동 추정 + 종료 시 메모리 저장 문의.",
+  "summary": "Logicraft ITEM 수정을 가이드대로 수행하고 cascade 영향을 재귀 추적·정합하는 오케스트레이터. trivial은 직접 patch, 복잡은 specialist 에이전트. 경계 계약(SVC/IAPI/LIB) 토폴로지·미등재 타입 동적 판정·C4/test_scenario 약-link 수동 큐잉 포함.",
+  "category": "design",
+  "author": {
+    "name": "노명철"
+  },
+  "license": "MIT",
+  "logicraft": {
+    "publisher_user_id": "4b805dc4-6d13-42c5-9710-f5a34bf2e73e",
+    "publisher_email": "mc_1024@cudo.co.kr",
+    "published_at": "2026-08-03T10:56:21.489Z",
+    "source": "mcp"
+  }
+}

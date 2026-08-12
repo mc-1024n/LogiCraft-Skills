@@ -1,0 +1,17 @@
+{
+  "name": "mc-logi-glossary-align",
+  "version": "1.1.1",
+  "description": "ERD ITEM 1건의 전 컬럼을 LogiCraft 4계층 용어사전(도메인→단어→용어)에 정합시키고, 사업 사전 신규 등록 + ERD update_item + cascade 까지 완주하는 오케스트레이터 스킬. 사용자가 \"ERD 논리/물리 명칭 용어사전화\", \"{도메인} 컬럼 표준화\", \"용어사전 정합\" 등을 요청하면 실행. gov→program→domain→word→term 5단계 절차, AI 임의 INSERT 금지, AI 추정 금지, 등록 순서 절대 규칙 강제.",
+  "summary": "ERD 1건의 전 컬럼을 4계층 용어사전(도메인→단어→용어)에 정합 — 사업 사전 등록 + ERD update + cascade 완주. gov→program→domain→word→term 순서 강제, AI 임의 INSERT 금지.",
+  "category": "design",
+  "author": {
+    "name": "노명철"
+  },
+  "license": "MIT",
+  "logicraft": {
+    "publisher_user_id": "4b805dc4-6d13-42c5-9710-f5a34bf2e73e",
+    "publisher_email": "mc_1024@cudo.co.kr",
+    "published_at": "2026-07-16T05:33:46.417Z",
+    "source": "mcp"
+  }
+}

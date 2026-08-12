@@ -1,0 +1,15 @@
+{
+  "name": "co033-probe",
+  "version": "9.9.9",
+  "description": "probe skill for QA verification",
+  "category": "other",
+  "author": {
+    "name": "노명철"
+  },
+  "logicraft": {
+    "publisher_user_id": "4b805dc4-6d13-42c5-9710-f5a34bf2e73e",
+    "publisher_email": "mc_1024@cudo.co.kr",
+    "published_at": "2026-08-12T05:02:35.629Z",
+    "source": "mcp"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "mc-logi-module-register",
+  "version": "0.3.0",
+  "description": "구현된 실제 코드(컨트롤러·서비스·워커·엔티티·리포·config)를 logicraft code_module ITEM 으로 등록·정합시키는 오케스트레이터 스킬. 코드는 구현됐는데 logicraft code_module 에 안 잡히거나(미등록), 과거 등록됐지만 도메인 미연결(도구 업데이트 전 레거시 잔재)이거나, 코드에 없는 死모듈이 남아있는 상태를 도메인 단위로 해소한다. 사용자가 \"코드모듈 등록해줘\", \"D002 코드모듈 정합\", \"구현한 클래스 logicraft 에 등록\", \"code_module 등록 검토\", \"코드↔logicraft 모듈 정합\", \"MOD 등록 누락 찾아줘\", \"/mc-logi-module-register <도메인>\" 등을 요청하면 트리거. 코드 자산을 그래프에 인지시켜 다음 세션이 어느 클래스가 어느 API/DFEAT/CONST 를 구현하는지 탐색 가능하게 만든다. 검출(코드 스캔·갭 분석)은 자동이고, 등록은 갭을 보고한 뒤 코드 자산 전체를 기본 등록한다(매번 범위를 되묻지 않음 — 호출에서 명시적으로 한정한 경우만 좁힘). mc-logi-implement-review(코드↔키트 표류 검출)와 다름 — 이건 코드↔logicraft code_module ITEM 의 등록 자체를 정합.",
+  "summary": "구현된 코드(컨트롤러·서비스·워커·엔티티·리포·config)를 logicraft code_module 으로 등록·정합. register_module 단일 패스(implements_domains·status·realizes_domain_features·implements_apis)로 도메인·상태·API/DFEAT 링크 한 번에 완결. 갭 보고 후 전체 등록(",
+  "category": "feature_impl",
+  "author": {
+    "name": "노명철"
+  },
+  "logicraft": {
+    "publisher_user_id": "4b805dc4-6d13-42c5-9710-f5a34bf2e73e",
+    "publisher_email": "mc_1024@cudo.co.kr",
+    "published_at": "2026-06-22T09:08:49.192Z",
+    "source": "mcp"
+  }
+}
