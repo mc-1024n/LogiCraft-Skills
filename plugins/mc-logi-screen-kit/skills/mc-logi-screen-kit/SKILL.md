@@ -4,7 +4,7 @@ description: Logicraft 특정 프로젝트의 특정 화면(screen_spec)과 그 
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.3.0"
+  version: "1.4.0"
   domain: logicraft-orchestration
   triggers: 화면 키트, screen kit, 화면 다운로드, 화면 구현 준비, 화면 키트 동기화, SCREEN-NNN 키트, SCREEN-NNN 다운로드, 화면 로컬 다운, 화면 구현 준비해줘, logicraft 화면 로컬로 내려받아, screen-design 동기화, D001 화면 키트, D002 화면 다운로드
   role: orchestrator-readonly
@@ -103,11 +103,11 @@ status: CHANGED          # synced | NEW | CHANGED | RETIRED
 prev_version: 11         # CHANGED 일 때만, 아니면 null
 raw: ./_raw/SCREEN-011.json
 wireframe: ./wireframe.html
-links:
-  consumes_apis: [API-100, API-101]
-  required_roles: [ROLE-001]
-  realizes_use_cases: [UC-031]
-  acceptance: [AC-055]
+links:                     # 값은 [[ID]] wikilink — YAML flow seq 안이라 quote 필수
+  consumes_apis: ["[[API-100]]", "[[API-101]]"]
+  required_roles: ["[[ROLE-001]]"]
+  realizes_use_cases: ["[[UC-031]]"]
+  acceptance: ["[[AC-055]]"]
 ---
 ```
 
@@ -118,6 +118,21 @@ CHANGED 일 때 frontmatter 직후 배너:
 > change_summary: <logicraft change_summary 원문 그대로>
 > ↳ 요약/구현 노트 재검토 후 작성된 코드에 반영. 직전 요약은 git diff 확인.
 ```
+
+---
+
+## Obsidian 볼트로 화면 그래프 보기
+
+키트 루트(`docs/screen-design/{slug}-{DOMAIN-ID}/`)를 **Obsidian 볼트로 열면
+화면↔API↔ROLE↔UC↔AC 관계가 그래프로 보인다.** frontmatter `links:` 의 `[[ID]]` 를 Obsidian 이
+링크로 인식하며, `SCREENS.md`·`version-master.md` 도 wikilink 인덱스라 허브 노트가 된다.
+
+- **UC/AC 복제 주의** — 한 UC/AC 를 여러 화면이 공유하면 화면 폴더마다 같은 파일명으로
+  복제된다(구현 편의). 이때 `[[UC-001]]` 이 어느 사본을 가리킬지 모호해지므로, arranger 가
+  해당 목록을 `SCREENS.md` 하단과 콘솔에 경고로 남긴다.
+- 볼트 단위는 프로젝트별로. 유령 노드는 그래프뷰 → 필터 → *Existing files only* 로 숨긴다.
+- 링크 포맷은 `.kit-manifest.json` 의 `link_format` 으로 추적되며, 구 포맷 키트는 재실행 시
+  다운로더가 자동 감지해 전건 재렌더한다(설계 내용 불변 → status 는 UNCHANGED 유지).
 
 ---
 

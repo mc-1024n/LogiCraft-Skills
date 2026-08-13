@@ -26,6 +26,27 @@ logicraft ITEM 타입(**서버 진실원 = `ITEM_TYPES`, 2026-08 기준 57종 �
 2. 역추적 결과의 `domain_id` 또는 `belongs_to_domain` 링크로 공유 ITEM 귀속 도메인을 추론한다.
 3. 추론 불가 시 프로젝트 레벨(project-wide)로 처리하고 사용자에게 알린다.
 
+### ★ 도메인 스코프 정책 (다운로더 자동 — 조용한 유실 방지)
+
+`--domain` 으로 받을 때 서버 필터는 **`items.domain_id` 컬럼 정확 일치**만 본다. 그것만 쓰면
+설계에 있어도 키트에 안 내려온다(2026-08 NexusSystem 48% 유실 사고). 그래서
+`bin/download-kit.mjs` 는 **그래프 스코프**를 적용한다 — 옛 LLM fetcher 가 그래프를 따라가던
+것을 결정적으로 재현한 것이다(실측 재현율 90%):
+
+```
+ITEM 의 소속 도메인 = {자기 domain_id} ∪ {1-hop 이웃들의 domain_id}
+```
+
+전역 수집(그래프로 소속을 못 정하는 타입): `nfr`, `implementation_guideline`, `permission_role`.
+
+화면 키트에서 특히 중요하다 — `permission_role`(authz)·`constant`(매직값)·`acceptance`(테스트
+근거)는 화면 구현의 필수 입력인데 도메인 귀속이 잘 안 채워지는 타입이다.
+스코프 밖으로 빠진 핵심 타입은 실행 로그와 `version-master.md` 에 🚨 경고로 남는다 — **보고에 전재할 것.**
+
+> `--screens`(ids 스코프)로 받을 때는 대상이 ID 로 확정되므로 이 정책도, `.kit-scope.json` pin 도
+> 적용되지 않는다. 화면 키트는 Phase 2 가 화면+의존 id 집합을 직접 산출해 `--ids` 로 넘기므로
+> **이미 LLM 이 스코프를 정하는 구조**이고, pin 은 도메인 키트(mc-logi-implement-kit)용이다.
+
 ---
 
 ## 공유 ITEM 세트 (도메인/프로젝트 레벨, 1벌)

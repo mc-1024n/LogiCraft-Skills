@@ -89,7 +89,12 @@ function stripFrontmatter(md) {
   return md.replace(/^\n+/, "");
 }
 
-/** 다운로더 frontmatter 의 links: 블록에서 연결된 모든 ITEM id 를 평면 수집(방향/rel 무관). */
+/**
+ * 다운로더 frontmatter 의 links: 블록에서 연결된 모든 ITEM id 를 평면 수집(방향/rel 무관).
+ * 값 표기는 wikilink(`["[[UC-001]]", ...]`, LINK_FORMAT=wikilink-v1)이고 구 포맷
+ * (`[UC-001, ...]`)인 키트도 남아 있을 수 있어 둘 다 받는다. 반환은 **항상 순수 ID** —
+ * 아래 로직들이 id.startsWith("UC-") 로 타입을 가르므로 대괄호가 섞이면 전부 어긋난다.
+ */
 function parseFrontmatterLinks(md) {
   if (!md || !md.startsWith("---\n")) return [];
   const end = md.indexOf("\n---\n", 4);
@@ -101,6 +106,9 @@ function parseFrontmatterLinks(md) {
     if (/^links:\s*$/.test(line)) { inLinks = true; continue; }
     if (inLinks) {
       if (/^\s+/.test(line)) {
+        // wikilink 우선 — 구 포맷 정규식은 "[[UC-001" 처럼 깨진 조각을 잡으므로 먼저 걸러낸다.
+        const wl = [...line.matchAll(/\[\[([^\]]+)\]\]/g)].map((m) => m[1].trim()).filter(Boolean);
+        if (wl.length) { ids.push(...wl); continue; }
         const m = line.match(/\[([^\]]*)\]/);
         if (m) for (const id of m[1].split(",").map((s) => s.trim()).filter(Boolean)) ids.push(id);
       } else break; // 들여쓰기 끝 = links 블록 종료
@@ -130,6 +138,14 @@ const SHARED_SUB = {
   permission_role: "role",
   implementation_guideline: "guideline",
 };
+
+/**
+ * ITEM id → Obsidian wikilink 리터럴(YAML flow sequence 용 — quote 필수).
+ * 화면 키트도 파일명이 {ID}.md 라 볼트로 열면 화면↔API↔UC↔AC 그래프가 그대로 보인다.
+ */
+const wikilink = (id) => `"[[${String(id).trim()}]]"`;
+/** 본문/표 안에 쓰는 wikilink(따옴표 없음). */
+const wl = (id) => `[[${String(id).trim()}]]`;
 
 // ── frontmatter 빌더 (screen-kit 형식) ─────────────────────────────────
 function fm(fields) {
@@ -231,7 +247,7 @@ async function main() {
       realizes_use_cases: d.realizes_use_cases || [],
       acceptance: d.covered_by_acceptances || [],
     };
-    const linkLines = Object.entries(links).filter(([, v]) => v.length).map(([k, v]) => `  ${k}: [${v.join(", ")}]`);
+    const linkLines = Object.entries(links).filter(([, v]) => v.length).map(([k, v]) => `  ${k}: [${v.map(wikilink).join(", ")}]`);
     const headLines = [
       "---",
       `logicraft_item: ${s.id}`,
@@ -254,7 +270,7 @@ async function main() {
     await writeVerified(join(dir, `${s.id}.md`), `${front}\n${statusBanner(s.raw || {}, statusOf(s.id), prevOf(s.id))}\n${s.body}`);
     await writeVerified(join(dir, "_raw", `${s.id}.json`), JSON.stringify({ item: s.raw }, null, 2));
     counts.screen++;
-    screenRows.push({ id: s.id, title: s.raw?.title || d.title || s.id, status: statusOf(s.id), wf: wfFlag, apis: (d.consumes_apis || []).join(", "), roles: (d.required_roles || []).join(", ") });
+    screenRows.push({ id: s.id, title: s.raw?.title || d.title || s.id, status: statusOf(s.id), wf: wfFlag, apis: (d.consumes_apis || []).map(wl).join(", "), roles: (d.required_roles || []).map(wl).join(", ") });
   }
 
   // 4) 디자인(screen_design → screens/{screen}/design/)
@@ -290,15 +306,20 @@ async function main() {
   }
 
   // 5) UC / AC (소속 화면 아래로 중첩)
+  //    한 UC/AC 를 여러 화면이 공유하면 화면마다 같은 파일명으로 복제된다 — 구현 편의는
+  //    그대로 두되, 볼트로 열 때 [[UC-001]] 이 어느 사본을 가리킬지 모호해지므로 목록을 남긴다.
+  const dupNested = [];
   for (const uc of byType("use_case")) {
     const owners = ucOwner[uc.id] || [];
     const targets = owners.length ? owners.map((sid) => join(kit.screenDir(sid), "uc", `${uc.id}.md`)) : [join(outDir, "_shared", "uc-orphan", `${uc.id}.md`)];
+    if (targets.length > 1) dupNested.push({ id: uc.id, n: targets.length, owners });
     const front = fm({ logicraft_item: uc.id, type: "use_case", version: uc.raw?.current_version ?? uc.version, status: statusOf(uc.id), prev_version: prevOf(uc.id) ?? "null", raw: `${uc.id}.json` });
     for (const t of targets) { await writeVerified(t, `${front}\n${statusBanner(uc.raw || {}, statusOf(uc.id), prevOf(uc.id))}\n${uc.body}`); counts.uc++; }
   }
   for (const ac of byType("acceptance")) {
     const owners = acOwner[ac.id] || [];
     const targets = owners.length ? owners.map((sid) => join(kit.screenDir(sid), "ac", `${ac.id}.md`)) : [join(outDir, "_shared", "ac-orphan", `${ac.id}.md`)];
+    if (targets.length > 1) dupNested.push({ id: ac.id, n: targets.length, owners });
     const front = fm({ logicraft_item: ac.id, type: "acceptance", version: ac.raw?.current_version ?? ac.version, status: statusOf(ac.id), prev_version: prevOf(ac.id) ?? "null", raw: `${ac.id}.json` });
     for (const t of targets) { await writeVerified(t, `${front}\n${statusBanner(ac.raw || {}, statusOf(ac.id), prevOf(ac.id))}\n${ac.body}`); counts.ac++; }
   }
@@ -351,7 +372,7 @@ async function main() {
   const uiFlag = uiItems.length ? `populated ${uiItems.length}건` : "⚠️ 비어있음 — implement Phase 0.5 에서 시드 필요";
   const changedRows = Object.entries(report.items || {})
     .filter(([, v]) => v.status === "CHANGED" || v.status === "NEW")
-    .map(([id, v]) => `| ${id} | ${v.type} | ${v.status}${v.prev_version ? ` (v${v.prev_version}→v${v.version})` : ""} |`);
+    .map(([id, v]) => `| ${wl(id)} | ${v.type} | ${v.status}${v.prev_version ? ` (v${v.prev_version}→v${v.version})` : ""} |`);
   const screensMd =
     `# ${domainName} 화면 키트 — SCREENS.md\n\n` +
     `> 이 파일이 화면 구현의 진입점이다. mc-logi-screen-implement 는 이 파일부터 읽는다.\n` +
@@ -365,7 +386,7 @@ async function main() {
     `| 생성 | download-kit.mjs + arrange-screen-kit.mjs (결정적, LLM 0) |\n\n` +
     (uiItems.length ? "" : `> ⚠️ **ui_component 카탈로그 비어있음** — mc-logi-screen-implement Phase 0.5 에서 시드 필요\n> DS archetype: ${dsItems[0]?.raw?.title || "미확인"}\n\n`) +
     `## 화면 목록\n\n| SCREEN-ID | 화면명 | 상태 | 와이어프레임 | consumes_apis | required_roles |\n|---|---|---|---|---|---|\n` +
-    (screenRows.map((r) => `| ${r.id} | ${r.title} | ${r.status} | ${r.wf} | ${r.apis} | ${r.roles} |`).join("\n") || "| (없음) | | | | | |") + "\n\n" +
+    (screenRows.map((r) => `| ${wl(r.id)} | ${r.title} | ${r.status} | ${r.wf} | ${r.apis} | ${r.roles} |`).join("\n") || "| (없음) | | | | | |") + "\n\n" +
     `## 공유 자산 인덱스\n\n| type | 파일 | 건수 |\n|---|---|---|\n` +
     `| design_system | _shared/design-system.md | ${dsItems.length} |\n` +
     `| ui_component | _shared/ui-catalog.md | ${uiItems.length} |\n` +
@@ -378,9 +399,18 @@ async function main() {
     `> "공유 자산 먼저, 화면 단위 점진" 원칙.\n\n` +
     `### Phase 1 — 공유 자산\n1. guideline/ → constant/ → design-system.md\n2. ui-catalog.md (0건이면 Phase 0.5 선행)\n3. shell-nav.md\n4. api/ + role/\n\n` +
     `### Phase 4 — 화면별 점진\n\n| 순서 | 화면 | screen_spec | 와이어프레임 | UC | AC |\n|---|---|---|---|---|---|\n` +
-    screens.map((s, i) => `| ${i + 1} | ${s.id} — ${s.raw?.title || ""} | screens/${s.id}/${s.id}.md | wireframe.html | uc/ | ac/ |`).join("\n") + "\n\n" +
+    screens.map((s, i) => `| ${i + 1} | ${wl(s.id)} — ${s.raw?.title || ""} | screens/${s.id}/${s.id}.md | wireframe.html | uc/ | ac/ |`).join("\n") + "\n\n" +
     (changedRows.length ? `## 변경 알림 (코드 재반영 필요)\n\n| ITEM | type | 상태 |\n|---|---|---|\n${changedRows.join("\n")}\n\n` : "") +
-    (retired.length ? `## RETIRED (_retired/ 이동)\n\n${retired.map((id) => `- ${id} — 코드 제거 검토`).join("\n")}\n\n` : "") +
+    (retired.length ? `## RETIRED (_retired/ 이동)\n\n${retired.map((id) => `- ${wl(id)} — 코드 제거 검토`).join("\n")}\n\n` : "") +
+    `## Obsidian 볼트로 보기\n\n` +
+    `이 키트 루트를 볼트로 열면 화면↔API↔ROLE↔UC↔AC 관계가 그래프로 보인다\n` +
+    `(frontmatter \`links:\` 가 \`[[ID]]\` wikilink). 그래프뷰 → 필터 → *Existing files only* 를\n` +
+    `켜면 키트 밖 ITEM 의 유령 노드가 사라진다.\n\n` +
+    (dupNested.length
+      ? `> ⚠️ 여러 화면이 공유하는 UC/AC ${dupNested.length}건은 화면 폴더마다 같은 파일명으로\n` +
+        `> 복제돼 있어 wikilink 가 어느 사본을 가리킬지 모호하다(구현엔 영향 없음):\n` +
+        dupNested.map((d) => `> - ${d.id} — ${d.owners.join(", ")}`).join("\n") + "\n\n"
+      : "") +
     `## git 권장\n\n\`docs/screen-design/\` 를 git 으로 함께 버전관리 권장.\n`;
   await writeVerified(join(outDir, "SCREENS.md"), screensMd);
 
@@ -392,7 +422,7 @@ async function main() {
   const vmRows = all
     .slice()
     .sort((a, b) => a.id.localeCompare(b.id))
-    .map((it) => `| ${it.id} | ${it.type} | ${it.raw?.title || ""} | ${it.raw?.current_version ?? it.version} | ${it.raw?.stale ?? false} | ${statusOf(it.id)} |`)
+    .map((it) => `| ${wl(it.id)} | ${it.type} | ${it.raw?.title || ""} | ${it.raw?.current_version ?? it.version} | ${it.raw?.stale ?? false} | ${statusOf(it.id)} |`)
     .join("\n");
   const vm =
     `# Version Master — ${domainName} (${domain ?? "-"}) — 화면 키트\n\n` +
@@ -405,6 +435,9 @@ async function main() {
     `## ITEM 버전 표\n\n| ITEM ID | type | title | version | stale | status |\n|---|---|---|---|---|---|\n${vmRows}\n`;
   await writeVerified(join(outDir, "version-master.md"), vm);
 
+  if (dupNested.length) {
+    console.log(`⚠ 화면 공유 UC/AC ${dupNested.length}건이 복제됨 — 볼트에서 wikilink 모호(SCREENS.md 참고)`);
+  }
   console.log(
     `✅ arrange 완료 — 화면 ${counts.screen} · UC ${counts.uc} · AC ${counts.ac} · ` +
       `API ${counts.api} · CONST ${counts.constant} · ROLE ${counts.role} · GUIDE ${counts.guideline} · UI ${counts.ui} · ` +

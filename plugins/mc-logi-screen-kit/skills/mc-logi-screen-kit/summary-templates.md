@@ -25,9 +25,13 @@ status: <synced|NEW|CHANGED|RETIRED>
 prev_version: <CHANGED 일 때만, 아니면 null>
 raw: ./_raw/<ID>.json
 links:                      # get_neighbors 핵심 링크만 (구현 의존 파악용)
-  <link_type>: [<ID>...]
+  <link_type>: ["[[<ID>]]", ...]
 ---
 ```
+
+> 링크 값은 **Obsidian wikilink** 로 쓴다 — 키트 루트를 볼트로 열면 화면↔API↔UC↔AC 그래프가
+> 그대로 보인다. YAML flow sequence 안의 `[[ID]]` 는 **반드시 큰따옴표**로 감싼다
+> (안 그러면 중첩 배열로 파싱되어 링크가 깨진다).
 
 CHANGED 면 frontmatter 직후 변경 배너 삽입:
 
@@ -86,7 +90,7 @@ status: <synced|NEW|CHANGED|RETIRED>
 prev_version: <null|n>
 raw: ./_raw/DS-NNN.json
 links:
-  project: [<PROJECT-ID>]
+  project: ["[[<PROJECT-ID>]]"]
 ---
 
 <!-- CHANGED 면 변경 배너 삽입 -->
@@ -240,10 +244,10 @@ prev_version: <null|n>
 raw: ./_raw/SCREEN-NNN.json
 wireframe: ./wireframe.html          # 복수면 wireframe-{render_id}.html / static_render 0건일 때만 ./_no-wireframe.md
 links:
-  consumes_apis: [<API-NNN>...]
-  required_roles: [<ROLE-NNN>...]
-  realizes_use_cases: [<UC-NNN>...]
-  acceptance: [<AC-NNN>...]
+  consumes_apis: ["[[<API-NNN>]]", ...]
+  required_roles: ["[[<ROLE-NNN>]]", ...]
+  realizes_use_cases: ["[[<UC-NNN>]]", ...]
+  acceptance: ["[[<AC-NNN>]]", ...]
 ---
 
 <!-- CHANGED 면 변경 배너 삽입 -->
@@ -459,9 +463,9 @@ status: <synced|NEW|CHANGED>
 prev_version: <null|n>
 raw: ./_raw/API-NNN.json
 links:
-  required_roles: [<ROLE-NNN>...]
-  uses_constant: [<CONST-NNN>...]
-  consumed_by_screens: [<SCREEN-NNN>...]
+  required_roles: ["[[<ROLE-NNN>]]", ...]
+  uses_constant: ["[[<CONST-NNN>]]", ...]
+  consumed_by_screens: ["[[<SCREEN-NNN>]]", ...]
 ---
 
 <!-- CHANGED 면 변경 배너 삽입 -->
@@ -552,8 +556,8 @@ status: <synced|NEW|CHANGED>
 prev_version: <null|n>
 raw: ./_raw/CONST-NNN.json
 links:
-  used_in_screens: [<SCREEN-NNN>...]
-  used_in_apis: [<API-NNN>...]
+  used_in_screens: ["[[<SCREEN-NNN>]]", ...]
+  used_in_apis: ["[[<API-NNN>]]", ...]
 ---
 
 <!-- CHANGED 면 변경 배너 삽입 -->
@@ -611,7 +615,7 @@ status: <synced|NEW|CHANGED>
 prev_version: <null|n>
 raw: ./_raw/ROLE-NNN.json
 links:
-  required_by_screens: [<SCREEN-NNN>...]
+  required_by_screens: ["[[<SCREEN-NNN>]]", ...]
 ---
 
 <!-- CHANGED 면 변경 배너 삽입 -->
@@ -675,9 +679,9 @@ status: <synced|NEW|CHANGED>
 prev_version: <null|n>
 raw: ./_raw/UC-NNN.json
 links:
-  realized_by_screens: [<SCREEN-NNN>...]
-  verified_by: [<AC-NNN>...]
-  consumes_apis: [<API-NNN>...]
+  realized_by_screens: ["[[<SCREEN-NNN>]]", ...]
+  verified_by: ["[[<AC-NNN>]]", ...]
+  consumes_apis: ["[[<API-NNN>]]", ...]
 ---
 
 <!-- CHANGED 면 변경 배너 삽입 -->
@@ -745,8 +749,8 @@ status: <synced|NEW|CHANGED>
 prev_version: <null|n>
 raw: ./_raw/AC-NNN.json
 links:
-  verifies: [<UC-NNN>...]
-  related_screens: [<SCREEN-NNN>...]
+  verifies: ["[[<UC-NNN>]]", ...]
+  related_screens: ["[[<SCREEN-NNN>]]", ...]
 ---
 
 <!-- CHANGED 면 변경 배너 삽입 -->
@@ -801,7 +805,7 @@ status: <synced|NEW|CHANGED>
 prev_version: <null|n>
 raw: ./_raw/GUIDE-NNN.json
 links:
-  applies_to_types: [<type code>...]
+  applies_to_types: ["[[<type code>]]", ...]
 ---
 
 <!-- CHANGED 면 변경 배너 삽입 -->
