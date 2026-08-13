@@ -4,7 +4,7 @@ description: Logicraft 특정 프로젝트의 특정 도메인을 로컬에서 �
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.5.0"
+  version: "1.6.0"
   domain: logicraft-orchestration
   triggers: 구현 키트, implement kit, 도메인 다운로드, 구현 준비, 구현 키트 동기화, 버전 동기화, D001 구현 키트, D002 다운로드, DOMAIN-XXX 구현 준비, logicraft 로컬 다운, 바이브코딩 준비, spec 다운로드
   role: orchestrator-readonly
@@ -89,9 +89,18 @@ sync_session: 5
 stale: false                      # logicraft 가 자체 표기한 stale 플래그
 status: synced                    # synced | NEW | CHANGED | RETIRED
 prev_version: null                # CHANGED 일 때만 직전 로컬 버전
+content_hash: f0d6c5b9…           # 서버 hash (델타 키 — 재계산 안 함)
 raw: ./_raw/DFEAT-064.json
+links:                            # 그래프 링크 — 값은 [[ID]] wikilink (LINK_FORMAT=wikilink-v1)
+  belongs_to_domain: ["[[DOMAIN-002]]"]
+  consumes: ["[[API-259]]", "[[API-260]]"]
+  based_on_backward: ["[[ADR-080]]"]    # backward 는 `_backward` 접미
 ---
 ```
+
+`links:` 값이 wikilink 인 이유는 **Obsidian 볼트 그래프**다 (아래 § Obsidian 참조).
+YAML flow sequence 안에서는 `[[ID]]` 를 반드시 큰따옴표로 감싼다 — 안 그러면 중첩 배열로
+파싱돼 링크가 깨진다.
 
 CHANGED 일 때 frontmatter 바로 아래 배너 삽입:
 
@@ -101,6 +110,34 @@ CHANGED 일 때 frontmatter 바로 아래 배너 삽입:
 > ↳ 아래 요약/구현 노트를 재검토하고 이미 작성된 코드에 반영 필요.
 > ↳ 직전 버전 요약은 git diff 로 확인 (이 파일 이전 커밋).
 ```
+
+## Obsidian 볼트로 설계 그래프 보기
+
+키트 루트(`docs/design/{slug}-{DOMAIN-ID}/`)를 **Obsidian 볼트로 열면 설계 그래프가 그대로
+보인다.** 별도 변환·플러그인 없이, frontmatter `links:` 의 `[[ID]]` 를 Obsidian 이 실제 링크로
+인식해 그래프뷰·백링크에 반영한다. 파일명이 `{ID}.md` 이고 키트 안에서 ID 가 유일하므로
+폴더 구조와 무관하게 해석된다.
+
+- **볼트 단위는 프로젝트별로** — 여러 프로젝트의 `docs/design/` 을 한 볼트로 묶으면
+  `ADR-056` 같은 ID 가 프로젝트마다 존재해 링크가 충돌한다.
+- **유령 노드**: 링크 대상이 키트 밖 ITEM(제외 타입 `code_module`·`legacy_artifact`, 타 도메인)
+  이면 파일이 없어 회색 노드로 뜬다. "이 설계가 어느 코드모듈에 물려 있나"를 보여줘 유용하지만,
+  거슬리면 그래프뷰 → 필터 → *Existing files only* 를 켠다.
+- **엣지 라벨 없음**: 기본 그래프는 관계 종류(`implements`·`consumes` 등)를 표시하지 않는다.
+  관계 타입까지 보려면 Juggl/Breadcrumbs 같은 플러그인이 필요하다(키트는 관여 안 함).
+- `_raw/*.json`·`.kit-manifest.json` 은 md 가 아니라 볼트에서 무시된다.
+
+### 기존 키트 마이그레이션
+
+`links:` 표기 포맷은 `.kit-manifest.json` 의 `link_format` 으로 추적한다. 구 포맷(`[ADR-056]`
+평문) 키트에 이 스킬을 재실행하면 **다운로더가 자동 감지해 전건 재렌더**한다:
+
+```
+🔗 링크 포맷 마이그레이션 (legacy → wikilink-v1) — 전건 재렌더
+```
+
+이때 설계 내용은 그대로이므로 **status 는 UNCHANGED 로 유지**되고 changelog 도 오염되지 않는다
+(`manifest 삭제 후 전건 NEW 재다운로드` 같은 수동 조치 불필요).
 
 ## 워크플로우
 
@@ -157,9 +194,68 @@ list_items(type=<core type>, include_retired=true)   # RETIRED 식별
 - 검사 결과(DFEAT/API/ERD 건수, 노티 발생 여부, 사용자 결정)를 기록해 Phase 4 IMPLEMENTATION.md 상단
   경고 블록과 Phase 5 보고에 반영한다.
 
-### Phase 2.5 — 버전 차이 산출 → **Phase 3 다운로더가 자동 처리**
+### Phase 2.5 — ★ 스코프 확정 → `.kit-scope.json` (이 스킬의 판단이 들어가는 유일한 지점)
 
-버전 diff(NEW/CHANGED/UNCHANGED/RETIRED)는 이제 **별도 단계가 아니다** — Phase 3 의 결정적 다운로더가 `.kit-manifest.json`(id→version/hash)과 서버 export 를 비교해 자동 산출한다. UNCHANGED 는 페치·재렌더 skip, RETIRED 는 `_retired/` 이동, 변경분만 다운로드. 상태 분류표는 `version-tracking.md` 참고(개념 동일). 메인은 버전 카탈로그를 손으로 파싱하지 않는다.
+**무엇을 이 도메인 키트에 담을지는 LLM 이 그래프를 보고 판정한다.** 서버의 `--domain` 필터는
+`domain_id` 컬럼 일치만 보기 때문에 그것만 쓰면 설계에 있는데 키트에 안 내려온다(2026-08
+NexusSystem 48% 유실 사고). 판정 결과는 `.kit-scope.json` 에 **pin** 으로 굳혀, 이후 SYNC 는
+LLM 없이 그대로 결정적으로 재현한다 — 같은 설계인데 실행할 때마다 키트가 흔들리면 안 되기 때문.
+
+#### 1) pin 존재 확인 — `<키트루트>/.kit-scope.json`
+
+| 상태 | 할 일 |
+|---|---|
+| **없음** (INITIAL) | 아래 2) 전체 판정 → pin 신규 작성 |
+| **있음 + `pending[]` 비어있음** | 판정 불필요 → 곧바로 Phase 3 (LLM 0) |
+| **있음 + `pending[]` 있음** | **그 목록만** 판정해 `items` 로 승격/기각 → pin 갱신 |
+
+`pending[]` 은 다운로더가 채운다 — "그래프상 이 도메인과 연결되는데 pin 에 없는 신규 ITEM".
+즉 매 SYNC 마다 전량 재판정하지 않고 **새로 생긴 것만** 본다.
+
+#### 2) 포함 판정 기준 (옛 LLM fetcher 의 판단 기준을 명문화)
+
+Phase 2 카탈로그(`get_related` depth=2 ∪ `get_neighbors` ∪ 타입별 `list_items`)를 후보로 두고,
+`core-item-set.md` 의 Tier·제외 규칙을 먼저 적용한 뒤 다음으로 판정한다:
+
+- ✅ **도메인 소속** — `domain_id` 가 이 도메인이거나 `belongs_to_domain` 링크
+- ✅ **도메인 ITEM 과 상호 참조** — 이 도메인 ITEM 이 참조하거나, 이 도메인 ITEM 을 참조
+- ✅ **project-wide** — `nfr` · `implementation_guideline` · `permission_role`
+- ✅ **다른 도메인 소속이어도 이 도메인 구현자가 반드시 봐야 하는 것**
+  · 이 도메인이 소비·발행하는 `domain_event`(예: 감사 도메인은 타 도메인 이벤트를 다 본다)
+  · 이 도메인 코드가 지켜야 할 `adr`
+  · 이 도메인 화면·API 가 쓰는 `constant`
+  ← **옛 fetcher 가 중복 배치하던 것이 정확히 이 부류다**(옛 키트 중복 35건). `domain_id` 가
+    다르다는 이유로 빼면 그 도메인 구현자가 설계를 못 본다.
+- ❌ 구현과 무관 — `core-item-set.md` § 제외 목록
+
+> **애매하면 포함한다.** 유실(구현이 설계를 못 봄)이 과포함(노이즈)보다 위험하다.
+> 단 AI 임의 추정으로 **무관한 것을 넣지는 않는다** — 링크나 도메인 책임으로 근거를 댈 수 있어야 한다.
+
+#### 3) pin 작성 (schema 1)
+
+```json
+{
+  "schema": 1,
+  "project_id": "<uuid>",
+  "domain": "DOMAIN-005",
+  "decided_by": "llm",
+  "decided_at": "<ISO>",
+  "rule": "Phase2 그래프 카탈로그 + core-item-set Tier + 도메인 책임 판정",
+  "items": ["DFEAT-022", "API-035", "EVT-001", "..."],
+  "pending": []
+}
+```
+
+- `items` 는 **이 키트에 담을 ID 전체**. 다운로더는 이 목록을 그대로 받아온다.
+- **`pending` 은 다운로더가 관리한다** — 스킬은 판정 후 비우고, 다운로더가 다시 채운다.
+- ★ **이 파일은 키트와 함께 git 커밋한다.** 그래야 다른 PC·다른 팀원이 같은 키트를 얻는다.
+  커밋 안 하면 그 PC 에서는 pin 이 없어 그래프 폴백(재현율 약 90%)으로 동작한다.
+
+#### 4) 버전 diff 는 여전히 다운로더 몫
+
+NEW/CHANGED/UNCHANGED/RETIRED 는 Phase 3 다운로더가 `.kit-manifest.json`(id→version/hash)과
+서버 export 를 비교해 자동 산출한다. 메인은 버전 카탈로그를 손으로 파싱하지 않는다.
+상태 분류표는 `version-tracking.md` 참고.
 
 ### Phase 3 — 결정적 다운로드 (download-kit.mjs · LLM 0)  ★ ADR-026
 
@@ -205,8 +301,18 @@ node <download-kit.mjs> \
   별도 제외가 필요 없다 — 제외 목록에는 "항상 구현 무관"인 타입만 넣는다.
 - **--types**(포함 목록)는 특정 타입만 부분 재동기화할 때만 사용 — 이 방식은 신규 타입이 자동 포함되지 않음.
 - **--domain**: 도메인 스코프. **--out**: 키트 루트.
+- **★ 스코프는 Phase 2.5 의 `.kit-scope.json` 이 정한다 — `--domain` 은 보조**:
+  다운로더는 `<out>/.kit-scope.json` 이 있으면 그 `items` 를 **그대로** 받아온다(결정적 재현).
+  pin 이 없으면 그래프 폴백(자기 `domain_id` + 1-hop 이웃, 재현율 약 90%)으로 동작하고
+  그 사실을 로그에 알린다. `nfr`·`implementation_guideline`·`permission_role` 은 전역 수집.
+  **별도 인자 불필요** — pin 은 `--out` 아래에서 자동 탐색된다(다른 위치면 `--scope-file`).
 - **델타·RETIRED·무결성**: 재실행 시 변경분만, UNCHANGED skip, 서버에서 사라진 것은 `_retired/` 이동. 쓰기 후 read-back 바이트 검증(무열화).
 - 출력이 `📊 … 변경 N` + `✅ SYNC 완료` 이면 성공. 오류 시 종료코드(1 인자/2 HTTP·인증/3 무결성)·stderr 확인.
+- **★ 유실 경고를 반드시 읽는다**: 실행 로그에 `⚠️ 도메인 스코프 밖에 남은 핵심 ITEM` 블록이
+  뜨면 그 내용을 Phase 5 보고에 그대로 옮긴다. 특히 **🚨 (이번 키트 0건 / 프로젝트엔 N건)** 은
+  구현이 그 설계를 못 보는 상태이므로, 사용자에게 알리고 `logicraft 에서 domain_id 를 채울지`
+  `--global-types 에 추가할지` 확인한다. **성공 출력만 보고 넘어가지 말 것** — 이 사고의 본질은
+  "스크립트가 성공을 출력하는데 절반이 빠져 있었다" 였다.
 
 > ⚠️ **옛 `logi-implement-fetcher`(LLM 요약) 방식은 폐기(ADR-026).** ITEM 본문 "요약"은 서버 결정적 스켈레톤이 대체한다(의역 0). 구현지향 "해석"(MUST/체크리스트)은 버리는 게 아니라 Phase 4 IMPLEMENTATION.md 합성 + 구현 착수 시 지연 생성으로 이동. 아래 fetcher 절차는 **다운로더 미배포/실패 시 폴백 참고용**으로만 남긴다.
 
@@ -263,6 +369,9 @@ fetcher 책무: ITEM 별 `get_item` → 원본 `_raw/<ID>.json` 저장 → 타�
 1. `_domain.md` + `_raw/_domain.json` 작성 (도메인 요약: bounded context / 책임 / ubiquitous language / 외부 의존 / ADR 정책)
 2. **`version-master.md` — 다운로더가 이미 생성**(Phase 3): 헤더 메타(project_id·domain·last sync·mode) + Changelog(NEW/CHANGED/RETIRED) + ITEM 표(ID/type/version/status). 메인은 재작성하지 않는다. 필요 시 도메인 item 버전·sync_session 등 부가 헤더만 보강 가능(선택).
 3. **`IMPLEMENTATION.md` 작성/갱신** (바이브코딩 진입점):
+   - ★ **본문에 등장하는 ITEM ID 는 전부 `[[API-259]]` 형태 wikilink 로 쓴다** — 다운로더가
+     만든 ITEM 파일들과 같은 그래프에 얹혀야 이 문서가 볼트의 허브 노트가 된다.
+     (표 셀 안에서도 그대로 `[[ID]]`. `_domain.md` 도 동일.)
    - 도메인 1줄 요약 + bounded context
    - **★ DFEAT 부재 경고 블록 (해당 시 최상단)**: Phase 2 게이트에서 DFEAT 0건(또는 API/ERD 부재)이
      감지됐고 사용자가 "없이 진행" 을 선택한 경우, 문서 최상단에 경고 블록을 박는다:
@@ -281,7 +390,7 @@ fetcher 책무: ITEM 별 `get_item` → 원본 `_raw/<ID>.json` 저장 → 타�
      · uses_constant 역링크가 비어도 belongs_to_domain 으로 키트에 포함되니 표에는 반드시 넣고, 사용처는 "⚠️ 미연결" 로 표기.
    - **구현 현황**: `get_implementation_coverage(scope=domain)` + `list_unimplemented(domain_id)` → "이미 구현됨 / 미구현 / 어디부터 시작" 표
    - **변경 알림**: 이번 run CHANGED ITEM 목록 → "코드 재반영 필요" 강조
-   - 각 ITEM 요약 파일로의 상대경로 링크 인덱스
+   - 각 ITEM 파일 인덱스 — `[[ID]]` wikilink (볼트에서 클릭 이동, 그래프 연결)
 
 ### Phase 4.5 — 프로젝트 CLAUDE.md 키트 블록 등록 (`claude-md-block.md` 규약)
 
@@ -312,6 +421,18 @@ Markdown 표로 사용자에게 (CLAUDE.md 블록 등록/갱신 여부 1줄 포�
 | DFEAT-064 | domain_feature | 11→12 | … |
 | SEQ-020 | diagram_sequence | 8→9 | … |
 ...
+
+## 스코프 (.kit-scope.json)
+- 결정: `pin(스킬 LLM 판정)` | `그래프 폴백` — 로그의 "스코프 결정" 줄 그대로
+- 미판정(pending) N건 → 있으면 **다음 실행에서 Phase 2.5 가 판정**한다고 안내
+- ★ pin 파일을 **git 커밋**하라고 안내 (다른 PC 에서 같은 키트를 얻는 유일한 경로)
+
+## ⚠️ 스코프 밖 ITEM (다운로더 유실 경고 — 있으면 반드시 전재)
+| type | 이번 키트 | 프로젝트 전역 | 판정 |
+|---|---|---|---|
+| nfr | 0 | 17 | 🚨 전량 누락 — domain_id 미설정 |
+→ 🚨 가 있으면 "구현이 이 설계를 못 봅니다" 를 명시하고 조치(설계에 domain_id 채우기 /
+   --global-types 추가) 를 사용자에게 확인받는다. 경고가 없으면 이 절 생략.
 
 ## RETIRED (logicraft 에서 폐기 — _retired/ 이동)
 - API-191 (deprecated) — 코드에서 제거 검토

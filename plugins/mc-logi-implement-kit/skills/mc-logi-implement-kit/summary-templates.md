@@ -20,9 +20,13 @@ status: <synced|NEW|CHANGED|RETIRED>
 prev_version: <CHANGED 일 때만, 아니면 null>
 raw: ./_raw/<ID>.json
 links:                      # get_neighbors 핵심 링크만 (구현 의존 파악용)
-  <link_type>: [<ID>...]
+  <link_type>: ["[[<ID>]]", ...]
 ---
 ```
+
+> 링크 값은 **Obsidian wikilink** 로 쓴다 — 키트 루트를 볼트로 열면 설계 그래프가 그대로 보인다.
+> YAML flow sequence 안의 `[[ID]]` 는 **반드시 큰따옴표**로 감싼다(안 그러면 중첩 배열로 파싱).
+> backward 방향은 `<rel>_backward` 키로 쓴다.
 CHANGED 면 frontmatter 직후 `version-tracking.md` 의 변경 배너 삽입.
 
 ## 공통 본문 골격

@@ -61,6 +61,77 @@ logicraft ITEM 타입(**서버 진실원 = `packages/schemas` `ITEM_TYPES`, 2026
 | `migration_plan` | 도메인 ERD 가 brownfield migration 대상일 때 (brownfield_migration 링크) |
 | `permission_manifest` / `settings_schema` | **프로젝트 프로파일이 desktop**(capability `desktop_ui`)일 때 (ADR-021 — OS 권한 매니페스트·환경설정 스키마). 프로파일은 프로젝트 profile/capabilities 로 판정(`packages/schemas` profiles.ts 매핑이 진실원) — 웹 전용 프로젝트면 자동 0건 |
 
+## 도메인 스코프 정책 (★ 조용한 유실 방지 — 2026-08 NexusSystem 사고)
+
+`--domain` 으로 키트를 받을 때 서버 필터는 **`items.domain_id` 컬럼 정확 일치**만 본다
+(`items.service.ts` `listForExport`). 링크(`belongs_to_domain` 등)는 보지 않는다.
+
+그런데 아래 타입들은 도메인 귀속 개념이 약해 `domain_id` 가 비어 있는 경우가 많고,
+도메인과는 여러 hop 건너 링크로만 이어진다:
+
+```
+DOMAIN-004 ←belongs_to_domain— DFEAT-016 —specializes→ FEAT-016 ←realizes— UC-012 ←derived_from— AC-024
+```
+
+이걸 도메인 필터로만 거르면 **설계에 멀쩡히 있는데 키트에 안 내려오는** 유실이 난다
+(2026-08 NexusSystem: `.md` 259 → 135건, 48% 유실. nfr·permission_role·
+implementation_guideline·test_scenario 전멸. 스크립트는 성공·무결성 통과를 출력했다).
+`get_related(depth=2)` 우회로도 위 4-hop 은 못 잡고, depth 를 키우면 프로젝트 전체가
+딸려와 도메인 스코프가 무의미해진다.
+
+→ 스코프는 **2단 구조**다:
+
+| 순위 | 결정 주체 | 방식 | 재현율 |
+|---|---|---|---|
+| **1. pin** | 스킬 Phase 2.5 (LLM) | `.kit-scope.json` 의 `items` 를 그대로 | **100%** (판정을 그대로 재현) |
+| 2. 그래프 폴백 | 다운로더 (규칙) | 자기 `domain_id` + 1-hop 이웃 도메인 | 약 90% |
+| 3. `--no-graph-scope` | 서버 | `domain_id` 일치만 | 59% (사고 당시) |
+
+pin 은 **키트와 함께 git 커밋**해야 다른 PC·다른 팀원이 같은 키트를 얻는다. 커밋하지 않으면
+그 PC 에서는 pin 이 없어 2순위(그래프 폴백)로 동작한다.
+
+아래는 pin 이 없을 때의 **그래프 폴백** 규칙이다. 옛 LLM fetcher 가 `get_neighbors`/`get_related` 로
+그래프를 따라가던 것을 결정적으로 근사한 것이다.
+
+```
+ITEM 의 소속 도메인 = {자기 domain_id} ∪ {1-hop 이웃들의 domain_id}
+```
+
+이 규칙은 추측이 아니라 **옛 키트를 정답지로 역산**해 얻었다(NexusSystem git HEAD 246건).
+옛 방식의 실제 배치 원칙은 "domain_id 소속" 이 아니라 "그래프상 그 도메인과 닿으면 그
+도메인 키트에도 넣는다" 였다 — 예컨대 `EVT-003` 은 `domain_id=DOMAIN-001` 이지만 이웃
+`DFEAT-022` 가 D005 라서 **D005 키트에도** 들어 있었다(옛 키트 중복 35건의 정체).
+감사 도메인이 그 이벤트를 봐야 하기 때문이다.
+
+**전역 수집**(그래프로 소속을 못 정하는 타입): `nfr`, `implementation_guideline`,
+`permission_role`. 앞의 둘은 이 문서가 project-wide 로 규정했고, `permission_role` 은 링크가
+전부 "역할을 **쓰는** 쪽"(`requires` 역참조)만 가리켜 traversal 로 소속을 정할 수 없다.
+
+`adr` 은 전역에 넣지 않는다 — 위 § ADR 필터 규칙이 "도메인 관련만" 으로 못박았고 그래프로도
+대부분 잡힌다. 스코프 밖 ADR 건수는 경고로 노출된다.
+
+### 옛 fetcher 대비 재현율 (NexusSystem 실측, 정답 246건)
+
+| 방식 | 총 | 일치 | 누락 | 과포함 |
+|---|---|---|---|---|
+| `domain_id` 만 (사고 당시) | 161 | 145 | **101** | 16 |
+| orphan 회수 (중간 버전) | 345 | 219 | 27 | 126 |
+| **그래프 스코프 (현행)** | 318 | **222 (90%)** | **24** | 96 |
+
+도메인별로는 D002 누락 1건, D004 누락 2건으로 거의 일치하고, 남은 누락은 D001·D005 에
+몰려 있다. 그 24건은 `AC-024`·`UC-012` 처럼 **그래프에 해당 도메인 연결이 아예 없는** ITEM 이다
+— 옛 fetcher 가 "감사 도메인이면 이 수용기준도 봐야 한다"고 **의미로 판단**해 넣은 것이라
+링크에 근거가 없다. 결정적 규칙으로는 재현할 수 없는 부분이며, 완전 재현이 필요하면
+`--global-types` 로 해당 타입을 전역에 추가하는 수동 조정이 필요하다.
+
+**유실 경고**: 도메인 스코프 실행 시 Tier 1·2 핵심 타입 중 "프로젝트엔 있는데 이번 키트엔
+0건" 인 타입을 🚨 로 콘솔과 `version-master.md` 에 남긴다. 성공 출력만 보고 유실을 놓치는
+일이 없게 하는 안전장치다. 조정은 `--global-types`, 옛 동작 복귀는 `--no-graph-scope`.
+
+**RETIRED 판정**: 그래프 스코프에서는 배정이 링크로 정해져 로컬 manifest 만으로 재현할 수
+없으므로, **서버 프로젝트 전체에서 사라진 것만** `_retired/` 로 옮긴다. 스코프가 좁아져
+이번에 안 담긴 ITEM 을 삭제로 오인해 지우는 사고를 막기 위함이다.
+
 ### 제외 (구현 무관 — 다운로드 안 함)
 `code_module`(★ **이미 구현된** 코드 모듈의 역참조 매핑(file_path→설계) — **구현의 입력 스펙이 아니라 구현 결과의 사후 추적 문서**다. 무엇을 구현할지는 DFEAT/API/ERD 로 충분하고, 코드↔설계 접합은 소스의 `@DesignRef` 코드주석이 담당하므로 키트에 불필요. 매 SYNC 마다 대량 신규로 떠서 노이즈만 됨),
 `rfp_item`, `requirement`(상위 추상 — FEAT 로 충분), `glossary`(도메인 ubiquitous_language 로 흡수),
