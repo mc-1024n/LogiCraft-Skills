@@ -3,7 +3,7 @@ name: mc-logi-publish-skill
 description: 로컬 스킬 폴더(~/.claude/skills/<name>/)를 LogiCraft 마켓플레이스에 발행·갱신하는 스킬. 결정적 스크립트가 파일을 직접 REST 로 보내 본문이 AI 컨텍스트를 거치지 않으므로 잘림·줄번호 오염·재타이핑 오타가 없고, 파일이 많거나 큰 스킬도 한 번에 올라간다. 실발행은 예행연습(dry-run) 토큰 없이는 스크립트가 거부한다. 사용자가 "이 스킬 올려줘", "스킬 마켓에 발행", "스킬 업데이트해서 올려줘", "마켓플레이스에 배포", "스킬 버전 올려서 발행", "/mc-logi-publish-skill" 등 Claude Code 스킬을 마켓에 올리려 할 때 실행.
 license: MIT
 metadata:
-  version: 1.0.0
+  version: 1.0.1
   domain: logicraft-skills
 ---
 

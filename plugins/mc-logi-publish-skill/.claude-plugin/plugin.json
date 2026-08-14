@@ -1,6 +1,6 @@
 {
   "name": "mc-logi-publish-skill",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "로컬 스킬 폴더(~/.claude/skills/<name>/)를 LogiCraft 마켓플레이스에 발행·갱신하는 스킬. 결정적 스크립트가 파일을 직접 REST 로 보내 본문이 AI 컨텍스트를 거치지 않으므로 잘림·줄번호 오염·재타이핑 오타가 없고, 파일이 많거나 큰 스킬도 한 번에 올라간다. 실발행은 예행연습(dry-run) 토큰 없이는 스크립트가 거부한다. 사용자가 \"이 스킬 올려줘\", \"스킬 마켓에 발행\", \"스킬 업데이트해서 올려줘\", \"마켓플레이스에 배포\", \"스킬 버전 올려서 발행\", \"/mc-logi-publish-skill\" 등 Claude Code 스킬을 마켓에 올리려 할 때 실행.",
   "summary": "로컬 스킬 폴더를 LogiCraft 마켓에 발행 — 파일 본문이 AI 컨텍스트를 안 거쳐 잘림·오타 없이 한 번에. 실발행은 dry-run 토큰(--confirm) 없이는 스크립트가 거부한다. _plugin/ 로 동봉 서브에이전트도 함께 배포.",
   "category": "operations",
@@ -11,7 +11,7 @@
   "logicraft": {
     "publisher_user_id": "4b805dc4-6d13-42c5-9710-f5a34bf2e73e",
     "publisher_email": "mc_1024@cudo.co.kr",
-    "published_at": "2026-08-12T11:27:47.912Z",
+    "published_at": "2026-08-14T06:38:53.802Z",
     "source": "mcp"
   }
 }
