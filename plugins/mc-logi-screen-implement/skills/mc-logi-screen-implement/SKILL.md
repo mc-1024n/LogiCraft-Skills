@@ -4,7 +4,7 @@ description: mc-logi-screen-kit 이 만든 로컬 화면 키트(./docs/screen-de
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.1.0"
+  version: "1.1.1"
   domain: logicraft-orchestration
   triggers: 화면 구현, 화면 구현해줘, 키트대로 화면 구현, 화면 구현 시작, SCREEN-NNN 구현, D001 화면 구현, 화면 구현 계획, 화면 구현 추적, screen implement, 화면 구현 오케스트레이터
   role: orchestrator
