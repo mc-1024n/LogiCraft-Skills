@@ -9,6 +9,10 @@
       "source": "./plugins/mc-logi-brainstorming"
     },
     {
+      "name": "mc-logi-build-onboard",
+      "source": "./plugins/mc-logi-build-onboard"
+    },
+    {
       "name": "mc-logi-domain-review",
       "source": "./plugins/mc-logi-domain-review"
     },

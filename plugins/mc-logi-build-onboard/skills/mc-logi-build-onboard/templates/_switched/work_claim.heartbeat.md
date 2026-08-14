@@ -1,0 +1,1 @@
+- **work_claim 유지(닫지 않음)**: 코드는 done 이나 **설계 backfill 은 아직 대기**이므로 claim 을 close 하지 **않는다**. 필요 시 `update_work_claim(claim_id, design_pending=true, claimed_paths=<실제 변경 경로로 정밀화>)` 로 heartbeat(TTL 연장)+경로 정밀화만. → claim 은 `active + design_pending=true` 로 남아 MASTER 의 `설계반영 ⏳` 를 크로스세션으로 미러. (claim 종결은 backfill 단계에서.)
