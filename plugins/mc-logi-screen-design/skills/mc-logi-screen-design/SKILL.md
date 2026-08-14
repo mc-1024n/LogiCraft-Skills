@@ -4,7 +4,7 @@ description: mc-logi-screen-kit 이 만든 로컬 화면 키트(./docs/screen-de
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.3.3"
+  version: "1.3.4"
   domain: logicraft-orchestration
   triggers: 화면 디자인, 화면 디자인해줘, screen design, 고충실도 목업, 고충실도 디자인, SCREEN-NNN 디자인, D001 화면 디자인, 화면 비주얼 디자인, 디자인 목업 만들어줘
   role: orchestrator
