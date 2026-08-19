@@ -4,7 +4,7 @@ description: Logicraft 특정 프로젝트의 특정 도메인을 로컬에서 �
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.6.0"
+  version: "1.7.0"
   domain: logicraft-orchestration
   triggers: 구현 키트, implement kit, 도메인 다운로드, 구현 준비, 구현 키트 동기화, 버전 동기화, D001 구현 키트, D002 다운로드, DOMAIN-XXX 구현 준비, logicraft 로컬 다운, 바이브코딩 준비, spec 다운로드
   role: orchestrator-readonly
@@ -268,7 +268,7 @@ NEW/CHANGED/UNCHANGED/RETIRED 는 Phase 3 다운로더가 `.kit-manifest.json`(i
      - **①(생성) 선택 시**: `Glob("**/mc-logi-implement-kit/download-kit-src.md")` → Read → 그 안의 ```js 코드블록 **전체를 한 글자도 바꾸지 말고** `<스킬 디렉터리>/bin/download-kit.mjs` 로 Write(부모 dir 생성) → `node --check` 로 문법 확인 → 정상이면 2·3단계로 진행(결정적 다운로드).
      - **②(옛 방식) 선택 시**: 이 Phase 아래 옛 fetcher 절차로 폴백.
      - `download-kit-src.md`(캐리어)마저 없으면 → 생성 불가 → 옛 fetcher 폴백 + "다운로더·소스 캐리어 모두 미배포" 보고.
-2. **환경**: node 미가용 → 폴백. `LOGICRAFT_API_KEY`(lc_ 키) 미설정 → 사용자에게 설정 요청(MCP 와 동일 키). base 는 개발기 `LOGICRAFT_API_BASE`(기본 :14000/api), 상용은 해당 서버.
+2. **환경**: node 미가용 → 폴백. **인증·엔드포인트는 자동 조달된다(CO-049)** — `LOGICRAFT_API_KEY`/`LOGICRAFT_API_BASE` env 나 `--base-url` 이 없으면 다운로더가 `~/.claude.json` 의 `mcpServers`(logicraft → logicraft-dev 순, `--server` 로 지정 가능)에서 api-key 와 base 를 읽는다. **로컬 기본값은 없다** — 셋 다 없으면 종료코드 1 로 중단하고 설정 방법을 안내한다(예전 기본값 `localhost:14000` 이 발행본에서 남의 로컬을 찌르던 문제). 실행 첫 줄에 `🔑 base=… (출처) · key=출처` 만 찍고 **키 값은 절대 출력하지 않는다**.
 3. **다운로더 실행 후 종료코드 분기**:
    - **0** = 성공 → Phase 4.
    - **4** = 엔드포인트 미배포(서버에 `/kit-export` 없음 = 구버전 LogiCraft, 배치 export 미배포) → **폴백**(옛 fetcher, MCP `get_item` 기반).
@@ -287,13 +287,14 @@ NEW/CHANGED/UNCHANGED/RETIRED 는 Phase 3 다운로더가 `.kit-manifest.json`(i
 
 실행 (스크립트 위치는 설치 무관하게 `Glob("**/mc-logi-implement-kit/bin/download-kit.mjs")` 로 탐색):
 ```bash
-LOGICRAFT_API_KEY=<lc_ 키 — MCP 와 동일한 그 키> \
-LOGICRAFT_API_BASE=http://localhost:14000/api \
+# MCP 설정이 있으면 env 없이 그대로 실행된다 (권장)
 node <download-kit.mjs> \
   --project <project_id> --out docs/design/{slug}-{DOMAIN-ID} \
   [--domain DOMAIN-NNN] [--exclude-types code_module,rfp_item,...] [--dry-run]
 ```
-- **api-key**: MCP 와 동일한 `LOGICRAFT_API_KEY`(lc_) env. 개발기는 `logicraft-dev`(:14000), base 는 `LOGICRAFT_API_BASE`(기본 `http://localhost:14000/api`).
+- **api-key·base (자동 조달)**: 우선순위는 `--base-url`/env > **MCP 설정**(`~/.claude.json` 의 `mcpServers`) > 에러. MCP 를 쓰는 환경이면 **아무 env 없이 실행**된다. 다른 서버를 쓰려면 `LOGICRAFT_API_KEY=… LOGICRAFT_API_BASE=https://<host>/api` 를 주거나 `--server <mcp항목명>` 으로 고른다.
+  · MCP 항목의 `env.AUTH_TOKEN`(또는 `LOGICRAFT_API_KEY`), `--header Authorization:…` 을 모두 인식하고 `Bearer ` 접두는 벗겨 쓴다. 미치환 플레이스홀더(`${...}`)는 키로 치지 않는다.
+  · base 는 MCP 의 URL 에서 끝의 `/mcp` 를 떼어 만든다(`https://host/api/mcp` → `https://host/api`).
 - **★ 타입 선택 — `--exclude-types` 방식이 기본(권장)**: `--types`(포함 목록)를 **생략**하고
   `core-item-set.md` 의 "제외" 목록만 `--exclude-types` CSV 로 전달한다 → "도메인 전체 − 제외" 를 받아
   **서버에 ITEM 타입이 새로 추가되어도 키트에 자동 포함**(fail-open — 2026-08 신규 6종 누락 재발 방지).
