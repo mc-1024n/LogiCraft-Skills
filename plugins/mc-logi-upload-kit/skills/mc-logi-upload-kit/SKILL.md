@@ -2,7 +2,7 @@
 name: mc-logi-upload-kit
 description: 로컬에 작업해둔 파일(HTML 데모·아티팩트·디자인 렌더·markdown 첨부)을 LogiCraft 에 REST 로 직접 업로드하는 스킬. 본문이 AI 컨텍스트를 거치지 않아 5MB 데모도 토큰 0 으로 등록된다. 사용자가 "이 파일 데모로 올려줘", "demo.html 업로드", "이 HTML 아티팩트 등록", "디자인 렌더 파일 올려줘", "/mc-logi-upload-kit" 등 로컬 파일을 LogiCraft 산출물로 등록하려 할 때 실행. download-kit(키트 다운로더)의 역방향 업로더.
 metadata:
-  version: 1.2.0
+  version: 1.3.0
 ---
 
 # mc-logi-upload-kit — LogiCraft 파일 업로더
@@ -39,7 +39,9 @@ metadata:
 ## 사전 준비 (환경)
 - `LOGICRAFT_API_KEY` — MCP 와 **동일한 lc_ 키**(`.mcp.json` 의 AUTH_TOKEN 에서 `lc_...` 부분). api-key 경로는
   서버 guard 가 write 스코프를 강제(read-only 키는 403, ADR-029/CO-007).
-- `LOGICRAFT_API_BASE` — 대상 서버(개발 `http://localhost:14000/api`, 상용 `https://logicraft.cudo.co.kr:10000/api`).
+- `LOGICRAFT_API_BASE` — 대상 서버(상용 `https://logicraft.cudo.co.kr:10000/api`).
+  ★ **미설정이면 `~/.claude.json` 의 `mcpServers`(logicraft → logicraft-dev, `--server` 로 지정)에서 키·base 를 자동 조달**한다(CO-049).
+  **로컬 기본값은 없다** — 둘 다 없으면 종료코드 1 로 중단한다. 실행 첫 줄에 `🔑 base=… (출처) · key=출처` 만 찍고 키 값은 출력하지 않는다.
   ★ 등록 대상 프로젝트가 있는 서버로 맞출 것(다운로더와 동일 규칙).
 
 ## 워크플로

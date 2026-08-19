@@ -12,8 +12,9 @@
  *   attachment        POST /projects/:project/artifacts/:parent/attachments/upload (JSON {markdown})
  *   design_render     POST /projects/:project/items/:parent/design-render/upload   (multipart html[+css])
  *
- * 인증: LOGICRAFT_API_KEY (MCP 와 동일한 lc_ 키) → Authorization: Bearer.
- * 서버: LOGICRAFT_API_BASE (기본 http://localhost:14000/api).
+ * 인증: LOGICRAFT_API_KEY env → 없으면 ~/.claude.json 의 mcpServers(logicraft*) 에서 자동 조달.
+ *       base 도 동일(LOGICRAFT_API_BASE > MCP 설정). **로컬 기본값 없음**(CO-049).
+ *       --server <name> 으로 MCP 항목 지정 가능(기본 logicraft → logicraft-dev).
  *
  * 종료코드: 0 성공 · 1 인자 오류 · 2 HTTP/인증 오류 · 3 파일 오류.
  *
@@ -25,6 +26,9 @@
  *   node upload-artifact.mjs --type design_render --project <uuid> --parent SD-012 --file design.html --css design.css --surface main
  */
 import { readFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 // ── 인자 파싱 ─────────────────────────────────────────────
 function parseArgs(argv) {
@@ -71,9 +75,80 @@ if ((type === "app_demo_version" || type === "attachment" || type === "design_re
   die(1, `--type ${type} 은 --parent <${type === "attachment" ? "artifactId" : type === "design_render" ? "SD-ID" : "demoId"}> 필수.`);
 }
 
-const API_KEY = process.env.LOGICRAFT_API_KEY;
-if (!API_KEY) die(2, "LOGICRAFT_API_KEY 환경변수 필요(MCP 와 동일한 lc_ 키).");
-const BASE = (process.env.LOGICRAFT_API_BASE || "http://localhost:14000/api").replace(/\/$/, "");
+/**
+ * MCP 설정 폴백 — env 가 없을 때 ~/.claude.json 의 mcpServers 에서 api-key·base 를 읽는다.
+ * 예전 기본값 `localhost:14000` 은 개발 머신 포트라, 다른 환경에서는 자기 빈 로컬을 찔러
+ * "서버 접속 불가"로 죽었다. 기본값을 없애고 MCP 설정에서 실제 서버를 읽는다(CO-049).
+ * 키 값은 로그에 출력하지 않는다(출처 이름만).
+ */
+function readMcpConfig(preferred) {
+  const home = homedir() || process.env.HOME || "";
+  if (!home) return null;
+  let cfg;
+  try {
+    cfg = JSON.parse(readFileSync(join(home, ".claude.json"), "utf8"));
+  } catch {
+    return null;
+  }
+  const pools = [];
+  if (cfg && cfg.mcpServers) pools.push(cfg.mcpServers);
+  for (const proj of Object.values((cfg && cfg.projects) || {})) {
+    if (proj && proj.mcpServers) pools.push(proj.mcpServers);
+  }
+  const preferredNames = preferred ? [preferred] : ["logicraft", "logicraft-dev"];
+  for (const pool of pools) {
+    const ordered = [
+      ...preferredNames.filter((n) => pool[n]),
+      ...Object.keys(pool).filter((k) => /^logicraft/i.test(k) && !preferredNames.includes(k)),
+    ];
+    for (const name of ordered) {
+      const srv = pool[name];
+      if (!srv) continue;
+      const env = srv.env || {};
+      const argv = Array.isArray(srv.args) ? srv.args : [];
+      let key = env.LOGICRAFT_API_KEY || env.AUTH_TOKEN || env.API_KEY || "";
+      if (!key) {
+        const h = argv.find((a) => typeof a === "string" && /^authorization\s*:/i.test(a));
+        if (h) key = h.slice(h.indexOf(":") + 1);
+      }
+      key = String(key).replace(/^\s*Bearer\s+/i, "").trim();
+      if (/^\$\{.*\}$/.test(key)) key = "";
+      const urlArg = argv.find((a) => typeof a === "string" && /^https?:\/\//.test(a));
+      const base = urlArg ? urlArg.replace(/\/mcp\/?$/, "").replace(/\/$/, "") : "";
+      if (key || base) return { name, key, base };
+    }
+  }
+  return null;
+}
+
+const _mcp =
+  !process.env.LOGICRAFT_API_KEY || !process.env.LOGICRAFT_API_BASE
+    ? readMcpConfig(typeof args.server === "string" ? args.server : null)
+    : null;
+const API_KEY = String(process.env.LOGICRAFT_API_KEY || (_mcp && _mcp.key) || "")
+  .replace(/^\s*Bearer\s+/i, "")
+  .trim();
+const BASE = String(process.env.LOGICRAFT_API_BASE || (_mcp && _mcp.base) || "").replace(/\/$/, "");
+const KEY_SOURCE = process.env.LOGICRAFT_API_KEY ? "env" : _mcp && _mcp.key ? `MCP(${_mcp.name})` : "없음";
+const BASE_SOURCE = process.env.LOGICRAFT_API_BASE ? "env" : _mcp && _mcp.base ? `MCP(${_mcp.name})` : "없음";
+if (!BASE)
+  die(
+    1,
+    "API base 를 결정할 수 없습니다.\n" +
+      "  · LOGICRAFT_API_BASE env 로 지정하거나\n" +
+      "  · ~/.claude.json 의 mcpServers 에 logicraft 서버를 등록하세요(자동 인식).\n" +
+      "  ※ 로컬 기본값(localhost:14000)은 제거됐습니다 — 남의 머신을 조용히 찌르지 않기 위함(CO-049).",
+  );
+if (!API_KEY)
+  die(
+    2,
+    "API key 를 결정할 수 없습니다.\n" +
+      "  · LOGICRAFT_API_KEY env 로 지정하거나\n" +
+      "  · ~/.claude.json 의 mcpServers.<logicraft>.env.AUTH_TOKEN 을 사용하세요(자동 인식).\n" +
+      "  ※ 업로드는 write 권한이 필요합니다 — read 전용 키면 403 이 납니다.",
+  );
+// 키 값은 절대 출력하지 않는다 — 출처 이름만.
+process.stdout.write(`🔑 base=${BASE} (${BASE_SOURCE}) · key=${KEY_SOURCE}\n`);
 
 // ── 파일 읽기 ─────────────────────────────────────────────
 let body;
