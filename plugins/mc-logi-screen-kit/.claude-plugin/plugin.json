@@ -1,8 +1,8 @@
 {
   "name": "mc-logi-screen-kit",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Logicraft 특정 프로젝트의 특정 화면(screen_spec)과 그 화면이 의존하는 디자인 ITEM 세트(design_system / ui_component / app_shell / navigation_tree / api_endpoint / constant / permission_role / implementation_guideline + 화면별 use_case / acceptance / wireframe / 디자인 렌더)를 ./docs/screen-design/{도메인슬러그}-{DOMAIN-ID}/ 화면 중심 구조로 다운로드 + 버전 추적하는 화면 특화 키트 다운로더. 사용자가 \"SCREEN-011 화면 키트 만들어줘\", \"D002 화면 다운로드\", \"화면 키트 준비해줘\", \"logicraft 화면 로컬로 내려받아줘\", \"화면 키트 동기화해줘\" 등을 요청할 때 실행. 결정적 다운로더(bin/download-kit.mjs, 배치 export API-152)로 서버 verbatim 스켈레톤 + 원본 JSON + 렌더 정적파일을 받고, arranger(bin/arrange-screen-kit.mjs)가 화면 중심 레이아웃 + 인덱스로 정리 — LLM 0·초 단위·content-hash 무열화(ADR-026, 옛 logi-implement-fetcher LLM 요약 폐기). ITEM 수정 안 함 — read-only 다운로드.",
-  "summary": "특정 화면(screen_spec)+의존 디자인 ITEM(DS·ui_component·shell·nav·api·const·role·guideline+UC/AC/wireframe/디자인렌더)을 결정적 다운로더+arranger로 무열화 다운로드→화면 중심 키트. desktop 프로파일 시 SETT/PMAN 포함. LLM 0·초 단위. read-only.",
+  "summary": "특정 화면(screen_spec)+의존 디자인 ITEM(DS·ui_component·shell·nav·api·const·role·guideline+UC/AC/wireframe/디자인렌더)을 결정적 다운로더+arranger로 무열화 다운로드→화면 중심 키트. 인증·서버는 MCP 설정에서 자동 조달(로컬 기본값 없음). desktop·경계계약 지원. read-",
   "category": "screen_impl",
   "author": {
     "name": "노명철"
@@ -11,7 +11,7 @@
   "logicraft": {
     "publisher_user_id": "4b805dc4-6d13-42c5-9710-f5a34bf2e73e",
     "publisher_email": "mc_1024@cudo.co.kr",
-    "published_at": "2026-08-13T09:47:00.202Z",
+    "published_at": "2026-08-19T01:59:30.174Z",
     "source": "mcp"
   }
 }

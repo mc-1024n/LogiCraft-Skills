@@ -4,7 +4,7 @@ description: Logicraft 특정 프로젝트의 특정 화면(screen_spec)과 그 
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.4.0"
+  version: "1.5.0"
   domain: logicraft-orchestration
   triggers: 화면 키트, screen kit, 화면 다운로드, 화면 구현 준비, 화면 키트 동기화, SCREEN-NNN 키트, SCREEN-NNN 다운로드, 화면 로컬 다운, 화면 구현 준비해줘, logicraft 화면 로컬로 내려받아, screen-design 동기화, D001 화면 키트, D002 화면 다운로드
   role: orchestrator-readonly
@@ -252,7 +252,7 @@ list_items(type=implementation_guideline)      # GUIDE (applies_to_types 매칭�
      - **①(생성) 선택 시**: 없는 스크립트마다 `Glob("**/mc-logi-screen-kit/download-kit-src.md")`·`Glob("**/mc-logi-screen-kit/arrange-screen-kit-src.md")` → Read → 그 안의 ```js 코드블록 **전체를 한 글자도 바꾸지 말고** `<스킬 디렉터리>/bin/<파일>` 로 Write(부모 dir 생성) → `node --check` 로 문법 확인 → 정상이면 진행. (download-kit.mjs 는 `**/mc-logi-implement-kit/bin/download-kit.mjs` 에 있으면 그걸 써도 됨 — 동일 파일.)
      - **②(옛 방식) 선택 시**: 이 Phase 아래 옛 fetcher 절차로 폴백.
      - 캐리어마저 없으면 → 생성 불가 → 옛 fetcher 폴백 + "다운로더/arranger·소스 캐리어 미배포" 보고.
-2. **환경**: node 미가용 → 폴백. `LOGICRAFT_API_KEY`(lc_ 키, MCP 와 동일) 미설정 → 사용자에게 설정 요청. base 는 개발기 `LOGICRAFT_API_BASE`(기본 `http://localhost:14000/api`), 상용은 해당 서버.
+2. **환경**: node 미가용 → 폴백. **인증·엔드포인트는 자동 조달된다(CO-049)** — `LOGICRAFT_API_KEY`/`LOGICRAFT_API_BASE` env 나 `--base-url` 이 없으면 다운로더가 `~/.claude.json` 의 `mcpServers`(logicraft → logicraft-dev 순, `--server` 로 지정 가능)에서 api-key 와 base 를 읽는다. **로컬 기본값은 없다** — 셋 다 없으면 종료코드 1 로 중단하고 설정 방법을 안내한다(예전 기본값 `localhost:14000` 이 발행본에서 남의 로컬을 찌르던 문제). 실행 첫 줄에 `🔑 base=… (출처) · key=출처` 만 찍고 **키 값은 절대 출력하지 않는다**.
 
 **실행** (Phase 2 에서 확정한 **화면+공유 의존 ITEM id 집합**을 `--ids` 로 전달 — 화면 집합만 정확히 받도록):
 
@@ -262,7 +262,7 @@ IDS=<Phase2 가 산출한 id CSV: SCREEN들 + consumes_apis/required_roles/uses_
 SCREENS=<피벗 SCREEN id CSV>
 
 # 1) 다운로드 → 평평한 스테이징 (+ run-report)
-LOGICRAFT_API_KEY=<lc_ 키> LOGICRAFT_API_BASE=<base> \
+# MCP 설정이 있으면 env 없이 그대로 실행된다 (권장)
   node <download-kit.mjs> --project <uuid> --out "$KIT/.staging" --ids "$IDS" --report "$KIT/.staging/.run-report.json"
 
 # 2) 정리(arrange) → 화면 키트 레이아웃 + 인덱스 (네트워크 0)
