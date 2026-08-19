@@ -3,7 +3,7 @@ name: mc-logi-publish-skill
 description: 로컬 스킬 폴더(~/.claude/skills/<name>/)를 LogiCraft 마켓플레이스에 발행·갱신하는 스킬. 결정적 스크립트가 파일을 직접 REST 로 보내 본문이 AI 컨텍스트를 거치지 않으므로 잘림·줄번호 오염·재타이핑 오타가 없고, 파일이 많거나 큰 스킬도 한 번에 올라간다. 실발행은 예행연습(dry-run) 토큰 없이는 스크립트가 거부한다. 사용자가 "이 스킬 올려줘", "스킬 마켓에 발행", "스킬 업데이트해서 올려줘", "마켓플레이스에 배포", "스킬 버전 올려서 발행", "/mc-logi-publish-skill" 등 Claude Code 스킬을 마켓에 올리려 할 때 실행.
 license: MIT
 metadata:
-  version: 1.0.1
+  version: 1.1.0
   domain: logicraft-skills
 ---
 
@@ -50,11 +50,18 @@ MCP 도구는 호출하는 AI 가 **모든 파일 본문을 한 tool call 에 �
 > **"사용자에게 보여주고 승인받았다"는 스크립트가 강제할 수 없다.** 그건 아래 Phase 3 의 몫이며,
 > 반드시 지켜야 한다. 토큰이 통과했다고 안전한 게 아니다.
 
-## 사전 준비 (환경)
-- `LOGICRAFT_API_KEY` — MCP 와 **동일한 lc_ 키**(`.mcp.json` 의 `AUTH_TOKEN` 에서 `lc_...` 부분).
-  **write 권한 필수**(read 전용 키는 403).
-- `LOGICRAFT_API_BASE` — 대상 서버. 상용 `https://logicraft.cudo.co.kr:10000/api`,
-  개발 `http://localhost:14000/api`. **`/api` 를 포함**한 값이다.
+## 사전 준비 (환경) — ★ MCP 를 쓰면 설정 없이 동작한다 (CO-049)
+
+키·서버는 **자동 조달**된다. 우선순위는 `--api-key`/`--api-base` > env > **MCP 설정** > 에러.
+
+- **자동(권장)** — `~/.claude.json` 의 `mcpServers`(`logicraft` → `logicraft-dev` 순, `--server <이름>` 으로 지정 가능)에서
+  api-key(`env.AUTH_TOKEN` 등)와 base(URL 의 끝 `/mcp` 제거)를 읽는다. **아무 env 없이 실행된다.**
+- **수동** — `LOGICRAFT_API_KEY`(**write 권한 필수** — read 전용 키는 403) ·
+  `LOGICRAFT_API_BASE`(**`/api` 포함**. 상용 `https://logicraft.cudo.co.kr:10000/api`).
+
+⚠️ **로컬 기본값(`localhost:14000`)은 제거됐다.** 셋 다 없으면 종료코드 1 로 중단한다 —
+발행 대상 서버를 추측해서 **엉뚱한 서버에 커밋을 남기지 않기 위함**이다.
+실행 첫 줄에 `🔑 base=… (출처) · key=출처` 만 찍고 **키 값은 절대 출력하지 않는다**.
 
 ## 워크플로
 
