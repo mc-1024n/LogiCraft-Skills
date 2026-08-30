@@ -1,8 +1,8 @@
 ---
 name: mc-logi-upload-kit
-description: 로컬에 작업해둔 파일(HTML 데모·아티팩트·디자인 렌더·markdown 첨부)을 LogiCraft 에 REST 로 직접 업로드하는 스킬. 본문이 AI 컨텍스트를 거치지 않아 5MB 데모도 토큰 0 으로 등록된다. 사용자가 "이 파일 데모로 올려줘", "demo.html 업로드", "이 HTML 아티팩트 등록", "디자인 렌더 파일 올려줘", "/mc-logi-upload-kit" 등 로컬 파일을 LogiCraft 산출물로 등록하려 할 때 실행. download-kit(키트 다운로더)의 역방향 업로더.
+description: 로컬에 작업해둔 파일(HTML 데모·아티팩트·디자인 렌더·markdown 첨부)을 LogiCraft 에 REST 로 직접 업로드하는 스킬. 본문이 AI 컨텍스트를 거치지 않아 5MB 데모도 토큰 0 으로 등록된다. 사용자가 "이 파일 데모로 올려줘", "demo.html 업로드", "이 HTML 아티팩트 등록", "디자인 렌더 파일 올려줘", "/mc-logi-upload-kit" 등 로컬 파일을 LogiCraft 산출물로 등록하려 할 때 실행. download-kit(키트 다운로더)의 역방향 업로더. ★ 텍스트 산출물 전용 — hwp·pdf·zip 같은 바이너리나 자료실 파일은 mc-logi-file-transfer 을 쓸 것.
 metadata:
-  version: 1.3.0
+  version: 1.4.0
 ---
 
 # mc-logi-upload-kit — LogiCraft 파일 업로더
@@ -25,6 +25,12 @@ metadata:
 - 키트 다운로드(mc-logi-implement-kit)
 - **스킬을 마켓플레이스에 발행** → **`mc-logi-publish-skill`** (별도 스킬. 대상이 파일이 아니라
   스킬 폴더 전체이고, 발행 시맨틱·dry-run 강제가 달라 분리돼 있다)
+- **자료실 파일 업로드·다운로드** → **`mc-logi-file-transfer`** (별도 스킬)
+  · hwp·pdf·zip·xlsx 같은 **바이너리**를 최대 **3GB** 까지. 이 스킬은 `readFile(file, "utf8")`
+    로 읽으므로 바이너리를 주면 **깨진다.**
+  · 프로토콜도 다르다 — 저쪽은 세션 → 청크 → finalize 3단(재개·sha256 대조),
+    여기는 한 방 POST 다.
+  · 기준: **AI 가 만든 렌더 산출물이면 여기, 사람이 주고받는 자료면 저기.**
 
 ## 대상 타입
 

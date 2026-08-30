@@ -1,8 +1,8 @@
 {
   "name": "mc-logi-upload-kit",
-  "version": "1.3.0",
-  "description": "로컬에 작업해둔 파일(HTML 데모·아티팩트·디자인 렌더·markdown 첨부)을 LogiCraft 에 REST 로 직접 업로드하는 스킬. 본문이 AI 컨텍스트를 거치지 않아 5MB 데모도 토큰 0 으로 등록된다. 사용자가 \"이 파일 데모로 올려줘\", \"demo.html 업로드\", \"이 HTML 아티팩트 등록\", \"디자인 렌더 파일 올려줘\", \"/mc-logi-upload-kit\" 등 로컬 파일을 LogiCraft 산출물로 등록하려 할 때 실행. download-kit(키트 다운로더)의 역방향 업로더.",
-  "summary": "로컬 HTML/markdown 파일을 LogiCraft REST 로 직접 업로드 — 본문이 AI 컨텍스트를 안 거쳐 5MB 데모도 토큰 0 으로 등록. app_demo·project_artifact·design_render·attachment 5타입 어댑터. 키·서버는 MCP 설정에서 자동 조달(로컬 기본값 없음). mc-logi-implement-kit ",
+  "version": "1.4.0",
+  "description": "로컬에 작업해둔 파일(HTML 데모·아티팩트·디자인 렌더·markdown 첨부)을 LogiCraft 에 REST 로 직접 업로드하는 스킬. 본문이 AI 컨텍스트를 거치지 않아 5MB 데모도 토큰 0 으로 등록된다. 사용자가 \"이 파일 데모로 올려줘\", \"demo.html 업로드\", \"이 HTML 아티팩트 등록\", \"디자인 렌더 파일 올려줘\", \"/mc-logi-upload-kit\" 등 로컬 파일을 LogiCraft 산출물로 등록하려 할 때 실행. download-kit(키트 다운로더)의 역방향 업로더. ★ 텍스트 산출물 전용 — hwp·pdf·zip 같은 바이너리나 자료실 파일은 mc-logi-file-transfer 을 쓸 것.",
+  "summary": "로컬 HTML/markdown 파일을 LogiCraft REST 로 직접 업로드 — 본문이 AI 컨텍스트를 안 거쳐 5MB 데모도 토큰 0 으로 등록. app_demo·project_artifact·design_render·attachment 5타입 어댑터. 키·서버는 MCP 설정에서 자동 조달(로컬 기본값 없음). mc-logi-implement-kit",
   "category": "feature_impl",
   "author": {
     "name": "노명철"
@@ -10,7 +10,7 @@
   "logicraft": {
     "publisher_user_id": "4b805dc4-6d13-42c5-9710-f5a34bf2e73e",
     "publisher_email": "mc_1024@cudo.co.kr",
-    "published_at": "2026-08-19T01:59:46.215Z",
+    "published_at": "2026-08-30T11:55:12.717Z",
     "source": "mcp"
   }
 }
