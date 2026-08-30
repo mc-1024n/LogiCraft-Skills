@@ -17,6 +17,10 @@
       "source": "./plugins/mc-logi-domain-review"
     },
     {
+      "name": "mc-logi-file-transfer",
+      "source": "./plugins/mc-logi-file-transfer"
+    },
+    {
       "name": "mc-logi-glossary-align",
       "source": "./plugins/mc-logi-glossary-align"
     },

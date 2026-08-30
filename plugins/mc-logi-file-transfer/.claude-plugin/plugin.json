@@ -1,0 +1,16 @@
+{
+  "name": "mc-logi-file-transfer",
+  "version": "1.0.0",
+  "description": "LogiCraft **프로젝트 자료실**의 파일을 올리고 내려받는 스킬. hwp·pdf·zip·xlsx 같은 바이너리를 최대 3GB 까지 다루며, 재개 가능한 청크 업로드와 sha256 무결성 대조를 한다. 서식·반입세트·증빙·계약서·신청서처럼 **여러 산출물이 함께 참조하는 자료**가 대상. 사용자가 \"이 파일 자료실에 올려줘\", \"hwp 업로드\", \"반입세트 등록\", \"FILE-003 받아줘\", \"자료실에서 내려받아\", \"첨부파일 다운로드\", \"/mc-logi-file-transfer\" 등을 요청할 때 실행. MCP 로는 자료실 파일을 만들 수 없다(3GB 가 tool call 에 안 들어가고, 실물 없이 메타만 지어낸 ITEM 이 남는다) — 이 스킬이 유일한 경로다.",
+  "summary": "자료실 파일을 REST 로 직접 올리고 내려받는 스킬 — 청크·재개·해시 대조·스트리밍 다운로드 내장. 수 GB 파일도 본문이 AI 컨텍스트를 안 거쳐 토큰 0. 키·서버는 MCP 설정에서 자동 조달.",
+  "category": "operations",
+  "author": {
+    "name": "노명철"
+  },
+  "logicraft": {
+    "publisher_user_id": "4b805dc4-6d13-42c5-9710-f5a34bf2e73e",
+    "publisher_email": "mc_1024@cudo.co.kr",
+    "published_at": "2026-08-30T11:54:43.682Z",
+    "source": "mcp"
+  }
+}
