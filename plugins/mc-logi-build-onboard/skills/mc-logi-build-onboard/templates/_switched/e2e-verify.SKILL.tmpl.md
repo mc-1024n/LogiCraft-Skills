@@ -1,9 +1,9 @@
 ---
-name: {{prefix}}-e2e-verify
-description: {{project_name}} 전용 E2E 정합 점검 스킬 (read-only). <!-- IF e2e_design_link == logicraft -->설계(use_case·acceptance·test_scenario)<!-- ELSE -->요구사항 문서<!-- ENDIF e2e_design_link -->·spec 코드·실행 이력을 3방향 대조해 커버리지 공백과 표류를 검출한다. 설계가 바뀌었는데 spec 이 옛 흐름을 검증하는 경우, 로그인 같은 검증 대상이 우회로만 처리된 경우, 근거 없는 spec, 오래된 실행 이력을 잡는다. 사용자가 "E2E 정합 확인", "시나리오 최신인지 봐줘", "커버리지 점검", "설계 바뀐 거 시나리오에 반영됐나", "/{{prefix}}-e2e-verify" 를 요청하면 실행. 검출만 하고 수정하지 않는다 — 후속은 author/dispatch 로 넘긴다.
+name: {{skill_prefix}}-e2e-verify
+description: {{project_name}} 전용 E2E 정합 점검 스킬 (read-only). <!-- IF e2e_design_link == logicraft -->설계(use_case·acceptance·test_scenario)<!-- ELSE -->요구사항 문서<!-- ENDIF e2e_design_link -->·spec 코드·실행 이력을 3방향 대조해 커버리지 공백과 표류를 검출한다. 설계가 바뀌었는데 spec 이 옛 흐름을 검증하는 경우, 로그인 같은 검증 대상이 우회로만 처리된 경우, 근거 없는 spec, 오래된 실행 이력을 잡는다. 사용자가 "E2E 정합 확인", "시나리오 최신인지 봐줘", "커버리지 점검", "설계 바뀐 거 시나리오에 반영됐나", "/{{skill_prefix}}-e2e-verify" 를 요청하면 실행. 검출만 하고 수정하지 않는다 — 후속은 author/dispatch 로 넘긴다.
 ---
 
-# {{prefix}}-e2e-verify — E2E 정합 점검 (read-only)
+# {{skill_prefix}}-e2e-verify — E2E 정합 점검 (read-only)
 
 **설계 · spec · 실행 이력**이 서로 어긋난 지점을 찾는다. 고치지는 않는다.
 
@@ -66,18 +66,18 @@ spec_root:   "{{e2e_root}}"
 ```
 [P0] coverage_gap — AC-0NN "…" (priority=critical, automated_test) 를 덮는 spec 없음
      근거: {{e2e_root}} 전량에 AC-0NN 참조 0건
-     → {{prefix}}-e2e-author 로 시나리오 저작
+     → {{skill_prefix}}-e2e-author 로 시나리오 저작
 
 [P1] spec_drift — login-ui.spec.ts 가 UC-00N v3 기준, 현재 v5
      근거: UC-00N.alternate_flows 에 신규 분기 추가됨(v4)
-     → {{prefix}}-e2e-author 로 갱신
+     → {{skill_prefix}}-e2e-author 로 갱신
 ```
 
 핸드오프 버킷은 셋뿐이다:
-- **spec 수정** → `{{prefix}}-e2e-author`
-- **앱 수정** → `{{prefix}}-dispatch`
+- **spec 수정** → `{{skill_prefix}}-e2e-author`
+- **앱 수정** → `{{skill_prefix}}-dispatch`
 <!-- IF e2e_design_link == logicraft -->
-- **설계 갱신** → `mc-logi-update` 또는 `{{prefix}}-design-backfill`
+- **설계 갱신** → `mc-logi-update` 또는 `{{skill_prefix}}-design-backfill`
 <!-- ENDIF e2e_design_link -->
 
 ## 게이트 요약

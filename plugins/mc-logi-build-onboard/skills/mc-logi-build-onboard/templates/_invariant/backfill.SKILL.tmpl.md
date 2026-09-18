@@ -1,11 +1,11 @@
 ---
-name: {{prefix}}-design-backfill
-description: {{project_name}} 변경지시서(Change Order) 기반 LogiCraft 설계 backfill 스킬. {{prefix}}-dispatch 가 코드를 먼저 구현하고 미룬 "설계 반영"을 나중에 배치로 처리한다. {{change_orders_path}}MASTER.md 에서 설계반영 대기(⏳)인 CO 를 모아(또는 특정 CO 지정), 각 CO 의 §6(관련 설계 ITEM)·변경 내용·실제 커밋된 코드를 근거로 LogiCraft ITEM 을 실제 구현에 맞춰 retro-align 한다. 실제 ITEM 수정·cascade 는 mc-logi-update 에 위임하고, 이 스킬은 CO→입력 변환 + 게이트 + MASTER 상태(🎨) 갱신만 담당. 사용자가 "CO 설계 반영해줘", "backfill 해줘", "/{{prefix}}-design-backfill" 이라고 하면 실행. AI 추정 금지 — CO·코드에 근거 없는 값은 넣지 않는다(애매하면 사용자).
+name: {{skill_prefix}}-design-backfill
+description: {{project_name}} 변경지시서(Change Order) 기반 LogiCraft 설계 backfill 스킬. {{skill_prefix}}-dispatch 가 코드를 먼저 구현하고 미룬 "설계 반영"을 나중에 배치로 처리한다. {{change_orders_path}}MASTER.md 에서 설계반영 대기(⏳)인 CO 를 모아(또는 특정 CO 지정), 각 CO 의 §6(관련 설계 ITEM)·변경 내용·실제 커밋된 코드를 근거로 LogiCraft ITEM 을 실제 구현에 맞춰 retro-align 한다. 실제 ITEM 수정·cascade 는 mc-logi-update 에 위임하고, 이 스킬은 CO→입력 변환 + 게이트 + MASTER 상태(🎨) 갱신만 담당. 사용자가 "CO 설계 반영해줘", "backfill 해줘", "/{{skill_prefix}}-design-backfill" 이라고 하면 실행. AI 추정 금지 — CO·코드에 근거 없는 값은 넣지 않는다(애매하면 사용자).
 ---
 
-# {{prefix}}-design-backfill — CO 기반 LogiCraft 설계 backfill
+# {{skill_prefix}}-design-backfill — CO 기반 LogiCraft 설계 backfill
 
-`{{prefix}}-dispatch` 는 **코드 구현을 먼저** 하고 LogiCraft 설계 반영을 **나중 배치**로 미룬다(변경지시서 CO 파일이 1차 진실원). 이 스킬이 그 미뤄둔 배치를 처리한다 — **이미 구현·커밋·QA 통과된 코드에 맞춰 LogiCraft 설계 ITEM 을 retro-align** 하고, MASTER 의 설계반영 상태를 🎨로 닫는다.
+`{{skill_prefix}}-dispatch` 는 **코드 구현을 먼저** 하고 LogiCraft 설계 반영을 **나중 배치**로 미룬다(변경지시서 CO 파일이 1차 진실원). 이 스킬이 그 미뤄둔 배치를 처리한다 — **이미 구현·커밋·QA 통과된 코드에 맞춰 LogiCraft 설계 ITEM 을 retro-align** 하고, MASTER 의 설계반영 상태를 🎨로 닫는다.
 
 ## ★ 핵심 원칙
 
@@ -50,6 +50,50 @@ CO-NNN (제목) — 설계반영 대기
 - 여러 CO 가 같은 ITEM 을 건드리면 **최신 코드 상태로 한 번에** 정합.
 
 **승인 후** Phase 2.
+
+### Phase 1.5 — 분업 계획 (★ 값싸게 돌리는 법)
+
+CO 가 여러 건이거나 ITEM 이 많으면 **메인이 혼자 다 하지 않는다.** 네 단계로 갈라 워커에 위임한다.
+
+**모델·위임**: `{{backfill_model}}` (비어 있으면 `{{qa_model}}` 과 같은 것) · 부르는 법 `{{qa_invoke}}`
+
+#### 왜 네 단계로 가르나 — 한 워커에 다 맡기면 **검증할 제3자가 없어진다**
+
+| 단계 | 하는 일 | 성격 | 배분 |
+|---|---|---|---|
+| **A 초안** | CO §관련설계ITEM + **커밋된 실제 코드**를 읽고 ITEM별 수정 초안(md)만 작성. **쓰기 도구 전면 금지** | 코드를 **설계 문장으로 번역** — 판단 무거움 | 추론 쪽 |
+| **B 반영** | 초안을 근거로 실제 `update_item`/`create_item` | 초안대로 patch — **기계적** | **가장 싸게** |
+| **C 말단** | 상위 ITEM 마다 `analyze_impact`·`get_neighbors` 로 하위 전개 후 대조 | 전개는 기계적, 「변경 불요」 판정은 판단 | 중간 |
+| **D 독립 검사** | 전 ITEM 을 초안·CO·**코드**와 재대조. **쓰기 금지** | 3방향 재대조 — 판단 무거움 | 추론 쪽 + **다른 눈** |
+
+☠️ **D 를 빼지 마라 — 유일한 그물이다.** 설계는 **틀려도 아무것도 안 깨진다.** 코드는 빌드가 잡지만
+설계 ITEM 은 잘못 써도 **버전만 올라간다.** 게다가 **「맞는 말인데 엉뚱한 칸에 쓴 것」은 버전 대조로
+안 잡힌다**(이력 칸에만 쓰고 현행 칸은 옛 서술로 둔 실사고).
+
+#### ★★ 나누는 축은 **CO 가 아니라 «ITEM 소유권»** 이다
+
+사용자가 「연관된 CO 끼리 묶어 병렬로」라고 해도 그대로 하면 안 된다. **겹침 맵을 먼저 그려라** —
+실측에서 한 SCREEN 을 **7개 CO** 가, 한 API 를 4개가 공유해 **CO 단위 병렬이 애초에 불가능**했다.
+
+- **A 초안** → **CO 축 병렬 OK**(읽기만 하니 겹쳐도 안전)
+- **B 반영** → **ITEM 소유권 축**. 공유 ITEM 은 **한 워커가 모든 CO 초안을 읽고 «통합 1회» patch**.
+  ☠️ 따로 여러 번 고치면 **서로 덮는다**(lost update).
+- **C·D** → 계열별로 분할(성격이 달라 겹치지 않는다)
+- 각 워커 프롬프트에 **소유 밖 목록을 명시**하고 박아라:
+  > 소유 밖 ITEM 은 **절대 수정하지 말고** 보고 본문에 「cascade 보고: `<ITEM-ID>` ← 사유」로 적어라.
+
+#### ☠️ 전 레인 공통으로 박을 것 (일부 레인에만 박으면 사고 난다)
+
+- **폐기 문서 함정** — 수정 전 대상 ITEM 의 `status` 를 확인하라. `deprecated`/`superseded` 면
+  **멈추고 보고**한다. 실사고: 경고를 한 레인에만 박아 **API 13건이 전부 폐기 문서에 기록**됐다.
+- **CO 인용 절이 최신인지** — CO 안에 「★ 재설계」·「정정」·날짜 표기가 있으면 **그 절이 정본**이다.
+- **현행 실물을 먼저 읽어라** — 이미 반영돼 있을 수 있다. CO 만 보고 쓰면 **끝난 일을 또 한다.**
+- **「반영할 자리가 없다」는 «변경 불요»가 아니라 «설계 누락» 신호**다 — 보고하고 사용자 판단을 받아라.
+- **못 채운 것은 정직히 신고**하라. 「완료」만 받는 프롬프트는 **거짓 완료를 만든다.**
+
+☠️ **워커 자기보고를 믿지 마라 — 양방향이다.** 재대조에서 결함이 나오기도 하지만, 반대로
+**워커가 오케스트레이터의 지시 오류를 잡기도 한다**(실측: 화면 ID 오지목·API ID 오지목·
+「이미 폐기돼 반영 불가」를 한 라운드에 3건). 워커의 `확인필요` 보고를 흘려듣지 말고 **CO 원문을 직접 열어라.**
 
 ### Phase 2 — mc-logi-update 위임
 승인된 계획대로 mc-logi-update 호출. CO(또는 같은 ITEM 공유 CO 묶음) 단위로.

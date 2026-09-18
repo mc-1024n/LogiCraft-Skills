@@ -1,9 +1,9 @@
 ---
-name: {{prefix}}-e2e-author
-description: {{project_name}} 전용 E2E 시나리오 저작 스킬. <!-- IF e2e_design_link == logicraft -->LogiCraft 설계(use_case·acceptance·screen_spec)를 근거로<!-- ELSE -->요구사항 문서와 실제 화면을 근거로<!-- ENDIF e2e_design_link --> 시험 시나리오를 도출하고, Playwright MCP 로 실제 화면을 탐색해 셀렉터를 확정한 뒤 spec 을 생성한다.<!-- IF e2e_design_link == logicraft --> 확정된 시나리오는 test_scenario(TEST-NNN) ITEM 으로 등록해 설계 그래프에 연결한다.<!-- ENDIF e2e_design_link --> 사용자가 "E2E 시나리오 만들어줘", "이 화면 시나리오 작성", "UC-00N 시험 시나리오", "/{{prefix}}-e2e-author" 등 시나리오 저작을 요청하면 실행. 대상·시나리오 초안은 사용자 확인 후 진행(AI 임의 진행 금지).
+name: {{skill_prefix}}-e2e-author
+description: {{project_name}} 전용 E2E 시나리오 저작 스킬. <!-- IF e2e_design_link == logicraft -->LogiCraft 설계(use_case·acceptance·screen_spec)를 근거로<!-- ELSE -->요구사항 문서와 실제 화면을 근거로<!-- ENDIF e2e_design_link --> 시험 시나리오를 도출하고, Playwright MCP 로 실제 화면을 탐색해 셀렉터를 확정한 뒤 spec 을 생성한다.<!-- IF e2e_design_link == logicraft --> 확정된 시나리오는 test_scenario(TEST-NNN) ITEM 으로 등록해 설계 그래프에 연결한다.<!-- ENDIF e2e_design_link --> 사용자가 "E2E 시나리오 만들어줘", "이 화면 시나리오 작성", "UC-00N 시험 시나리오", "/{{skill_prefix}}-e2e-author" 등 시나리오 저작을 요청하면 실행. 대상·시나리오 초안은 사용자 확인 후 진행(AI 임의 진행 금지).
 ---
 
-# {{prefix}}-e2e-author — E2E 시나리오 저작
+# {{skill_prefix}}-e2e-author — E2E 시나리오 저작
 
 설계와 실제 화면을 대조해 시나리오를 만들고, **돌아가는 spec 까지** 내놓는다.
 
@@ -15,7 +15,7 @@ description: {{project_name}} 전용 E2E 시나리오 저작 스킬. <!-- IF e2e
    "미커버"로 넘기지 말고 **시나리오를 나눈다**(신청 → 승인 → 결과). 그 절차 자체가 요구사항이다.
 3. **실행하지 않은 spec 은 만들다 만 것이다.** 셀렉터가 맞는지는 돌려봐야만 안다(Phase G 필수).
 4. **못 한 것은 드러낸다.** 커버 못 한 AC/UC 는 이유와 함께 파일과 보고에 명시. 조용히 빠뜨리지 않는다.
-5. **오케스트레이션 + 저작만.** 앱 코드는 고치지 않는다. 앱에 문제가 있으면 보고하고 `{{prefix}}-dispatch` 로 넘긴다.
+5. **오케스트레이션 + 저작만.** 앱 코드는 고치지 않는다. 앱에 문제가 있으면 보고하고 `{{skill_prefix}}-dispatch` 로 넘긴다.
 
 ## 프로젝트 상수
 ```yaml
@@ -67,7 +67,7 @@ spec_root:   "{{e2e_root}}"
 - `acceptance.is_negative` → negative 시나리오(거부·차단)로 분리
 - `screen_spec` → 거치는 화면·구성요소
 - 설계에 **없는** 검증 항목을 지어내지 않는다. 화면에서 발견한 미설계 동작은 보고만 하고
-  `{{prefix}}-design-backfill` 대상으로 넘긴다.
+  `{{skill_prefix}}-design-backfill` 대상으로 넘긴다.
 <!-- ELSE -->
 요구사항 문서·기존 spec·화면에서 검증 항목을 뽑는다. 출처를 항상 명시한다.
 <!-- ENDIF e2e_design_link -->
@@ -148,7 +148,7 @@ TEST 초안: <제목>   kind: integration|system
 `{{e2e_run_cmd}}` 로 **방금 만든 spec 을 돌린다.**
 - **통과할 때까지 고친다.** 단 고치는 대상은 spec 이지 앱이 아니다.
 - 실패가 **앱 결함**이면 spec 을 억지로 맞추지 말고 **red 로 두고 보고**한다(원칙 4·5).
-  결함 수정은 `{{prefix}}-dispatch` 로 넘긴다.
+  결함 수정은 `{{skill_prefix}}-dispatch` 로 넘긴다.
 - 흔한 실패는 셀렉터 문제다 — 규약의 "부분 매칭 충돌"을 먼저 확인한다.
 - 실행 후 **잔여 데이터가 0 인지 확인**한다(정리 로직이 실제로 도는지).
 

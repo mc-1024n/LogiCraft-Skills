@@ -30,11 +30,11 @@
 
 | | ① greenfield 빌드 | ② 수정(CO) |
 |---|---|---|
-| 오케스트레이터 | `{{prefix}}-build` | `{{prefix}}-dispatch` |
+| 오케스트레이터 | `{{skill_prefix}}-build` | `{{skill_prefix}}-dispatch` |
 | **진실원** | 키트 `IMPLEMENTATION.md` (전량 정독) | 프롬프트 `change_detail` |
 | 범위 입력 | `scope` | `change_detail` 이 곧 범위 |
 | 키트 | 진실원 | 배경 참고 · SYNC 안 함 |
-| 설계 반영 | 키트가 이미 최신 | 나중 배치 — `/{{prefix}}-design-backfill` |
+| 설계 반영 | 키트가 이미 최신 | 나중 배치 — `/{{skill_prefix}}-design-backfill` |
 
 - 수정 모드: `change_detail` 이 진실원 → 그 범위만 건드리고, 불명확하면 멈춰 질문(추정 금지).
 <!-- ENDIF has_build -->

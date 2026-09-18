@@ -1,9 +1,9 @@
 ---
-name: {{prefix}}-e2e-run
-description: {{project_name}} 전용 E2E 실행 스킬. 실행 전 서비스 기동·환경 전제를 먼저 확인하고, Playwright 를 돌려 결과를 수집한 뒤 실패를 원인별(앱 결함 / spec 문제 / 환경)로 분류한다.<!-- IF e2e_design_link == logicraft --> 결과는 record_test_run 으로 LogiCraft 에 역등록해 설계의 검증 상태를 갱신한다.<!-- ENDIF e2e_design_link --> 사용자가 "E2E 돌려줘", "테스트 실행", "시나리오 검증해줘", "/{{prefix}}-e2e-run" 등 실행을 요청하면 실행. 환경 전제가 어긋나면 실행하지 않고 보고한다.
+name: {{skill_prefix}}-e2e-run
+description: {{project_name}} 전용 E2E 실행 스킬. 실행 전 서비스 기동·환경 전제를 먼저 확인하고, Playwright 를 돌려 결과를 수집한 뒤 실패를 원인별(앱 결함 / spec 문제 / 환경)로 분류한다.<!-- IF e2e_design_link == logicraft --> 결과는 record_test_run 으로 LogiCraft 에 역등록해 설계의 검증 상태를 갱신한다.<!-- ENDIF e2e_design_link --> 사용자가 "E2E 돌려줘", "테스트 실행", "시나리오 검증해줘", "/{{skill_prefix}}-e2e-run" 등 실행을 요청하면 실행. 환경 전제가 어긋나면 실행하지 않고 보고한다.
 ---
 
-# {{prefix}}-e2e-run — E2E 실행 · 결과 회수
+# {{skill_prefix}}-e2e-run — E2E 실행 · 결과 회수
 
 돌리기 전에 **돌릴 수 있는 상태인지** 먼저 본다. 그 다음 돌리고, 결과를 정직하게 회수한다.
 
@@ -64,10 +64,10 @@ run_cmd:     "{{e2e_run_cmd}}"
 
 | 분류 | 신호 | 후속 |
 |---|---|---|
-| **앱 결함** | 기대 동작이 실제로 안 일어남(응답 코드·상태 전이·데이터 미생성) | `{{prefix}}-dispatch` 로 수정 요청 |
-| **spec 문제** | 셀렉터 불일치·strict mode 위반·타이밍(대기 부족)·기대값 오기 | `{{prefix}}-e2e-author` 로 수정 |
+| **앱 결함** | 기대 동작이 실제로 안 일어남(응답 코드·상태 전이·데이터 미생성) | `{{skill_prefix}}-dispatch` 로 수정 요청 |
+| **spec 문제** | 셀렉터 불일치·strict mode 위반·타이밍(대기 부족)·기대값 오기 | `{{skill_prefix}}-e2e-author` 로 수정 |
 | **환경 문제** | 서비스 미기동·인증 설정 불일치·fixture 부재·포트 충돌 | Phase A 재확인 후 재실행 |
-| **설계 표류** | 앱은 정상인데 spec 이 옛 흐름을 검증 중 | `{{prefix}}-e2e-verify` 로 정합 점검 |
+| **설계 표류** | 앱은 정상인데 spec 이 옛 흐름을 검증 중 | `{{skill_prefix}}-e2e-verify` 로 정합 점검 |
 
 실행 후 **잔여 테스트 데이터가 남았는지 확인**한다(정리 로직이 안 돌았다는 신호).
 

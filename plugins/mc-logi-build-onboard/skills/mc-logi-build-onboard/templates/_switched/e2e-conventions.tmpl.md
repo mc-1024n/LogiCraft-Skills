@@ -1,6 +1,6 @@
 # e2e-conventions.md — {{project_name}} E2E 공통 규약 (author / run / verify 공통 참조)
 
-`{{prefix}}-e2e-author` · `{{prefix}}-e2e-run` · `{{prefix}}-e2e-verify` 는 착수 전 이 파일을 정독한다.
+`{{skill_prefix}}-e2e-author` · `{{skill_prefix}}-e2e-run` · `{{skill_prefix}}-e2e-verify` 는 착수 전 이 파일을 정독한다.
 경로·명령·인증·정리 방법의 단일 진실원. **AI 임의 추정 금지** — 여기 없는 값은 사용자에게 묻는다.
 
 ## 실행 환경

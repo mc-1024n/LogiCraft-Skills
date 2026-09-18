@@ -9,7 +9,8 @@
 **공통 슬롯**
 | 슬롯 | 의미 |
 |---|---|
-| `{{prefix}}` | 스킬·에이전트 접두사 (`graphrag`, `klid`) |
+| `{{prefix}}` | **에이전트** 접두사 (`graphrag`, `klid`) — `klid-d001-implementer` |
+| `{{skill_prefix}}` | **스킬** 접두사. 비우면 `{{prefix}}` 와 같다 — `mc-klid-dispatch` 처럼 **스킬만 접두를 더 붙이는** 프로젝트가 있다 |
 | `{{PrefixTitle}}` | 사람용 제목 표기 (`Graph-RAG`, `KLID`) |
 | `{{project_id}}` | LogiCraft project UUID |
 | `{{project_name}}` | "Graph-RAG System" |
@@ -19,6 +20,26 @@
 | `{{domain_mapping_table}}` | 도메인↔code_root↔에이전트 매핑표 전체 |
 | `{{build_cmds}}` | 빌드·테스트·린트 명령 |
 | `{{commit_forbidden}}` | 커밋금지 파일 목록 |
+
+**검증 위임 슬롯** (★ 인터뷰 필수 — toggles.md §5.4. dispatch·backfill·qa-verifier 가 공유한다)
+
+| 슬롯 | 의미 | 출처 |
+|---|---|---|
+| `{{qa_model}}` | 독립 QA 를 돌릴 **모델 또는 위임 방식**. 구현과 **다른 모델**이어야 서로 다른 맹점을 덮는다 | ★ 인터뷰 (두 갈래 제시 — 외부 도구 위임 / 같은 계열의 값싼 모델) |
+| `{{qa_invoke}}` | 그걸 **실제로 부르는 명령·호출 형태** (래퍼 스크립트 경로 등). 이름만 적으면 다음 세션이 못 쓴다 | ★ 인터뷰 + 그 자리에서 실행 확인 |
+| `{{qa_fallback}}` | 그 모델이 **실패했을 때 무엇으로** 돌릴지(예: 메인 세션 서브에이전트 + 모델명) | ★ 인터뷰 |
+| `{{qa_fail_signal}}` | 「**아예 안 돈 것**」과 「**돌았는데 종료코드만 이상한 것**」을 가르는 신호. 없으면 만들어야 한다 | ★ 인터뷰 + 실측 |
+| `{{backfill_model}}` | 설계 backfill 분업 워커를 돌릴 모델·위임 방식. 비우면 `{{qa_model}}` 과 같은 것으로 본다 | ★ 인터뷰 (없으면 빈 값) |
+
+☠️ **이 다섯은 「물어만 보고 안 싣는」 사고가 실제로 났던 자리다**(2026-09-16 인터뷰만 추가되고
+방출 템플릿에 슬롯이 없었다). 슬롯이 여기 등록돼 있어야 §6 미치환 스캔에 걸린다.
+
+**노하우 구조 슬롯**
+
+| 슬롯 | 의미 |
+|---|---|
+| `{{knowhow_dir}}` | 주제별 노하우 묶음 디렉토리 (기본 `.claude/agents/_knowhow/`) |
+| `{{knowhow_archive_dir}}` | 정리 시 원문 보관 디렉토리 (기본 `.claude/agents/_archive/`) |
 
 **도메인별 슬롯** (implementer 는 도메인마다 1회 인스턴스화)
 | 슬롯 | 의미 |
@@ -93,22 +114,42 @@
 ## 5. 방출 위치
 | 템플릿 | 방출 경로 |
 |---|---|
-| dispatch.SKILL.tmpl.md | `.claude/skills/{{prefix}}-dispatch/SKILL.md` |
-| backfill.SKILL.tmpl.md | `.claude/skills/{{prefix}}-design-backfill/SKILL.md` |
-| _switched/build.SKILL.tmpl.md (IF has_build) | `.claude/skills/{{prefix}}-build/SKILL.md` |
+| dispatch.SKILL.tmpl.md | `.claude/skills/{{skill_prefix}}-dispatch/SKILL.md` |
+
+☠️ **방출 경로의 스킬명은 `{{skill_prefix}}`, 에이전트명은 `{{prefix}}`** 다. 둘을 섞으면
+스킬이 **자기를 틀린 이름으로 부른다**(실측 2026-09-18: KLID 는 스킬만 `mc-` 접두를 쓰는데
+한 슬롯으로 만들다가 `mc-klid-dispatch` 가 자기를 `klid-dispatch` 라 부르는 조립본이 나왔다).
+| backfill.SKILL.tmpl.md | `.claude/skills/{{skill_prefix}}-design-backfill/SKILL.md` |
+| _switched/build.SKILL.tmpl.md (IF has_build) | `.claude/skills/{{skill_prefix}}-build/SKILL.md` |
 | _switched/conventions.tmpl.md (IF shared) | `.claude/conventions.md` |
 | implementer.tmpl.md ×N | `.claude/agents/{{domain_agent_name}}.md` |
 | qa-verifier.tmpl.md | `.claude/agents/{{prefix}}-qa-verifier.md` |
 | _switched/web-implementer.tmpl.md (IF 프론트 트랙) | `.claude/agents/{{prefix}}-web-implementer.md` |
 | _switched/e2e-conventions.tmpl.md (IF e2e_track) | `.claude/e2e-conventions.md` |
-| _switched/e2e-author.SKILL.tmpl.md (IF e2e_track) | `.claude/skills/{{prefix}}-e2e-author/SKILL.md` |
-| _switched/e2e-run.SKILL.tmpl.md (IF e2e_track) | `.claude/skills/{{prefix}}-e2e-run/SKILL.md` |
-| _switched/e2e-verify.SKILL.tmpl.md (IF e2e_track) | `.claude/skills/{{prefix}}-e2e-verify/SKILL.md` |
+| _switched/e2e-author.SKILL.tmpl.md (IF e2e_track) | `.claude/skills/{{skill_prefix}}-e2e-author/SKILL.md` |
+| _switched/e2e-run.SKILL.tmpl.md (IF e2e_track) | `.claude/skills/{{skill_prefix}}-e2e-run/SKILL.md` |
+| _switched/e2e-verify.SKILL.tmpl.md (IF e2e_track) | `.claude/skills/{{skill_prefix}}-e2e-verify/SKILL.md` |
+
+**디렉토리**(파일 없이 생성 — 부트스트랩)
+| 대상 | 경로 | 왜 |
+|---|---|---|
+| 노하우 묶음 | `{{knowhow_dir}}` | 주제별 노하우가 여기 쌓인다. 에이전트 본체는 **색인만** 갖는다 |
+| 노하우 보관 | `{{knowhow_archive_dir}}` | 정리 시 원문을 먼저 옮긴다(지우지 않는다) |
 
 ## 6. 검증 (방출 후 — 게이트②)
 - 스킬 본문이 참조하는 **모든 `{{prefix}}-*` 에이전트명**이 `.claude/agents/` 에 실제 존재하는지 교차검증.
+- ★ **역방향도 본다** — `.claude/agents/` 에 있는데 **어느 스킬도 안 부르는** 파일을 목록화한다.
+  정방향만 보면 **호출 줄이 사라져도 통과한다**(파일은 남으므로). 실패가 아니라 **보고** 항목이다 —
+  독립 실행용 자산일 수 있다.
 - 매핑표의 도메인 수 == 생성된 implementer 수.
 - `conventions_location==shared` 면 `.claude/conventions.md` 존재 + 스킬·에이전트 참조 경로 일치.
 - `e2e_track=on` 이면 `.claude/e2e-conventions.md` + E2E 스킬 3종 존재 + 3종이 모두 그 규약 경로를 참조.
 - 남은 `{{...}}`·`<!-- IF/INSERT ... -->` 마커가 없는지(미치환 잔존물) 스캔.
 - **빈 슬롯 보고**: 확인 못 해 비운 E2E 슬롯을 목록으로 제시한다("정보부족 — 첫 저작 시 확인"). 조용히 넘기지 않는다.
+- ★ **검증 위임 슬롯이 실제로 실렸는지** — `{{qa_model}}`·`{{qa_invoke}}`·`{{qa_fallback}}`·`{{qa_fail_signal}}` 이
+  **dispatch 방출물 안에 문자열로 존재**하는지 확인한다. 인터뷰에서 받아 놓고 방출물에 안 실리면
+  **다음 세션은 그 값을 모른다**(2026-09-16 실사고).
+- ★ **노하우 구조** — `{{knowhow_dir}}`·`{{knowhow_archive_dir}}` 가 생성됐고,
+  implementer/web-implementer 방출물에 **`## 노하우 색인` 섹션이 있는지** 확인한다.
+- ★ **에이전트 본체 줄 수** — 방출 직후 `wc -l` 로 센다. 온보딩 직후엔 노하우가 비어 있어 짧지만,
+  **재온보딩이면 초과분을 게이트로 보고**한다(§재온보딩).

@@ -1,8 +1,8 @@
 {
   "name": "mc-logi-build-onboard",
-  "version": "1.0.1",
-  "description": "현재 프로젝트에 맞는 \"구현 오케스트레이션 세트\"(수정 dispatch + 설계 backfill + (greenfield 시) build 스킬 + (앱 표면 있으면) E2E 시나리오 저작·실행·정합점검 3종 + 도메인별 implementer·독립 qa-verifier 에이전트)를 빌드/온보딩하는 메타 스킬. KLID(brownfield-submodule)·Graph-RAG(greenfield-monolith)에서 교차 추출한 불변 뼈대(templates/_invariant)에, 프로젝트 구조를 판정한 13개 스위치(toggles.md)로 조각(templates/_switched)을 조립하고 슬롯을 채워 방출한다. 아키타입 2종(프리셋)을 기본으로, 프리셋 밖 구조는 스위치를 개별 판정해 조합. Discovery(LogiCraft project_id + repo 스캔) → 스위치 확정 게이트 → 슬롯 인터뷰 → 조립 → 도메인 지침 초안(설계 정독·근거첨부) → 검증 게이트 순. 사용자가 \"이 프로젝트 온보딩해줘\", \"구현 세트 만들어줘\", \"dispatch/build 스킬 세팅\", \"/mc-logi-build-onboard\" 라고 하면 실행. AI 임의 추정 금지 — 설계·repo 근거 없는 값은 비우고 보고, 게이트에서 사용자 확정.",
-  "summary": "프로젝트에 맞는 구현 오케스트레이션 세트(dispatch·backfill·build·E2E 3종 + 도메인 implementer·독립 QA 에이전트)를 조립해 방출하는 메타 스킬. 13개 스위치로 구조를 판정하고 아키타입 프리셋 2종 + 개별 조합으로 프리셋 밖 구조까지 흡수. AI 임의 추정 금지·게이트 4개.",
+  "version": "1.1.0",
+  "description": "현재 프로젝트에 맞는 \"구현 오케스트레이션 세트\"(수정 dispatch + 설계 backfill + (greenfield 시) build 스킬 + (앱 표면 있으면) E2E 시나리오 저작·실행·정합점검 3종 + 도메인별 implementer·독립 qa-verifier 에이전트)를 빌드/온보딩하는 메타 스킬. KLID(brownfield-submodule)·Graph-RAG(greenfield-monolith)에서 교차 추출한 불변 뼈대(templates/_invariant)에, 프로젝트 구조를 판정한 13개 스위치(toggles.md)로 조각(templates/_switched)을 조립하고 슬롯을 채워 방출한다. 아키타입 2종(프리셋)을 기본으로, 프리셋 밖 구조는 스위치를 개별 판정해 조합. Discovery(LogiCraft project_id + repo 스캔) → 스위치 확정 게이트 → 슬롯 인터뷰 → 조립 → 도메인 지침 초안(설계 정독·근거첨부) → 검증 게이트 순. 사용자가 \"이 프로젝트 온보딩해줘\", \"구현 세트 만들어줘\", \"dispatch/build 스킬 세팅\", \"/mc-logi-build-onboard\" 라고 하면 실행. AI 임의 추정 금지 — 설계·repo 근거 없는 값은 비우고 보고, 게이트에서 사용자 확정. ★ 이미 세트가 있으면 재온보딩(업그레이드 모드)으로 분기한다 — 덮어쓰지 않고 실물에만 있는 절·호출을 감지·분류·질의한 뒤 병합하며, 착수 전에 덮일 파일 목록을 보이고 백업 여부를 묻는다(`.claude/` 가 gitignore 면 되돌릴 수 없으므로 경고). QA 검증은 구현과 다른 모델에 맡기도록 모델·호출법·대체경로·실패신호 4값을 인터뷰로 확정하고 방출물에 실렸는지 검증한다. 에이전트 노하우는 본체에 쌓지 않고 주제 묶음(_knowhow/)으로 분리해 본체 400줄·묶음 600줄 상한을 게이트로 강제한다.",
+  "summary": "프로젝트에 맞는 구현 오케스트레이션 세트(dispatch·backfill·build·E2E 3종 + 도메인 implementer·독립 QA 에이전트)를 조립·방출. 세트가 이미 있으면 덮지 않고 감지→분류→질의→병합하는 재온보딩 모드. 백업 게이트·QA 검증모델 인터뷰·노하우 묶음 상한 내장.",
   "category": "operations",
   "author": {
     "name": "노명철"
@@ -10,7 +10,7 @@
   "logicraft": {
     "publisher_user_id": "4b805dc4-6d13-42c5-9710-f5a34bf2e73e",
     "publisher_email": "mc_1024@cudo.co.kr",
-    "published_at": "2026-08-14T06:38:51.109Z",
+    "published_at": "2026-09-18T07:51:31.660Z",
     "source": "mcp"
   }
 }
