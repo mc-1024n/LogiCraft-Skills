@@ -40,6 +40,7 @@
 |---|---|
 | `{{knowhow_dir}}` | 주제별 노하우 묶음 디렉토리 (기본 `.claude/agents/_knowhow/`) |
 | `{{knowhow_archive_dir}}` | 정리 시 원문 보관 디렉토리 (기본 `.claude/agents/_archive/`) |
+| `{{knowhow_dir_abs}}` | **`{{knowhow_dir}}` 의 절대경로.** QA·구현 프롬프트에 넣는 값 — ☠️ 외부 러너로 위임하면 작업 디렉터리가 달라 **상대경로로는 못 찾는다** |
 
 **도메인별 슬롯** (implementer 는 도메인마다 1회 인스턴스화)
 | 슬롯 | 의미 |
@@ -150,6 +151,7 @@
   **dispatch 방출물 안에 문자열로 존재**하는지 확인한다. 인터뷰에서 받아 놓고 방출물에 안 실리면
   **다음 세션은 그 값을 모른다**(2026-09-16 실사고).
 - ★ **노하우 구조** — `{{knowhow_dir}}`·`{{knowhow_archive_dir}}` 가 생성됐고,
-  implementer/web-implementer 방출물에 **`## 노하우 색인` 섹션이 있는지** 확인한다.
+  implementer/web-implementer/**qa-verifier** 방출물에 **`## 노하우 색인`·`## 노하우 — 상시` 섹션과 출력 `knowhow_read`** 가 있는지 확인한다.
+  ☠️ 본체·스킬이 가리키는 `_knowhow/*.md` 가 **실재하는지**도 본다(쪼개기·개명 뒤 끊긴 참조 — SKILL Phase 5).
 - ★ **에이전트 본체 줄 수** — 방출 직후 `wc -l` 로 센다. 온보딩 직후엔 노하우가 비어 있어 짧지만,
   **재온보딩이면 초과분을 게이트로 보고**한다(§재온보딩).
