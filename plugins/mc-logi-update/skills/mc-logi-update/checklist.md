@@ -41,13 +41,16 @@
 - 알려진 거부 enum:
   - `brownfield.legacy_source.kind` → 거부 (정답: `type`)
   - `screen_spec component.value` → 거부 (label에 통합)
-  - `api_endpoint data.title` → 필드 자체 없음
+  - ~~`api_endpoint data.title` → 필드 자체 없음~~ ← **낡음. 2026-08-26 실측으로 정정** (아래 참조)
 
 ### 타입별 함정 (Session 1~33 누적)
 
 **api_endpoint**
-- ❌ `data.title` patch 시도 → 필드 없음
-- ✅ outer title은 `update_item.title` 매개변수만
+- ✅ **`data.title` 이 존재한다** (2026-08-26 실측 · 워커 둘이 독립 확인)
+  - 스키마 `fields_summary`·`display_hints` 에 `title` 이 있고, 실제 ITEM(API-002·014·021·092)이 전부 갖고 있다
+  - patch path `"title"` 을 set 하면 **outer title 이 자동 sync** 된다 (cascade-patterns.md 2026-05-14 항목과 일치)
+  - **신설 시 outer `title` 과 같은 값을 `data.title` 에도 넣는다**
+- ⚠️ 이 문서의 옛 서술(「필드 없음」)이 워커를 두 번 헷갈리게 했다 — **캐시된 스키마보다 실제 `get_item_schema` 응답이 이긴다**
 
 **domain_feature**
 - ⚠️ `data.title` 있지만 outer title sync 안 됨

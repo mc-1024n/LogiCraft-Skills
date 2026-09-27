@@ -7,6 +7,13 @@ logi-update-specialist가 STEP D 검증 + STEP F cascade 후보 분류 시 참�
 > from/to 링크 목록과 `cascade_hint` 로 하류를 판정하고 ② `analyze_impact` 결과를 병행한다.
 > 표는 자주 다루는 타입의 캐시일 뿐 — 표에 없다고 "cascade 없음" 단정 금지.
 
+
+### ☠️ diagram_sequence 필드 길이 제약 (2026-09-10 실측)
+
+`messages[].label` 은 **최대 200자**다(초과 시 zod `too_big` 로 write 거부).
+근거·인용 전문을 label 에 몰아넣지 말고 **`description` 에 배치**하고 label 은 요약만 담는다.
+(SEQ-119 note② 정정 시 186자로 압축 + 근거 전문을 description 으로 옮겨 통과.)
+
 ## 토폴로지 의존 (선행 처리 우선순위)
 
 낮은 번호 먼저 처리. 같은 번호는 병렬 가능.
