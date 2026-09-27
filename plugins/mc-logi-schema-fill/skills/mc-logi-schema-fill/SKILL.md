@@ -4,7 +4,7 @@ description: LogiCraft 스키마 개편(«산문을 칸으로», CO-138~171)으�
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: 0.5.1
+  version: 0.5.2
   requires: "LogiCraft 서버 main 36be2667 이후(새 칸 + scan_prose_refs + 이관 쓰기 전파 억제 CO-177·178·181~184). 이전 서버에 쓰면 재검토 표시가 대량 전파된다"
 ---
 
