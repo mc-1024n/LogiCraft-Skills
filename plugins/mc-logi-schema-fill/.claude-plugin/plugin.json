@@ -1,0 +1,17 @@
+{
+  "name": "mc-logi-schema-fill",
+  "version": "0.5.1",
+  "description": "LogiCraft 스키마 개편(«산문을 칸으로», CO-138~171)으로 새로 생긴 칸 — 연결 칸(based_on_adrs·operates_on·related_apis·actor_roles 등 90여 칸), 구조 칸(migration_plan.steps·verification, incident.started_at, implementation_record.evidence, slo.error_budget 등), 담당자 종류(owner → {kind,name}) — 을 프로젝트의 기존 ITEM 마다 채워 넣고, 칸으로 옮겨 간 문장만큼 산문을 줄이는 표준 절차. 진단(채움 현황표) → 연결 칸 이관 → 구조 칸·담당자 채우기 → 산문 슬림화 → 산문에 근거가 없는 칸은 담당자에게 단계별 안내표로 넘기기까지. AI 는 산문에 근거가 있는 값만 채우고(인용을 글자 그대로 대조), 지어낸 값은 기계적으로 거부된다. 사용자가 \"새 스키마 채워줘\", \"추가된 칸 채우기\", \"스키마 마이그레이션\", \"산문을 칸으로\", \"산문 슬림하게\", \"description 줄이기\", \"산문 참조 이관\", \"*_IN_PROSE 경고 정리\", \"OWNER_KIND_MISSING 정리\", \"based_on_adrs 채워줘\", \"우리 프로젝트 새 필드 현황\", \"/mc-logi-schema-fill\" 등을 말하거나, 상용 배포 뒤 기존 항목의 빈 칸·산문 경고를 한꺼번에 정리하려 할 때 반드시 이 스킬을 쓴다. 항목 하나를 손으로 고치는 건 mc-logi-update 가 맞다.",
+  "summary": "기존 ITEM 의 산문에 적힌 관계·값을 새 스키마 칸으로 옮기고(근거 인용 대조), 경위를 본문에서 분리하고, 못 채운 칸은 담당자 안내표로 넘기는 표준 절차",
+  "category": "design",
+  "author": {
+    "name": "노명철"
+  },
+  "license": "MIT",
+  "logicraft": {
+    "publisher_user_id": "4b805dc4-6d13-42c5-9710-f5a34bf2e73e",
+    "publisher_email": "mc_1024@cudo.co.kr",
+    "published_at": "2026-09-27T13:26:28.451Z",
+    "source": "mcp"
+  }
+}

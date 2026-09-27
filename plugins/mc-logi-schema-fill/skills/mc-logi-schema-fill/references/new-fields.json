@@ -1,0 +1,270 @@
+{
+ "_about": {
+  "what": "feat/item-structured-detail 브랜치(CO-138~171)가 추가한 칸. 상용 배포 후 기존 항목에서 비어 있게 되는 칸의 목록이다",
+  "new_fields_source": "apps/api/scripts/_prod2-schema-gap.json (상용 스키마 대비 이 브랜치에만 있는 칸) — 109칸/38타입",
+  "owner_kind_source": "CO-162 — 담당자 칸이 문자열 → {kind,name,role_ref?} union 으로 바뀜. 문자열은 그대로 저장되지만 OWNER_KIND_MISSING 경고. 18칸",
+  "kind_rule": "칸의 종류(연결/구조)는 여기 적지 않는다 — 실행 시 get_item_schema 의 json_schema 에서 ID 패턴(^XXX-\\d+$)으로 판정한다. 서버가 진실원이다",
+  "generated": "2026-09-25",
+  "co176": "CO-176 — adr.based_on_adrs · constant.uses_constants 추가, incident.affects 에 DFEAT·EXTSYS 허용(칸은 기존)",
+  "unruled": "저장 경고(*_IN_PROSE) 규칙이 없는 연결 칸 — 스킬이 산문을 직접 훑는다(derive 재료 C2). CO-176 이 경고를 일부러 안 붙였다"
+ },
+ "new_fields": {
+  "requirement": [
+   "based_on_adrs"
+  ],
+  "acceptance": [
+   "based_on_adrs",
+   "uses_constants",
+   "operates_on",
+   "actor_roles",
+   "follows_guidelines",
+   "verifies_events"
+  ],
+  "glossary": [
+   "based_on_adrs"
+  ],
+  "diagram_c4_container": [
+   "based_on_adrs"
+  ],
+  "diagram_c4_component": [
+   "based_on_adrs",
+   "depicts_apis",
+   "uses_constants"
+  ],
+  "class_diagram": [
+   "based_on_adrs",
+   "depicts_apis",
+   "uses_constants"
+  ],
+  "diagram_sequence": [
+   "based_on_adrs",
+   "uses_constants",
+   "depicts_dfeats"
+  ],
+  "domain": [
+   "based_on_adrs"
+  ],
+  "erd": [
+   "based_on_adrs"
+  ],
+  "api_endpoint": [
+   "based_on_adrs",
+   "implements_requirements",
+   "operates_on",
+   "required_roles",
+   "follows_guidelines"
+  ],
+  "domain_feature": [
+   "based_on_adrs",
+   "uses_integrations",
+   "implements_requirements",
+   "constrained_by_nfrs",
+   "operates_on",
+   "required_roles",
+   "follows_guidelines"
+  ],
+  "domain_event": [
+   "based_on_adrs",
+   "operates_on"
+  ],
+  "use_case": [
+   "based_on_adrs",
+   "uses_integrations",
+   "implements_requirements",
+   "constrained_by_nfrs",
+   "consumes_apis",
+   "actor_roles",
+   "uses_constants",
+   "operates_on",
+   "follows_guidelines",
+   "triggers",
+   "consumes"
+  ],
+  "nfr": [
+   "based_on_adrs",
+   "uses_constants",
+   "refines_requirements"
+  ],
+  "screen_spec": [
+   "based_on_adrs",
+   "uses_integrations",
+   "realizes_dfeats",
+   "realizes_requirements",
+   "operates_on"
+  ],
+  "screen_design": [
+   "design_system_id",
+   "uses_components",
+   "based_on_adrs"
+  ],
+  "infra_component": [
+   "based_on_adrs",
+   "serves_integrations"
+  ],
+  "migration_plan": [
+   "steps",
+   "verification",
+   "transition",
+   "based_on_adrs"
+  ],
+  "slo": [
+   "error_budget",
+   "based_on_adrs",
+   "uses_constants",
+   "implementation"
+  ],
+  "incident": [
+   "started_at",
+   "mitigated_at",
+   "acknowledged_at"
+  ],
+  "postmortem": [
+   "timeline"
+  ],
+  "monitor_alert": [
+   "threshold",
+   "implementation"
+  ],
+  "prompt_template": [
+   "implementation"
+  ],
+  "model_usage": [
+   "implementation"
+  ],
+  "guardrail": [
+   "implementation"
+  ],
+  "ai_eval": [
+   "implementation"
+  ],
+  "ai_dataset": [
+   "implementation"
+  ],
+  "ai_policy": [
+   "applies_to_datasets",
+   "applies_to_regions",
+   "implementation"
+  ],
+  "code_module": [
+   "repo_ref",
+   "follows_guidelines"
+  ],
+  "legacy_artifact": [
+   "based_on_adrs"
+  ],
+  "implementation_record": [
+   "evidence",
+   "based_on_adrs",
+   "related_apis",
+   "related_constants",
+   "related_dfeats",
+   "related_erds",
+   "related_roles",
+   "related_ui_components",
+   "related_events",
+   "related_screens",
+   "related_acceptances"
+  ],
+  "implementation_guideline": [
+   "based_on_adrs"
+  ],
+  "external_system": [
+   "based_on_adrs"
+  ],
+  "integration_point": [
+   "based_on_adrs"
+  ],
+  "integration_spec": [
+   "based_on_adrs"
+  ],
+  "test_scenario": [
+   "based_on_adrs",
+   "uses_constants",
+   "actor_roles",
+   "follows_guidelines"
+  ],
+  "data_pipeline": [
+   "depends_on"
+  ],
+  "service_interface": [
+   "purpose",
+   "server_defaults",
+   "governed_by",
+   "specified_by",
+   "operates_on"
+  ],
+  "network_rule": [
+   "for_integrations"
+  ],
+  "adr": [
+   "based_on_adrs"
+  ],
+  "constant": [
+   "uses_constants"
+  ]
+ },
+ "owner_fields": {
+  "slo": [
+   "owner"
+  ],
+  "ai_policy": [
+   "owner"
+  ],
+  "model_usage": [
+   "owner"
+  ],
+  "monitor_alert": [
+   "owner"
+  ],
+  "runbook": [
+   "owner"
+  ],
+  "guardrail": [
+   "owner"
+  ],
+  "risk": [
+   "owner"
+  ],
+  "deployment_spec": [
+   "owner"
+  ],
+  "ai_dataset": [
+   "owner"
+  ],
+  "migration_plan": [
+   "owner"
+  ],
+  "nfr": [
+   "owner"
+  ],
+  "permission_role": [
+   "owner"
+  ],
+  "oss_dependency": [
+   "owner"
+  ],
+  "infra_component": [
+   "owner"
+  ],
+  "external_system": [
+   "owner_team"
+  ],
+  "domain": [
+   "owner_team"
+  ],
+  "prompt_template": [
+   "owner"
+  ],
+  "ai_eval": [
+   "owner"
+  ]
+ },
+ "unruled_pointer_fields": {
+  "adr": [
+   "based_on_adrs"
+  ],
+  "constant": [
+   "uses_constants"
+  ]
+ }
+}

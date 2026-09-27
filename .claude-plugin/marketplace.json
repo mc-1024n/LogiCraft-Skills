@@ -53,6 +53,10 @@
       "source": "./plugins/mc-logi-scene-sketch"
     },
     {
+      "name": "mc-logi-schema-fill",
+      "source": "./plugins/mc-logi-schema-fill"
+    },
+    {
       "name": "mc-logi-screen-design",
       "source": "./plugins/mc-logi-screen-design"
     },
