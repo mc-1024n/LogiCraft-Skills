@@ -4,7 +4,7 @@ description: 현재 구현된 코드가 로컬 구현 키트(docs/design/{slug}-
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
   domain: logicraft-orchestration
   triggers: 구현 정합, 코드 정합 점검, 키트 대비 코드, 구현 검토, 코드 표류, 구현 정합성 감사, conformance review, 키트 정합, D004 구현 검토, implement review
   role: orchestrator-readonly
