@@ -173,7 +173,13 @@ target_hint: | <알면 대상 모듈/클래스/함수/화면. 모르면 생략>
    **자료만 주면 의심할 방법이 없다** — 「의심하라」는 말만으로는 아무 일도 일어나지 않는다.
 
 ### Phase 5 — 회수
-각 에이전트 출력 YAML(implemented/verification/tracking/notes_for_main) 취합. red 그대로.<!-- IF code_boundary == package --> notes 의 needs_core_change 가 뒤늦게 나오면 Phase 3.5 로 되돌아감.<!-- ENDIF code_boundary -->
+각 에이전트 출력 YAML(implemented/verification/tracking/design_facts/notes_for_main) 취합. red 그대로.
+
+#### ★ 설계 사실 옮겨 적기 (`design_facts` → CO §6)
+각 구현 에이전트의 `design_facts`(코드에서 확인한 구현 사실 — `{item, field, value, basis}`)를 **CO §6 「설계 사실」** 에
+`- ITEM.칸: 값 — 근거` 한 줄씩 옮긴다. 설계 backfill 이 이것을 **칸 값**으로 그대로 넘긴다 — 코드를 다시 추적하지 않게.
+- 근거 없는 줄·실재 확인 안 된 ID 는 옮기지 않는다(AI 추정 금지). 비어 있으면 「설계 사실 없음(구현 사실 칸 해당 없음)」 한 줄.
+- ☠️ 여기서 LogiCraft ITEM 을 직접 고치지 않는다 — 설계 반영은 backfill 몫이다.<!-- IF code_boundary == package --> notes 의 needs_core_change 가 뒤늦게 나오면 Phase 3.5 로 되돌아감.<!-- ENDIF code_boundary -->
 
 #### ★ 노하우 열람 게이트 (회수 직후 · 구현·QA 공통)
 
@@ -298,7 +304,8 @@ implemented: | <구현 에이전트가 보고한 변경 파일·요지>
 claimed_verification: | <구현 에이전트가 주장한 결과 — QA 가 실측 대조>
 changed_files: | <`git diff --name-only` 결과 — 1차 회귀 범위>
 qa_scope: | <Phase 3 에서 합의한 등급·회귀 홉수 **그리고 그 근거**. 근거가 틀렸다고 보이면 반증하고 보고하라>
-probe_axes: | <★ 오케스트레이터가 정한 «파고들 축». 비우지 마라 — 축이 비면 주어진 것만 검산하고 끝난다>
+probe_axes: | <★ 오케스트레이터가 정한 «파고들 축». 비우지 마라 — 축이 비면 주어진 것만 검산하고 끝난다.
+             구현 에이전트가 `design_facts` 를 냈으면 축 하나를 반드시 넣는다: 「각 basis 의 파일:줄이 실재하고 ±3줄 안에 조각이 글자 그대로 있나 · 값(ID)이 그 코드의 실제 테이블·가드·이벤트와 맞나」>
 knowhow_dir_abs: "<{{knowhow_dir}} 의 절대경로>"   # ★ 필수 필드. 빠뜨리면 그 라운드 QA 열람은 «즉시 0건»이 된다
 ```
 ☠️ **`knowhow_dir_abs` 를 «잊지 않기»에 맡기지 마라.** QA 는 다른 모델로 위임되면 **본체 한 파일만** 미러로
@@ -461,6 +468,8 @@ knowhow_dir_abs: "<{{knowhow_dir}} 의 절대경로>"   # ★ 필수 필드. 빠
   `mark_implementation` 으로 채운다.
 - 설계 ITEM 이 없는 변경(순수 리팩터·문서·설정)은 대상이 아니다 — **대상 아님을 보고에 한 줄로 남긴다**
   (빈 것과 없는 것을 구분해야 다음 라운드가 오판하지 않는다).
+- ★ 이번 IMPREC 에 **`evidence` 가 채워졌나**도 본다 — 커밋·spec 이름·파일 경로로 구조화돼 있어야 한다.
+  본문에 「테스트 N건 통과」·경위 서술만 있고 `evidence` 가 비면 채운다(`mark_implementation` patch).
 
 > **왜 게이트가 필요한가** — IMPREC 가 비면 LogiCraft 구현 추적에 그 작업이 안 잡힌다.
 > 도메인 구현률이 실제보다 낮게 나오고, 다음 라운드가 이미 끝난 일을 **"미구현"으로 오판**한다.

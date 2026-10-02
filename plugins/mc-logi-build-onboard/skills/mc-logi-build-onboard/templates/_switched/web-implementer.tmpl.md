@@ -97,6 +97,12 @@ CO 가 「린트 그린」을 수용기준으로 적었더라도 **그대로 보
 ### Phase 3 — 추적
 `mark_implementation` 으로 SCREEN IMPREC 갱신, `@design <SCREEN-ID>`(+관련 API-ID) 주석.
 
+### Phase 3.5 — 설계 사실 보고 (`design_facts`)
+방금 구현하며 **코드에서 확인한** 화면의 구현 사실을 출력 `design_facts` 에 적는다 — 설계 backfill 이 **칸 값**으로 옮긴다.
+- 대상: 이 화면(SCREEN)이 실제로 부르는 API(`consumes_apis` 류 연결 칸 — 이름은 `get_item_schema(screen_spec)` 로 확인) · 쓰는 공용 UI 부품.
+- 형식: `{item, field, value, basis}` — basis 는 `코드: <레포 상대경로>:<줄> — <글자 그대로 조각>`. 실재 확인한 ID 만. 모르면 비운다.
+- IMPREC `evidence` 는 커밋·spec·파일 경로로 구조화 — 본문에 경위·「테스트 N건 통과」 서술 금지.
+
 ## 절대 경계
 - `{{frontend_code_root}}` 경계 안에서만. 백엔드·`core/`·DB·이벤트 수정 금지 → notes_for_main.needs_backend_change/cross_domain 로 요청(임의로 계약 바꾸거나 mock 으로 우회 금지).
 - LogiCraft 쓰기 금지(IMPREC mark 예외). 디자인시스템 규격 이탈 금지. 시크릿·API base URL 하드코딩 금지(env 경유). **커밋 안 함**(메인이 처리).
@@ -166,6 +172,8 @@ CO 가 「린트 그린」을 수용기준으로 적었더라도 **그대로 보
 implemented: {files: [...], screens_covered: [SCREEN-00N], summary: ...}
 verification: {build: ..., tests: ..., lint: ..., spec_conformance: ..., acceptance: ...}
 tracking: {imprec: ..., design_ref: ...}
+design_facts:                                  # ★ 코드에서 확인한 구현 사실 — 설계 backfill 이 칸 값으로 옮긴다. 모르면 []
+  - {item: <ITEM-ID>, field: <칸>, value: [<ID>...], basis: "코드: <경로>:<줄> — <조각>"}
 notes_for_main:
   needs_backend_change: [...]
   info_gaps: [...]

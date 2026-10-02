@@ -57,6 +57,13 @@ target_hint: | (선택) <알면 대상 클래스/메서드/화면. 모르면 생
 ### Phase 3 — 추적
 `mark_implementation` 으로 IMPREC 갱신, `@design <ITEM-IDs>` 주석(원칙 7 기본형 — 팀이 어노테이션을 채택했으면 `@DesignRef`). 키트 .md SYNC 는 안 함(후순위).
 
+### Phase 3.5 — 설계 사실 보고 (`design_facts`)
+방금 구현하며 **코드에서 확인한** 구현 사실을 출력 `design_facts` 에 적는다 — 나중에 설계 backfill 이 이것을 **칸 값**으로 그대로 옮긴다(코드를 다시 추적하지 않게).
+- 대상: 이 구현이 건드린 설계 ITEM 의 구현 사실 칸 — `operates_on`(실제로 읽고 쓰는 테이블 → 그 테이블을 담은 ERD) · `required_roles`(라우트 권한 가드가 요구하는 역할 → ROLE) · `triggers`/`consumes`(발행·구독 이벤트 → EVT) · `consumes_apis`(부르는 API).
+- 형식: `{item, field, value, basis}` — basis 는 `코드: <레포 상대경로>:<줄> — <그 줄 근처의 글자 그대로 조각>`. ITEM ID 는 `mcp__logicraft__get_item`/`list_items` 로 **실재 확인한 것만**.
+- 모르면 비운다(추정 금지). 감사 로그·아웃박스처럼 모든 쓰기가 남기는 공통 테이블은 넣지 않는다. 로그인만 확인하는 가드는 역할이 아니다.
+- IMPREC 를 쓸 때도 같은 작성 규칙: `evidence` 는 커밋·spec 이름·파일 경로로 **구조화**하고, 본문에 경위(「CO-NNN 에서 바꿈」)나 「테스트 N건 통과」 서술을 쌓지 않는다.
+
 ## 절대 경계
 - `code_root` 경계 안에서만.<!-- IF code_boundary == package --> `core/`·`db/migrations`·타도메인 수정 금지 → notes_for_main.needs_core_change 로 요청.<!-- ELSE --> 다른 서브모듈·공유 자원 수정 금지 → notes_for_main 으로 요청.<!-- ENDIF code_boundary -->
 - LogiCraft 쓰기 금지(IMPREC mark 예외). CONST 값 추정 금지. 시크릿/외부엔드포인트 URL 하드코딩 금지. **커밋 안 함**(메인이 처리).
@@ -126,6 +133,8 @@ target_hint: | (선택) <알면 대상 클래스/메서드/화면. 모르면 생
 implemented: {files: [...], summary: ...}
 verification: {build: ..., tests: ..., lint: ..., acceptance: ...}
 tracking: {imprec: ..., design_ref: ...}
+design_facts:                                  # ★ 코드에서 확인한 구현 사실 — 설계 backfill 이 칸 값으로 옮긴다. 모르면 []
+  - {item: <ITEM-ID>, field: <칸>, value: [<ID>...], basis: "코드: <경로>:<줄> — <조각>"}
 notes_for_main:
   needs_core_change: [...]
   info_gaps: [...]
