@@ -161,7 +161,7 @@ sections 변경 시 surface 별로 `upload_static_render` 재호출 필요 — �
 - persists_in_tables[]는 텍스트 (ITEM 매칭 안 됨, 그래프 link 없음)
 - implemented_by_endpoints[]는 API-XXX 패턴 (자동 link)
 - triggers / consumes는 EVT-XXX (자동 link)
-- description에 다른 ADR/ITEM 인용 → references generic link 자동 추출
+- 관계는 연결 칸에(description 에 ID 를 적어 링크를 만들지 않는다 — 산문 속 ID 는 그래프 링크가 아니다)
 
 **cascade 후보**
 - UC (DFEAT backing)

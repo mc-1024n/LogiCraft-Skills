@@ -1,10 +1,10 @@
 ---
 name: mc-logi-update
-description: Logicraft ITEM 수정을 가이드대로 정확히 수행하고 cascade 영향을 재귀적으로 추적해 처리하는 오케스트레이터 스킬. 사용자가 logicraft ITEM 수정·갱신·정합을 요청하면(예 "SEQ-020 수정해줘", "DFEAT-064 정합해줘", "ADR 추가하고 cascade 해줘") logi-update-specialist 에이전트를 띄워 1 ITEM씩 처리하고 분석된 cascade 후보를 재귀 처리. 일괄 일관성 보장 + AI 추정 금지 정책 + brownfield 메타 자동 추정 + 종료 시 메모리 저장 문의.
+description: Logicraft ITEM 수정을 가이드대로 정확히 수행하고 cascade 영향을 재귀적으로 추적해 처리하는 오케스트레이터 스킬. 사용자가 logicraft ITEM 수정·갱신·정합을 요청하면(예 "SEQ-020 수정해줘", "DFEAT-064 정합해줘", "ADR 추가하고 cascade 해줘") logi-update-specialist 에이전트를 띄워 1 ITEM씩 처리하고 분석된 cascade 후보를 재귀 처리. 일괄 일관성 보장 + 처음부터 칸에 쓰는 작성 규칙(관계는 연결 칸 · 본문엔 현행만 · 경위는 change_summary · 기존 항목은 patch 전용) + AI 추정 금지 정책 + brownfield 메타 자동 추정 + 종료 시 메모리 저장 문의.
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.5.1"
+  version: "1.6.0"
   domain: logicraft-orchestration
   triggers: logicraft 수정, logicraft cascade, ITEM 수정, ITEM 정합, SEQ 수정, DFEAT 수정, API 정합, SCREEN 수정, ERD 정합, ADR 추가, cascade 처리, 영향 추적
   role: orchestrator
@@ -38,6 +38,15 @@ Logicraft ITEM 수정을 가이드대로 정확히 수행하고 cascade 영향�
 2. **batch 모드 기본** — 자동 진행. 라운드별 사용자 승인 생략
 3. **cascade 토폴로지 캐시**: 자주 다루는 타입은 `cascade-patterns.md` 표 참조(경계 계약 SVC/IAPI/LIB 포함). **표에 없는 타입은 `get_item_schema` 링크 정의 + `analyze_impact` 로 판정**(표 부재 ≠ cascade 없음)
 4. **자동 추정 후 보고** — brownfield 메타·외부 식별자는 specialist가 자동 추정, 실패 항목만 종료 시 보고
+6. **★ 작성 규칙 — 처음부터 칸에** (모든 수정·신규 등록 · specialist·직접 처리·cascade 하위 전부)
+   원문은 서버 가이드 `get_logicraft_guide("workflow")` 「산문을 칸으로」. 이 스킬은 **지키고 점검하는 법**만 둔다.
+   - 이번에 아는 관계는 **연결 칸**에, 구조 값은 **구조 칸**에, 담당은 `{kind,name}` 으로 — 새로 쓰는 산문에 ID 를 나열하지 않는다.
+   - **본문엔 현행만** — 변경 이유·경과는 description·notes 에 덧붙이지 않고 `change_summary` 로. `### Session NN` 로그 절 금지.
+   - **범위 = 이번에 바꾸는 것** — 고쳐 쓰는 문단의 ID 는 칸으로, 손대지 않는 옛 문단은 그대로(수만 보고). 옛 산문 일괄 이관은 `mc-logi-schema-fill` 몫.
+   - **기존 항목은 `patch`/`merge`** — `replace` 는 사용자가 통째 교체를 명시할 때만(채운 칸이 사라진다).
+   - **칸 목록은 매번 스키마에서** — 하드코딩하지 않는다. 스키마에 칸이 늘어도 스킬을 안 고쳐도 된다.
+   - **재검토 표시를 지우지 않는다 — 검토한 원인만 선언해 해제한다.** `update_item` 에 `resolves_review_from`(실제로 반영한 원인 ID, 재검토 해소가 목적일 때만 `"all"`, 불확실하면 생략)을 준다. 서버가 이 입력을 모르는 옛 버전이면, 저장하면서 표시가 다 지워지므로 저장 뒤 `restore_review_needed(since=저장 직전, dry_run=false)` 로 되살린다. 2026-10-01 백필 실측: 8항목 저장으로 58건 소실, 관련 있던 건 3건뿐.
+   - 왜: 칸이 비면 cascade 가 그 관계를 못 따라간다(실측 — 한 ADR 의 의존자가 칸 이관 전 14 → 후 34). 산문에 경위가 쌓이면 본문이 길어지고 현행이 묻힌다 — 이관 때 옮긴 경위 문단 대부분이 수정·백필이 덧붙인 것이었다.
 5. **종료 시 메모리 저장 문의** — 작업 완료 후 사용자에게 메모리 저장 여부 확인
 
 ## 워크플로우
@@ -168,6 +177,8 @@ while queue not empty AND depth < MAX_DEPTH:
    - 변경한 필드 값이 의도와 일치 확인
    - `warnings` 잔존 확인
    - `stale` 플래그 정합 확인
+   - ★ 작성 규칙(핵심 원칙 6): `fields_written` 값이 실제 칸에 있는지 · 이번에 쓴 산문에 ID 나열·경위 문장이 없는지 · 기존에 채워져 있던 칸이 그대로인지
+   - ★ 재검토 표시: 해제된 것이 선언한 원인뿐인지(specialist `review_marks` 와 대조) · 옛 서버라면 라운드 시작 이후 `본인 update` 로 풀린 자동 표시가 남아 있지 않은지(`restore_review_needed` dry_run 0건)
 3. **discrepancy 발견 시**:
    - specialist YAML 재검토
    - 같은 ITEM 다시 처리 또는 사용자 보고
@@ -180,11 +191,15 @@ verify 결과 Phase 5 보고에 포함 (`verified: N/M samples checked`).
 변경 요약 표 (사용자에게):
 
 ```
-| # | ITEM | Type | Before → After | 변경 요약 | warnings |
-|---|------|------|----------------|-----------|----------|
-| 1 | SEQ-020 | diagram_sequence | v10 → v13 | LS_DATA_RAW INSERT 패턴 복귀 | - |
-| 2 | UC-020 | use_case | v9 → v10 | main_flow 재작성 | - |
+| # | ITEM | Type | Before → After | 변경 요약 | 칸에 쓴 것 | 비운 칸(사유) | 옛 산문 ID | 남은 경고 |
+|---|------|------|----------------|-----------|-----------|--------------|-----------|----------|
+| 1 | SEQ-020 | diagram_sequence | v10 → v13 | LS_DATA_RAW INSERT 패턴 복귀 | based_on_adrs +ADR-051 | - | 2 | - |
+| 2 | UC-020 | use_case | v9 → v10 | main_flow 재작성 | - | actor_roles(근거 없음) | 0 | - |
 | ...
+
+- 「칸에 쓴 것」「비운 칸」은 specialist `fields_written`·`fields_left_empty`(직접 처리분은 메인이 같은 기준으로).
+- 「옛 산문 ID」 합계가 크면 한 줄 안내: 「옛 산문 속 ID N건 — `mc-logi-schema-fill` 로 일괄 이관할 수 있다」.
+- 이번 수정분에 남은 `*_IN_PROSE`(«이번 것»)는 결함이다 — 따로 표시.
 
 ## 자동 추정 실패 항목 (사용자 검토 필요)
 - ERD-022 brownfield.legacy_source.identifier: 추정 불가
@@ -220,7 +235,7 @@ verify 결과 Phase 5 보고에 포함 (`verified: N/M samples checked`).
 - 단일 필드 set/remove (예: `implements_features=[FEAT-007]`)
 - 배열 항목 1~2건 add/remove (예: `realizes_use_cases=[UC-019, UC-020]`)
 - enum 값 변경 (예: `status: "approved"`)
-- brownfield.notes 텍스트 추가 (1~2 줄)
+- brownfield.notes 현행 메모 추가 (1~2 줄 — 경위·날짜 로그 아님)
 - change_summary 정합 (의미 보강)
 - stale 해소 (description 라이트 터치)
 
@@ -235,6 +250,13 @@ verify 결과 Phase 5 보고에 포함 (`verified: N/M samples checked`).
 - Specialist 1건 호출: 평균 100~130초, 150~200K 토큰
 - 직접 patch 1건: 1~3초, ~2K 토큰
 - 18건 trivial 모두 specialist 호출 시: ~30분 + 3M 토큰 → 비효율
+
+### ★ 직접 처리도 작성 규칙을 지킨다 (핵심 원칙 6)
+specialist 를 안 거친다고 규칙이 빠지면 안 된다 — 직접 patch 가 가장 흔한 경로다.
+- 관계는 연결 칸 patch 로(산문에 ID 를 적지 않는다) · 경위는 `change_summary` · `data_mode` 는 `patch`/`merge`.
+- 저장 응답 `warnings[]` 의 `*_IN_PROSE` 를 본다 — **이번 patch 가 쓴 텍스트**에서 난 것이면 칸으로 옮겨 1회 재저장, 옛 문단이면 수만 보고.
+- 경고가 «이번 것»인지 가리기 어려우면(산문 여러 문단 수정) 직접 처리 대상이 아니다 → specialist.
+- **재검토 표시 보존** — 직접 patch 도 `resolves_review_from` 규칙을 그대로 따른다(검토한 원인만 · 불확실하면 생략). 옛 서버라면 저장 전 `get_item(fields=[])` 로 표시 수·시각을 적어 두고, 저장 뒤 `restore_review_needed(item_ids=[…], since=<저장 직전>, dry_run=false)` 로 되살린다. 여러 건이면 끝에 묶어서 해도 된다.
 
 ### 운영 가이드
 - Phase 3 라운드 진입 전 각 ITEM의 fix_intent 분류
@@ -315,7 +337,7 @@ schema_cache_path: {schema_cache_path}   # ★ Phase 2.5 워밍된 로컬 캐시
 {checklist_content}
 
 # 출력
-STEP A~G 완료 후 YAML 한 블록만 출력하고 종료.
+STEP A~H 완료 후 YAML 한 블록만 출력하고 종료.
 """,
 )
 ```

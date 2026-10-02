@@ -18,6 +18,8 @@
 - [ ] `get_logicraft_guide("update-item")` 호출했는가? → patch path 컨벤션·base_version 룰
 - [ ] brownfield 타입이면 `get_logicraft_guide("brownfield")`도 호출했는가?
 - [ ] 스키마 캐시 + 두 가이드 응답 모두 읽기 전에는 update_item 호출 금지
+- [ ] `get_logicraft_guide("workflow")` 의 「산문을 칸으로」 절을 읽었는가? → 작성 규칙 원문(관계는 칸 · 본문엔 현행만 · 경위는 change_summary)
+- [ ] 스키마에서 이 타입의 **연결 칸 / 담당자 칸 / 구조 칸** 목록을 뽑았는가? (하드코딩 금지 — 스키마가 늘면 따라간다)
 - [ ] ★ 충돌 시 우선순위: **MCP 스키마 캐시(workflow_notes) > cascade-patterns.md > checklist.md** — 보조 문서가 구버전일 수 있으므로 최신 workflow_notes 를 항상 우선 적용
 
 ### 현재 상태 확인 (★ STEP C)
@@ -26,6 +28,15 @@
 - [ ] 기존 links / unresolved_links 확인
 
 ## During edit (편집 중)
+
+### 작성 규칙 (★ STEP D2 · 모든 수정·신규 등록)
+- [ ] edit_context 에 든 관계·구조 값·담당을 **같은 patch 의 칸 값**으로 넣었다 (값마다 근거 기억 → `fields_written`)
+- [ ] 이번에 새로 쓰는 산문에 **ITEM ID 나열이 없다** — 관계는 칸, 산문엔 이유·맥락
+- [ ] 이번에 쓰는 산문에 **경위 문장이 없다**(「vN 에서 바꿈」「CO-NNN 로 정정」「### Session NN」) → `change_summary`
+- [ ] **손대지 않는 옛 문단은 그대로** 뒀다 — 옛 산문 ID 이관은 `mc-logi-schema-fill` 몫
+- [ ] 기존 항목에 `data_mode=replace` 를 쓰지 않았다 (edit_context 가 통째 교체를 명시한 경우만 예외)
+- [ ] 근거 없는 칸은 비우고 `fields_left_empty` 에 사유
+- [ ] **재검토 표시 보존(STEP E3)** — `resolves_review_from` 에 **실제로 반영한 원인만**(재검토 해소가 목적일 때만 `"all"`, 불확실하면 생략) · 옛 서버(입력 거부·`review_marks` 없음)면 저장 뒤 `restore_review_needed(since=저장 직전, dry_run=false)`
 
 ### patch 컨벤션
 - 점 표기: `field.subfield`
@@ -83,7 +94,10 @@
 ## Post-edit (편집 후)
 
 ### 응답 처리
-- [ ] `warnings[]` 전체 보존 → notes_for_main.unresolved_warnings에 포함
+- [ ] `warnings[]` 처리(★ STEP E2) — `*_IN_PROSE` 를 «이번에 쓴 문단 / 옛 문단»으로 가른다
+      - 이번 것: 관계면 칸으로 옮겨 **1회** 재저장 · 관계 아님(경계·선례 등)이면 `prose_refs_kept` 에 사유
+      - 옛 것: 손대지 않고 `legacy_prose_refs` 수만
+      - 처리 후에도 남은 것만 notes_for_main.unresolved_warnings 에
 - [ ] `links: { created, updated, removed, unresolved }` 확인
 - [ ] unresolved > 0면 보고에 명시 (자동 추출 실패 ITEM 확인)
 - [ ] base_version conflict (409) → get_item 재호출 후 최대 2회 retry
@@ -97,7 +111,7 @@
 ### 자동 추정 (사용자 결정 #4)
 다음 우선순위로 brownfield 메타 채움:
 1. edit_context 명시 인용
-2. 로컬 코드 `Grep` (~/05. KLID 1차 소스/ 등)
+2. 로컬 코드 `Grep` (edit_context 가 알려 준 1차 소스·레포 경로)
 3. `find_legacy_artifact` MCP
 4. 실패 시 `auto_estimation_failed: [field]` 보고
 
@@ -113,6 +127,13 @@ edited:
   fields_changed: [...]
   warnings: [...]
   auto_estimation_failed: [...]
+  fields_written: [{field, value, basis}]
+  fields_left_empty: [{field, reason}]
+  prose_refs_kept: [{id, reason}]
+  legacy_prose_refs: <수>
+  history_to: change_summary|<경위 칸>|none
+  data_mode: patch|merge|replace
+  review_marks: {mode, declared, before, resolved, kept, restored}
 
 cascade_candidates:
   - id: ...
@@ -134,12 +155,13 @@ notes_for_main:
 - [ ] Agent 도구 호출 (재귀 방지)
 - [ ] 사용자 직접 질문
 - [ ] create_item / delete_static_render (메인 지시 없이)
-- [ ] update_item 후 추가 편집 시도 (1 specialist = 1 ITEM)
+- [ ] 다른 ITEM 편집 시도 (1 specialist = 1 ITEM) — 같은 ITEM 의 STEP E2 재저장 1회는 허용
 - [ ] 가이드 응답 읽지 않고 편집
 
 ## 자가 검증 (보고 직전 체크)
-1. STEP A~G 모두 수행했는가?
+1. STEP A~H 모두 수행했는가? (D2 칸 채우기 · E2 경고 처리 · F2 끝 점검 포함)
 2. YAML 형식이 cascade-patterns.md 규격과 일치하는가?
-3. warnings 누락 없는가?
+3. warnings 누락 없는가? «이번 것»이 남아 있지 않은가?
+6. 이번에 쓴 산문에 ID 나열·경위 문장이 없는가? 경위는 change_summary 에 갔는가?
 4. cascade_candidates에 처리 완료 집합 ITEM 포함되지 않았는가?
 5. auto_propagate 판단이 보수적인가? (의심스러우면 false)
