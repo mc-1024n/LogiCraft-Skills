@@ -11,6 +11,10 @@
   plan-fields   적용 계획 — 빈 칸만 채운다(담당자 문자열→객체 승격은 예외). apply 는 prose_migrate 로
   guide         「안내」 판정 → 담당자용 단계별 체크리스트 md + 답변 양식 json
   slim-plan     산문 슬림화 계획 — «삭제만» 허용, 지운 문장마다 옮겨 간 칸이 채워져 있어야 한다
+  relation-cands  재료 E — 근거 없는 설계 의도 관계의 후보(그래프 이웃·개념 겹침·같은 도메인) 뽑기
+  relation-fill   AI 판정(제안·아님·보류 + 사유) 반영 — 대상은 실재 항목만
+  relation-review 사람 검토표 + 결정 양식(채택·기각)
+  relation-plan   «채택»한 줄만 적용 계획으로 — 기각·아님은 장부에 남겨 다시 제안하지 않는다
   check         적용 후 최종값 == 계획값 대조(구조 칸·슬림화 공용)
   progress      진단 두 번의 차이(before/after) — 무엇이 채워졌나
 
@@ -62,15 +66,24 @@ def field_kind(prop: dict) -> str:
     return "연결" if any(REF_RE.search(p) for p in pats) else "구조"
 
 
-def prose_text(data: dict) -> str:
-    """근거 대조용 — 항목 data 의 모든 문자열을 이어 붙인다(산문 칸만 보면 notes 하위 등을 놓친다)."""
+# 구조 칸 — 「어디서 구현했나」 같은 위치·연결 값이지 서술이 아니다. evidence 의 근거로 쓰면
+# 커밋 해시만 보고 «검증됨»을 만든다(KLID 상용 2026-10-02: 한 묶음 208건 전부 commits 해시로 채움).
+STRUCT_KEYS = {"commits", "module_paths", "modules", "implementation", "records", "subtasks", "evidence",
+               "design_item_id", "related_apis", "related_dfeats", "related_erds", "attached_files"}
+
+
+def prose_text(data: dict, exclude: "set[str] | None" = None) -> str:
+    """근거 대조용 — 항목 data 의 모든 문자열을 이어 붙인다(산문 칸만 보면 notes 하위 등을 놓친다).
+    exclude 의 키(하위 포함)는 건너뛴다 — evidence 판정은 STRUCT_KEYS 를 빼고 대조한다."""
     out = []
 
     def walk(v):
         if isinstance(v, str):
             out.append(v)
         elif isinstance(v, dict):
-            for x in v.values():
+            for k, x in v.items():
+                if exclude and k in exclude:
+                    continue
                 walk(x)
         elif isinstance(v, list):
             for x in v:
@@ -229,6 +242,34 @@ def hints_for(data: dict, field: str, limit: int = 6) -> list:
     return out
 
 
+def item_status_now(snapdir: Path, item_id: str):
+    """항목의 «진행 상태» — 구현기록·마이그레이션 등은 data.status, 구현추적 mixin 은 implementation.status."""
+    p = Path(snapdir) / f"{item_id}.json"
+    if not p.exists():
+        return None
+    d = load(p).get("item", {}).get("data") or {}
+    return d.get("status") or (d.get("implementation") or {}).get("status")
+
+
+def ledger_skip(ledger, recheck: bool, snapdir) -> "set[str]":
+    """장부에서 «다시 묻지 않을» 칸. 해당 없음은 영구, 보류·안내는 --recheck 로만 다시 연다 —
+    단 보류에 `status_at`(판정 때 항목 상태)이 있고 지금 상태가 달라졌으면 자동으로 다시 연다
+    (KLID 상용 2026-10-02: 진행 중 구현기록의 evidence 를 보류해 두면 구현이 끝나도 다시 묻지 않았다)."""
+    if not ledger or not Path(ledger).exists():
+        return set()
+    skip = {"해당 없음"} if recheck else {"해당 없음", "보류", "안내"}
+    out = set()
+    for k, v in load(ledger).items():
+        if v.get("verdict") not in skip:
+            continue
+        if v.get("verdict") == "보류" and v.get("status_at") and snapdir is not None:
+            now = item_status_now(snapdir, k.split("|")[0])
+            if now and now != v["status_at"]:
+                continue  # 상태가 바뀌었다 — 다시 판정
+        out.add(k)
+    return out
+
+
 # ── worklist ──────────────────────────────────────────────────────────────
 def cmd_worklist(a) -> None:
     dg = load(a.diagnose)
@@ -236,9 +277,7 @@ def cmd_worklist(a) -> None:
     types = set(a.type.split(",")) if a.type else None
     want = {"빈칸", "문자열"} if "담당자" in kinds else {"빈칸"}
     # ★ 「해당 없음」은 한 번 정하면 다시 묻지 않는다 — 장부(ledger)에 남은 것을 뺀다.
-    na = set()
-    if a.ledger and Path(a.ledger).exists():
-        na = {k for k, v in load(a.ledger).items() if v.get("verdict") == "해당 없음"}
+    na = ledger_skip(a.ledger, getattr(a, "recheck", False), Path(a.diagnose).parent / "snap")
     rows = [r for r in dg["rows"] if r["kind"] in kinds and r["state"] in want and r["key"] not in na
             and r["status"] not in pm.RETIRED and (types is None or r["type"] in types)]
     if na:
@@ -261,6 +300,32 @@ def cmd_worklist(a) -> None:
         print(f"   {t}.{f:<22} {n}")
 
 
+def guard_reason_problem(reason: str, context_text: str) -> str:
+    """🚧 경계·선례 문구가 붙은 행을 이관·채움할 때의 사유 검사 — 비어 있지 않은 것만으로는 부족하다.
+    KLID 상용(2026-10-02): 가드 행 194건 중 22건이 행마다 같은 공통 문구였다(가드가 형식만 남음).
+    사유에는 그 행 문맥의 원문 조각을 「」로 6자 이상 인용해야 하고, 그 조각이 문맥에 실재해야 한다."""
+    reason = (reason or "").strip()
+    if not reason:
+        return "사유가 비었다"
+    qs = [q for q in re.findall(r"「([^」]{6,})」", reason)]
+    if not qs:
+        return "사유에 그 행 문맥의 원문 조각을 「」로 6자 이상 인용하라(왜 이 문장이 경계·선례가 아니라 관계인지)"
+    nc = re.sub(r"\s+", " ", context_text or "")
+
+    def found(q: str) -> bool:
+        # 「…」로 줄인 인용도 받는다 — 조각마다 문맥에 순서대로 있어야 한다
+        pos = 0
+        for part in [x.strip() for x in re.split(r"…|\.\.\.", re.sub(r"\s+", " ", q)) if len(x.strip()) >= 3]:
+            i = nc.find(part, pos)
+            if i < 0:
+                return False
+            pos = i + len(part)
+        return pos > 0
+    if not any(found(q) for q in qs):
+        return f"사유의 인용 「{qs[0][:30]}」 이 그 행 문맥에 없다"
+    return ""
+
+
 # ── fill-fields ───────────────────────────────────────────────────────────
 def cmd_fill_fields(a) -> None:
     wl = load(a.worklist)
@@ -271,7 +336,15 @@ def cmd_fill_fields(a) -> None:
         by_key.setdefault(r0["key"], []).append(r0)
     idx = {k: v[0] for k, v in by_key.items()}
     bad = []
-    for d in load(a.input):
+    src = load(a.input)
+    # 판정 파일은 JSON 배열이 표준. {"judged": [...]} 로 감싸 오면 벗긴다.
+    # `담당자:` 근거는 cmd_answers 가 만든 파일({"source": "answers", "rows": [...]})에서만 받는다 —
+    # 판정 에이전트가 이 접두를 쓰면 인용 대조를 건너뛰는 통로가 된다(KLID 상용 2026-10-02: 87건).
+    from_answers = isinstance(src, dict) and src.get("source") == "answers"
+    guard_reasons = Counter()
+    if isinstance(src, dict):
+        src = src.get("rows") or src.get("judged") or []
+    for d in src:
         r = idx.get(d.get("key"))
         if not r:
             bad.append(f"없는 key: {d.get('key')}")
@@ -280,11 +353,13 @@ def cmd_fill_fields(a) -> None:
         if v not in VERDICTS:
             bad.append(f"{d['key']}: 판정 '{v}' 는 어휘 밖 — {VERDICTS}")
             continue
-        if v == "채움" and any(x.get("guard") for x in by_key.get(r["key"], [r])) and not (d.get("reason") or "").strip():
+        if v == "채움" and any(x.get("guard") for x in by_key.get(r["key"], [r])):
             g = sorted({h for x in by_key.get(r["key"], [r]) for h in (x.get("guard") or [])})
-            bad.append(f"{d['key']}: 경계·선례 문구가 붙은 후보({'; '.join(g)[:60]})를 채우려면 왜 그래도 관계인지 "
-                       "`reason` 이 필수다(아니면 제외·보류)")
-            continue
+            why = guard_reason_problem(d.get("reason"), " ".join(str(x.get("context") or "") for x in by_key.get(r["key"], [r])))
+            if why:
+                bad.append(f"{d['key']}: 경계·선례 문구가 붙은 후보({'; '.join(g)[:60]})를 채우려면 {why}(아니면 제외·보류)")
+                continue
+            guard_reasons[(d.get("reason") or "").strip()] += 1
         if v == "채움":
             val, basis = d.get("value"), (d.get("basis") or "").strip()
             if empty(val):
@@ -298,17 +373,30 @@ def cmd_fill_fields(a) -> None:
                 if basis not in {x.get("derived_basis") for x in by_key.get(r["key"], [r])}:
                     bad.append(f"{d['key']}: `재료 …` 근거는 derive 가 준비한 것과 같아야 한다({r.get('derived_basis')!r})")
                     continue
-            elif not basis.startswith("담당자:"):
+            elif basis.startswith("코드:"):
+                # 재료 D — 근거가 산문이 아니라 레포 코드다. 「코드: 경로:줄 — 조각」(여럿은 ` … `).
+                # 파일·줄이 실재하고 그 줄 ±3 안에 조각이 글자 그대로 있어야 한다 — 지어낸 경로·심볼을 막는다.
+                why = code_basis_problem(basis, wl.get("repo_root"))
+                if why:
+                    bad.append(f"{d['key']}: 코드 근거 — {why}")
+                    continue
+            elif basis.startswith("담당자:"):
+                if not from_answers:
+                    bad.append(f"{d['key']}: `담당자:` 근거는 담당자 답변 파일(answers 명령 출력)에서만 쓸 수 있다 — "
+                               "판정에서는 원문을 글자 그대로 인용하라(담당자 문자열 승격이면 기존 문자열 그대로)")
+                    continue
+            else:
                 data = load(snap / f"{r['item_id']}.json").get("item", {}).get("data") or {}
                 quotes = [q for q in re.split(r"\s*…\s*|\s*\|\s*", basis) if q.strip()]
-                miss = [q for q in quotes if norm(q) not in norm(prose_text(data))]
+                ptxt = norm(prose_text(data, STRUCT_KEYS if r["field"] == "evidence" else None))
+                miss = [q for q in quotes if norm(q) not in ptxt]
                 if miss:
                     bad.append(f"{d['key']}: 근거 인용이 산문에 없다 → {miss[0][:80]!r} (지어낸 값은 채움이 아니라 안내다)")
                     continue
             if r["field"] == "evidence":
                 # Phase 2 의 evidence 도 Phase 3.6 과 같은 규칙(references/evidence-judging.md) — CatchAll 실측:
                 # 17칸 전부 reference 에 「테스트로 각 흐름 검증(…). test SUCCEEDED.」 같은 설명문이 들어갔다.
-                pro = norm(prose_text(load(snap / f"{r['item_id']}.json").get("item", {}).get("data") or {}))
+                pro = norm(prose_text(load(snap / f"{r['item_id']}.json").get("item", {}).get("data") or {}, STRUCT_KEYS))
                 ev_bad = evidence_value_problems(val, pro)
                 if ev_bad:
                     bad.append(f"{d['key']}: evidence — {ev_bad} (지침: references/evidence-judging.md)")
@@ -333,9 +421,17 @@ def cmd_fill_fields(a) -> None:
         elif not (d.get("reason") or "").strip():
             bad.append(f"{d['key']}: '{v}' 는 사유가 필수다")
             continue
+        if v == "해당 없음" and r["field"] in ("evidence", "verified_at", "verified_by") and not from_answers:
+            st = item_status_now(snap, r["item_id"])
+            if st in ("planned", "in_progress", "draft"):
+                bad.append(f"{d['key']}: 항목이 아직 {st} — 검증 칸은 «해당 없음» 이 아니라 «보류»(구현이 끝나면 다시 판정된다)")
+                continue
         for rr in by_key.get(r["key"], [r]):
             rr.update(verdict=v, value=d.get("value") if v == "채움" else None,
-                      basis=d.get("basis", ""), reason=d.get("reason", ""), optional=bool(d.get("optional")))
+                      basis=d.get("basis", ""), reason=d.get("reason", ""), optional=bool(d.get("optional")),
+                      batch=d.get("batch") or Path(a.input).stem)
+    bad += [f"같은 사유가 가드 행 {n}건에 반복 — 행마다 그 문장을 인용해 따로 판정하라: {t[:60]!r}"
+            for t, n in guard_reasons.items() if n >= 5]
     if bad:
         die("반영 거부 — 아무것도 쓰지 않았다:\n   " + "\n   ".join(bad[:20]))
     dump(a.worklist, wl)
@@ -344,9 +440,504 @@ def cmd_fill_fields(a) -> None:
         for r in wl["rows"]:
             if r["verdict"] in ("해당 없음", "보류", "안내", "제외"):
                 led[r["key"]] = {"verdict": r["verdict"], "reason": r["reason"]}
+                st = item_status_now(snap, r["item_id"]) if r["verdict"] == "보류" else None
+                if st:
+                    led[r["key"]]["status_at"] = st  # 상태가 바뀌면 ledger_skip 이 다시 연다
         dump(a.ledger, led)
     c = Counter(r["verdict"] or "(미판정)" for r in wl["rows"])
     print("✅ 반영 · " + " · ".join(f"{k} {c[k]}" for k in [*VERDICTS, "(미판정)"] if c[k]))
+
+
+# ── 재료 D — 코드 근거 (구현 사실 칸) ──────────────────────────────────────────
+# 코드가 진실원인 «구현 사실» 칸. 설계 의도 칸(based_on_adrs·implements_requirements 등)은 코드에 없으니 여기 넣지 않는다.
+CODE_FACT_FIELDS = {
+    "api_endpoint": ["operates_on", "required_roles"],
+    "service_interface": ["operates_on"],
+    "domain_feature": ["operates_on", "required_roles"],
+    # 구현 가이드라인은 «코드가 그 규칙을 실제로 지키는가»로 확인된다(상용 Self: GUIDE-001 응답 가드 → 웹 모듈).
+    "code_module": ["follows_guidelines"],
+}
+CODE_FRAG = re.compile(r"^\s*(?P<path>[^\s:][^:]*?):(?P<line>\d+)\s*(?:[—–-]+\s*)?(?P<snip>.+?)\s*$")
+
+
+def code_basis_problem(basis: str, repo_root) -> str:
+    if not repo_root:
+        return "작업표에 repo_root 가 없다 — code-worklist 로 만든 작업표에서만 `코드:` 근거를 쓸 수 있다"
+    root = Path(repo_root).resolve()
+    # 조각마다 「코드:」 를 다시 붙여 쓰는 형태(`코드: A … 코드: B`)도 받는다 — 지침 예시가 그 모양이다.
+    frags = [re.sub(r"^\s*코드:\s*", "", f) for f in re.split(r"\s*…\s*", basis[len("코드:"):]) if f.strip()]
+    if not frags:
+        return "`코드: 경로:줄 — 조각` 이 비었다"
+    for f in frags:
+        m = CODE_FRAG.match(f)
+        if not m:
+            return f"형식이 `경로:줄 — 조각` 이 아니다 → {f[:80]!r}"
+        path = (root / m["path"].strip()).resolve()
+        if root not in path.parents or not path.is_file():
+            return f"파일이 레포에 없다 → {m['path']!r}"
+        lines = path.read_text(encoding="utf-8", errors="replace").split("\n")
+        n = int(m["line"])
+        if not 1 <= n <= len(lines):
+            return f"줄 번호가 파일 범위 밖이다 → {m['path']}:{n} (총 {len(lines)}줄)"
+        snip = norm(m["snip"])
+        if len(snip) < 3:
+            return f"조각이 너무 짧다 → {m['snip']!r}"
+        window = norm("\n".join(lines[max(0, n - 4): n + 3]))
+        if snip not in window:
+            return f"{m['path']}:{n} 근처(±3줄)에 조각이 없다 → {m['snip'][:60]!r} (지어낸 근거는 채움이 아니라 안내다)"
+    return ""
+
+
+def cmd_code_worklist(a) -> None:
+    dg = load(a.diagnose)
+    repo = Path(a.repo).resolve()
+    if not (repo / ".git").exists():
+        die(f"--repo 가 git 레포가 아니다: {repo}")
+    types = set(a.type.split(",")) if a.type else set(CODE_FACT_FIELDS)
+    snapdir = Path(a.diagnose).parent / "snap"
+    na = ledger_skip(a.ledger, getattr(a, "recheck", False), snapdir)
+    out = []
+    for r in dg["rows"]:
+        if r["type"] not in types or r["field"] not in CODE_FACT_FIELDS.get(r["type"], []):
+            continue
+        if r["state"] != "빈칸" or r["key"] in na or r["status"] in pm.RETIRED:
+            continue
+        item = load(snapdir / f"{r['item_id']}.json").get("item", {})
+        data = item.get("data") or {}
+        impl = data.get("implementation") or {}
+        hint = {"title": item.get("title"), "method": data.get("method"), "path": data.get("path"),
+                "file_path": data.get("file_path"), "kind": data.get("kind"),
+                "module_paths": impl.get("module_paths") or [], "modules": impl.get("modules") or []}
+        meta = dg["schemas"][r["type"]][r["field"]]
+        out.append({"key": r["key"], "item_id": r["item_id"], "type": r["type"], "title": r["title"],
+                    "field": r["field"], "kind": r["kind"], "state": r["state"], "source": "D",
+                    "field_help": meta["description"], "field_notes": meta["notes"],
+                    "field_schema": json.dumps(meta.get("schema"), ensure_ascii=False)[:1500],
+                    "code_hints": {k: v for k, v in hint.items() if v},
+                    "verdict": "", "value": None, "basis": "", "reason": ""})
+    if a.limit:
+        out = out[: a.limit]
+    dump(a.out, {"server": dg["server"], "project_id": dg["project_id"], "snapshot_dir": str(snapdir),
+                 "repo_root": str(repo), "rows": out})
+    c = Counter((r["type"], r["field"]) for r in out)
+    print(f"✅ 코드 작업표 {len(out)}칸 (repo {repo}) → {a.out}")
+    for (t, f), n in c.most_common(20):
+        print(f"   {t}.{f:<22} {n}")
+
+
+# ── 재료 E — 관계 초안 (Phase 1.8 · 근거 없는 설계 의도 관계) ─────────────────────
+# 산문에도 코드에도 적혀 있지 않은 관계(이 화면이 어느 결정을 따르나 · 어느 요구를 구현하나)는 재료 A~D 로는
+# 영영 안 채워진다(상용 Self 실측: 연결 칸이 전부 빈 항목 1,218/1,524). 여기서는 AI 가 «제안»만 한다.
+#   ☠️ 제안은 적용 대상이 아니다 — 사람이 줄마다 「채택」한 것만 relation-plan 이 계획으로 만든다.
+#   ☠️ 후보는 «실재하는 항목»에서만 뽑는다 — 판정자가 ID 를 지어낼 통로를 두지 않는다.
+ALL_TYPES = ["rfp_item", "requirement", "feature", "acceptance", "adr", "glossary", "diagram_c4_context",
+             "diagram_c4_container", "diagram_c4_component", "diagram_deployment", "class_diagram", "diagram_sequence",
+             "diagram_state", "domain", "erd", "api_endpoint", "domain_feature", "domain_event", "use_case", "nfr", "risk",
+             "screen_spec", "screen_design", "permission_role", "infra_component", "migration_plan", "slo", "runbook",
+             "incident", "postmortem", "monitor_alert", "prompt_template", "model_usage", "guardrail", "ai_eval",
+             "ai_dataset", "ai_policy", "code_module", "constant", "navigation_tree", "app_shell", "legacy_artifact",
+             "implementation_record", "implementation_guideline", "design_system", "ui_component", "external_system",
+             "integration_point", "integration_spec", "scenario_sketch", "test_scenario", "data_pipeline",
+             "service_interface", "library_api", "permission_manifest", "settings_schema", "module_api",
+             "oss_dependency", "deployment_spec", "network_rule", "repo", "meeting"]
+REL_VERDICTS = ["제안", "아님", "보류"]
+ID_RE = re.compile(r"\b([A-Z][A-Z0-9]*)-(\d+)\b")
+STOP = set("""설계 기능 항목 관리 화면 목록 추가 수정 조회 처리 사용 경우 위한 대한 있는 없는 데이터 정보 내용 기반 지원
+제공 확인 표시 선택 입력 저장 삭제 생성 등록 변경 결과 방식 구조 단계 필요 가능 기본 전체 이상 이하 이후 이전 모든 각각
+그리고 또는 에서 으로 하는 한다 된다 있다 없다 the and for with from api item data""".split())
+
+
+def field_ref_prefix(meta: dict):
+    """연결 칸 스키마에서 대상 ID 접두와 배열 여부를 읽는다 — 목록을 손으로 들고 다니지 않는다."""
+    prop = meta.get("schema") or {}
+    arr = prop.get("type") == "array"
+    for node in (prop, prop.get("items") or {}, *(prop.get("oneOf") or []), *(prop.get("anyOf") or [])):
+        if isinstance(node, dict) and isinstance(node.get("pattern"), str):
+            m = REF_RE.search(node["pattern"])
+            if m:
+                return m.group(1), arr
+    return None, arr
+
+
+def ref_ids(data) -> set:
+    return {f"{m.group(1)}-{m.group(2)}" for m in ID_RE.finditer(prose_text(data) if isinstance(data, dict) else str(data))}
+
+
+def concept_tokens(title: str, data: dict) -> set:
+    txt = (title or "") + " " + " ".join(str(data.get(k) or "")[:600] for k in ("description", "summary", "purpose", "context"))
+    txt = ID_RE.sub(" ", txt)
+    toks = {t.lower() for t in re.findall(r"[가-힣]{2,}|[A-Za-z_][A-Za-z0-9_]{2,}", txt)}
+    # 한국어 조사 떼기(가볍게) — 「화면을」「화면」을 같은 말로
+    toks = {re.sub(r"(을|를|이|가|은|는|의|에|로|으로|과|와|도|만|에서|까지)$", "", t) if re.match(r"[가-힣]", t) else t
+            for t in toks}
+    return {t for t in toks if len(t) >= 2 and t not in STOP}
+
+
+def excerpt(it: dict, n=220) -> str:
+    d = it.get("data") or {}
+    for k in ("description", "summary", "purpose", "context", "decision"):
+        v = d.get(k)
+        if isinstance(v, str) and v.strip():
+            return norm(v)[:n]
+    return norm(prose_text(d))[:n]  # description 이 없는 타입(수용기준의 given/when/then 등)은 글자 칸 전부에서
+
+
+def load_pool(a, dg, prefixes: set, must: "set | None" = None) -> dict:
+    """후보 풀 = 진단 스냅샷 + (없는 접두면) 서버에서 그 타입만 받아 캐시. {id: item}"""
+    snap = Path(a.diagnose).parent / "snap"
+    pool_dir = Path(a.pool_dir) if a.pool_dir else Path(a.diagnose).parent / "pool"
+    items = {}
+    for d in (snap, pool_dir):
+        if d.exists():
+            for p in d.glob("*.json"):
+                it = load(p).get("item", {})
+                if it.get("id"):
+                    items[it["id"]] = it
+    have = {i.split("-")[0] for i in items}
+    missing = prefixes - have
+    if missing and a.server:
+        srv = server(a.server)
+        pool_dir.mkdir(parents=True, exist_ok=True)
+        typemap_p = pool_dir / "_prefix-types.json"
+        typemap = load(typemap_p) if typemap_p.exists() else {}
+        todo = [t for t in ALL_TYPES if t not in typemap.values()] if any(m not in typemap for m in missing) else []
+        for t in todo:  # 접두 → 타입 표를 한 번만 만든다(list_items 는 type 이 필수다)
+            try:
+                r = mcp(srv, "list_items", {"project_id": dg["project_id"], "type": t, "limit": 1})
+            except RuntimeError:
+                continue
+            for i in r.get("items") or []:
+                typemap[i["id"].split("-")[0]] = t
+            typemap.setdefault(f"_seen:{t}", t)
+        dump(typemap_p, typemap)
+        ignored = []
+        for pre in sorted(missing):
+            t = typemap.get(pre)
+            if not t:
+                # 칸이 받는 접두(must)만 경고 — 다리 접두는 산문 속 항목 아닌 토큰(CAM003-·KEPCO-·CO-)이 섞여 소음이 된다
+                if must is None or pre in must:
+                    print(f"   ⚠️ 접두 {pre}- 인 항목이 이 프로젝트에 없다 — 후보 풀 없음")
+                else:
+                    ignored.append(pre)
+                continue
+            off, n = 0, 0
+            while True:
+                r = mcp(srv, "list_items", {"project_id": dg["project_id"], "type": t, "limit": 500, "offset": off})
+                for i in r.get("items") or []:
+                    p = pool_dir / f"{i['id']}.json"
+                    if not p.exists():
+                        p.write_text(json.dumps(mcp(srv, "get_item", {"project_id": dg["project_id"], "id": i["id"]}),
+                                                ensure_ascii=False, indent=1), encoding="utf-8")
+                    items[i["id"]] = load(p).get("item", {})
+                    n += 1
+                pg = r.get("pagination") or {}
+                if not pg.get("has_more"):
+                    break
+                off = pg["next_offset"]
+            print(f"   후보 풀 보충: {pre}- ({t}) {n}건 → {pool_dir}")
+    elif missing:
+        print(f"   ⚠️ 스냅샷에 없는 대상 접두 {sorted(missing)} — --server 를 주면 받아 온다(주지 않으면 그 칸은 후보 0)")
+    if 'ignored' in locals() and ignored:
+        print(f"   (항목이 아닌 다리 접두 {len(ignored)}종 무시: {', '.join(p + '-' for p in ignored[:8])}{' …' if len(ignored) > 8 else ''})")
+    return items
+
+
+def cmd_relation_cands(a) -> None:
+    dg = load(a.diagnose)
+    types = set(a.type.split(",")) if a.type else None
+    fields = set(a.field.split(",")) if a.field else None
+    ledger = load(a.ledger) if a.ledger and Path(a.ledger).exists() else {}
+    # 같은 라운드의 L·C·D·S 가 이미 채우기로 정한 칸은 뺀다(KLID 상용 2026-10-02: 후보 칸 2,780 중 301칸 낭비)
+    same_round = set()
+    if getattr(a, "round_dir", None):
+        R = Path(a.round_dir)
+        if (R / "refs" / "decisions.json").exists():
+            same_round |= {(r["item_id"], r["field"]) for r in load(R / "refs" / "decisions.json")["decisions"] if r.get("kind") == pm.MIGRATE}
+        for sub in ("c", "code", "fields"):
+            if (R / sub / "worklist.json").exists():
+                same_round |= {(r["item_id"], r["field"]) for r in load(R / sub / "worklist.json")["rows"] if r.get("verdict") == "채움"}
+    cells = []
+    for r in dg["rows"]:
+        if r["kind"] != "연결" or r["state"] != "빈칸" or r["status"] in pm.RETIRED:
+            continue
+        if (r["item_id"], r["field"]) in same_round:
+            continue
+        if (types and r["type"] not in types) or (fields and r["field"] not in fields):
+            continue
+        if ledger.get(r["key"], {}).get("verdict") == "해당 없음":
+            continue
+        if r["prose_ref"] and not a.include_prose:
+            continue  # 산문에 ID 가 있다 — Phase 1 의 몫이다
+        if r["field"] in CODE_FACT_FIELDS.get(r["type"], []) and not a.include_code_facts:
+            continue  # 구현 사실 칸 — 코드가 있으면 Phase 1.7 의 몫이다
+        pre, arr = field_ref_prefix(dg["schemas"][r["type"]][r["field"]])
+        if pre:
+            cells.append((r, pre, arr))
+    cell_pre = {pre for _, pre, _ in cells}
+    items = load_pool(a, dg, cell_pre, must=cell_pre)
+    # 다리 항목도 풀에 넣는다 — 설계 연결은 흔히 DFEAT→FEAT→REQ 처럼 스냅샷에 없는 타입(FEAT 등)을 거친다.
+    #   빠지면 그래프 경로가 끊겨 «낱말 겹침»만 남는다(상용 Self 시험: SCREEN 후보가 전부 흔한 낱말로 뽑혔다).
+    bridge = {x.split("-")[0] for r, _, _ in cells if r["item_id"] in items
+              for x in ref_ids(items[r["item_id"]].get("data") or {})}
+    if bridge - {i.split("-")[0] for i in items}:
+        items = load_pool(a, dg, bridge | cell_pre, must=cell_pre)
+    live = {i: it for i, it in items.items() if it.get("status") not in pm.RETIRED}
+    live_set = set(live)  # 루프 안에서 set(live) 를 매번 만들면 칸×이웃×이웃 만큼 재생성된다(KLID 3,776항목: 30분+ → 한 번만)
+    refs = {i: ref_ids(it.get("data") or {}) - {i} for i, it in live.items()}
+    rev: "dict[str, set]" = {}
+    for i, rs in refs.items():
+        for x in rs:
+            rev.setdefault(x, set()).add(i)
+    toks = {i: concept_tokens(it.get("title", ""), it.get("data") or {}) for i, it in live.items()}
+    df = Counter(t for ts in toks.values() for t in ts)
+    N = max(1, len(toks))
+    import math
+    idf = {t: math.log(N / (1 + c)) for t, c in df.items()}
+    rare = {t for t, c in df.items() if c <= max(3, N * 0.02)}  # 흔한 말(사용자·프로젝트·필터…)은 신호가 아니다
+    deg = {i: len(refs.get(i, set())) + len(rev.get(i, set())) for i in live}
+    rev_type_n: "dict[str, Counter]" = {n: Counter(live[x].get("type") for x in xs if x in live) for n, xs in rev.items()}
+    dom = {i: (it.get("domain_id") or (it.get("data") or {}).get("domain_id")) for i, it in live.items()}
+    out = []
+    for r, pre, arr in cells:
+        me = r["item_id"]
+        if me not in live:
+            continue
+        # 경유지는 «실재 항목»만 — CO 번호·해시처럼 항목이 아닌 번호를 거친 경로는 설계 관계가 아니다(같은 CO 에 적혔을 뿐).
+        near = {n for n in refs.get(me, set()) | rev.get(me, set()) if n in live}
+        sc: "dict[str, dict]" = {}
+
+        def hit(c, why, w):
+            if c == me or c not in live or not c.startswith(pre + "-"):
+                return
+            if f"{r['key']}|{c}" in ledger:  # 이미 기각·아님 — 다시 제안하지 않는다
+                return
+            e = sc.setdefault(c, {"score": 0.0, "signals": []})
+            e["score"] += w
+            if why not in e["signals"]:
+                e["signals"].append(why)
+        # 가중치: 그래프 경로 > 같은 도메인 > 드문 낱말 겹침. 낱말 겹침만으로는 후보 기준(MIN_SCORE)을 겨우 넘게 둔다.
+        for c in refs.get(me, set()):
+            hit(c, "직접 언급(산문 밖 칸)", 6)
+        for c in rev.get(me, set()):
+            hit(c, "상대가 이 항목을 언급", 5)
+        # 허브(수십 곳이 가리키는 항목)를 거친 경로는 약하게 — 안 그러면 허브의 이웃이 모든 항목의 후보가 된다
+        #   (상용 Self 시험: ADR-025 를 거쳐 REQ-012 가 아티팩트·공지 화면 모두의 1순위 후보로 떴다).
+        # 경유지 감쇠 — 상용 Self 시범(rel-1)에서 기각된 고득점 후보 3유형을 낮춘다:
+        #   ① 허브(수십 곳이 가리키는 항목) — 허브의 이웃이 모든 항목의 후보가 된다
+        #   ② 대상과 같은 타입의 경유지(ADR→ADR·REQ→REQ) — 정답 ADR 이 선례로 인용한 ADR·같은 허브 ADR 의 다른 자식이 딸려 온다
+        #   ③ 같은 타입 형제가 함께 쓰는 경유지(여러 화면이 공유하는 API) — 한 화면의 결정이 형제 화면에 옮겨 붙는다
+        my_type = live[me].get("type")
+
+        hub_memo: "dict[str, float]" = {}
+
+        def hub(n):
+            if n in hub_memo:
+                return hub_memo[n]
+            w = min(1.0, 8 / max(1, deg.get(n, 0)))
+            if n.startswith(pre + "-"):
+                w *= 0.3
+            # 형제 수 = n 을 가리키는 같은 타입 항목 수(자기 제외) — 타입별 개수를 미리 세 둔 표로(매 호출 전수 순회는 칸당 수 초)
+            sib = rev_type_n.get(n, {}).get(my_type, 0) - (1 if me in rev.get(n, ()) else 0)
+            hub_memo[n] = w / (1 + sib)
+            return hub_memo[n]
+        hop2: "dict[str, dict]" = {}
+        for n in near:
+            for c in (refs.get(n, set()) | rev.get(n, set())) & live_set:
+                hop2.setdefault(c, {})[n] = hub(n)
+        for c, via in hop2.items():
+            names = sorted(via, key=lambda n: -via[n])[:3]
+            hit(c, "그래프 2홉(" + "·".join(names) + " 경유)", min(3 * sum(via.values()), 9))
+        hop3: "dict[str, dict]" = {}
+        for n in near:
+            for m in (refs.get(n, set()) | rev.get(n, set())) & live_set:
+                if m == me or m in near:
+                    continue
+                for c in (refs.get(m, set()) | rev.get(m, set())) & live_set:
+                    if c not in hop2:
+                        hop3.setdefault(c, {})[f"{n}→{m}"] = hub(n) * hub(m)
+        for c, via in hop3.items():
+            best = max(via, key=via.get)
+            hit(c, f"그래프 3홉({best} 경유)", min(sum(via.values()), 2))
+        if dom.get(me):
+            for c, dm in dom.items():
+                if dm == dom[me]:
+                    hit(c, "같은 도메인", 0.5)
+        mine = toks.get(me, set()) & rare
+        for c in [x for x in live if x.startswith(pre + "-")]:
+            shared = mine & toks.get(c, set())
+            if len(shared) >= 2:
+                w = sum(idf.get(t, 0) for t in shared)
+                top = sorted(shared, key=lambda t: -idf.get(t, 0))[:4]
+                hit(c, "드문 낱말 겹침(" + "·".join(top) + ")", min(w / 6, 2))
+        sc = {c: v for c, v in sc.items() if v["score"] >= a.min_score}
+        ranked = sorted(sc.items(), key=lambda kv: -kv[1]["score"])[: a.top]
+        if ranked:  # 1위의 rel_cutoff 배 미만은 버린다 — rel-1 시뮬레이션: 0.5 까지 정답 손실 0, 오답 56→49
+            ranked = [kv for kv in ranked if kv[1]["score"] >= a.rel_cutoff * ranked[0][1]["score"]]
+        if not ranked:
+            continue
+        it = live[me]
+        out.append({"key": r["key"], "item_id": me, "type": r["type"], "title": r["title"], "field": r["field"],
+                    "target_prefix": pre, "array": arr,
+                    "field_help": dg["schemas"][r["type"]][r["field"]]["description"],
+                    "item_excerpt": excerpt(it, 400),
+                    "candidates": [{"id": c, "title": live[c].get("title", ""), "type": live[c].get("type"),
+                                    "score": round(v["score"], 2), "signals": v["signals"][:4],
+                                    "excerpt": excerpt(live[c])} for c, v in ranked],
+                    "judged": {}})
+        if a.limit and len(out) >= a.limit:
+            break
+    dump(a.out, {"server": dg["server"], "project_id": dg["project_id"],
+                 "snapshot_dir": str(Path(a.diagnose).parent / "snap"),
+                 "pool_ids": sorted(live), "rows": out})
+    c = Counter((r["type"], r["field"]) for r in out)
+    print(f"✅ 관계 후보 — 칸 {len(out)} · 후보 {sum(len(r['candidates']) for r in out)} → {a.out}")
+    for (t, f), n in c.most_common(15):
+        print(f"   {t}.{f:<26} {n}")
+
+
+def cmd_relation_fill(a) -> None:
+    wl = load(a.worklist)
+    idx = {r["key"]: r for r in wl["rows"]}
+    pool = set(wl.get("pool_ids") or [])
+    bad, n = [], 0
+    for d in load(a.input):
+        r = idx.get(d.get("key"))
+        tgt, v, why = d.get("target"), d.get("verdict"), (d.get("reason") or "").strip()
+        if not r:
+            bad.append(f"없는 key: {d.get('key')}")
+            continue
+        if v not in REL_VERDICTS:
+            bad.append(f"{d['key']} {tgt}: 판정 '{v}' 는 어휘 밖 — {REL_VERDICTS}")
+            continue
+        if not (isinstance(tgt, str) and tgt.startswith(r["target_prefix"] + "-")):
+            bad.append(f"{d['key']}: 대상 {tgt!r} 은 이 칸이 받는 {r['target_prefix']}- 가 아니다")
+            continue
+        if tgt not in pool:
+            bad.append(f"{d['key']}: 대상 {tgt} 는 프로젝트에 없는(또는 폐기된) 항목이다 — 지어낸 ID")
+            continue
+        if len(why) < 10:
+            bad.append(f"{d['key']} {tgt}: 사유가 없거나 너무 짧다 — 무엇이 무엇에 기대는지 한두 문장")
+            continue
+        outside = tgt not in {c["id"] for c in r["candidates"]}
+        r["judged"][tgt] = {"verdict": v, "reason": why, "outside": outside}
+        n += 1
+    bad += [f"같은 사유가 가드 행 {n}건에 반복 — 행마다 그 문장을 인용해 따로 판정하라: {t[:60]!r}"
+            for t, n in guard_reasons.items() if n >= 5]
+    if bad:
+        die("반영 거부 — 아무것도 쓰지 않았다:\n   " + "\n   ".join(bad[:20]))
+    dump(a.worklist, wl)
+    c = Counter(j["verdict"] for r in wl["rows"] for j in r["judged"].values())
+    left = sum(1 for r in wl["rows"] if not r["judged"])
+    print(f"✅ 반영 {n} · " + " · ".join(f"{k} {c[k]}" for k in REL_VERDICTS if c[k]) + f" · 판정 없는 칸 {left}")
+
+
+def cmd_relation_review(a) -> None:
+    wl = load(a.worklist)
+    rows = [r for r in wl["rows"] if any(j["verdict"] == "제안" for j in r["judged"].values())]
+    hold = [(r, t, j) for r in wl["rows"] for t, j in r["judged"].items() if j["verdict"] == "보류"]
+    nope = sum(1 for r in wl["rows"] for j in r["judged"].values() if j["verdict"] == "아님")
+    title = {c["id"]: c["title"] for r in wl["rows"] for c in r["candidates"]}
+    L = ["# 관계 초안 — 검토표", "",
+         f"제안 **{sum(1 for r in rows for j in r['judged'].values() if j['verdict'] == '제안')}줄** "
+         f"(항목·칸 {len(rows)}) · 보류 {len(hold)} · AI 가 아니라고 본 후보 {nope}", "",
+         "> 이 관계들은 **산문에도 코드에도 적혀 있지 않다.** AI 가 두 항목을 읽고 «관련 있어 보인다»고 제안한 것이다.",
+         "> 줄마다 **채택/기각**을 정해 `decisions.json` 에 적는다(비워 둔 줄은 이번에 적용하지 않고 다음에 다시 나온다).",
+         "> 판단 질문: **「오른쪽 항목이 내일 바뀌면, 왼쪽 항목을 다시 열어 봐야 하나?」** — 예면 채택.", ""]
+    dec = []
+    for r in rows:
+        L += [f"## {r['item_id']} — {r['title'][:60]} · `{r['field']}`", "",
+              f"- 칸 뜻: {r['field_help'][:200]}", f"- 이 항목: {r['item_excerpt'][:200]}", ""]
+        for t, j in r["judged"].items():
+            if j["verdict"] != "제안":
+                continue
+            L.append(f"- [ ] **{t}** {title.get(t, '')[:60]}{' _(후보 목록 밖)_' if j.get('outside') else ''} — {j['reason']}")
+            dec.append({"key": r["key"], "target": t, "item": r["item_id"], "field": r["field"], "decision": "", "note": ""})
+        L.append("")
+    if hold:
+        L += ["## 보류 — AI 가 판단하지 못한 후보 (보고 싶으면)", ""]
+        L += [f"- {r['item_id']} `{r['field']}` → {t} — {j['reason']}" for r, t, j in hold]
+        L.append("")
+    Path(a.out).write_text("\n".join(L) + "\n", encoding="utf-8")
+    dump(a.decisions, dec)
+    print(f"✅ 검토표 → {a.out} · 결정 양식 {len(dec)}줄 → {a.decisions}  (decision: 채택 | 기각 | 비움)")
+
+
+def cmd_relation_plan(a) -> None:
+    wl = load(a.worklist)
+    idx = {r["key"]: r for r in wl["rows"]}
+    led = load(a.ledger) if a.ledger and Path(a.ledger).exists() else {}
+    adopt: "OrderedDict[str, list]" = OrderedDict()
+    bad, nrej = [], 0
+    for d in load(a.decisions):
+        dec = (d.get("decision") or "").strip()
+        r = idx.get(d.get("key"))
+        if not dec:
+            continue
+        if not r or d.get("target") not in r["judged"]:
+            bad.append(f"검토표에 없는 줄: {d.get('key')} → {d.get('target')}")
+            continue
+        if dec == "채택":
+            adopt.setdefault(r["key"], []).append(d["target"])
+        elif dec == "기각":
+            led[f"{r['key']}|{d['target']}"] = {"verdict": "기각", "reason": d.get("note") or "관계 초안 기각(담당자)"}
+            nrej += 1
+        else:
+            bad.append(f"{r['key']} → {d['target']}: decision '{dec}' 는 채택·기각·비움만")
+    for key, tg in adopt.items():
+        if not idx[key]["array"] and len(tg) > 1:
+            bad.append(f"{key}: 값 하나만 받는 칸인데 {len(tg)}개를 채택했다 → {tg}")
+    if bad:
+        die("계획 거부 — 아무것도 쓰지 않았다:\n   " + "\n   ".join(bad[:20]))
+    # AI 가 «아님»으로 본 후보도 장부에 남긴다 — 다음 라운드에 같은 후보를 다시 판정하지 않게.
+    for r in wl["rows"]:
+        for t, j in r["judged"].items():
+            if j["verdict"] == "아님":
+                led.setdefault(f"{r['key']}|{t}", {"verdict": "아님", "reason": j["reason"]})
+    if a.ledger:
+        dump(a.ledger, led)
+    rows = []
+    for key, tg in adopt.items():
+        r = idx[key]
+        reasons = "; ".join(f"{t}: {r['judged'][t]['reason']}" for t in tg)
+        rows.append({"key": key, "item_id": r["item_id"], "type": r["type"], "field": r["field"], "kind": "연결",
+                     "verdict": "채움", "value": tg if r["array"] else tg[0],
+                     "basis": f"담당자 확정: 관계 초안 채택 — {reasons}"[:1000], "reason": ""})
+    fw = Path(a.out).with_name("adopted-worklist.json")
+    dump(fw, {"server": wl["server"], "project_id": wl["project_id"], "snapshot_dir": wl["snapshot_dir"],
+              "source": "relation", "rows": rows})
+    print(f"   채택 {sum(len(v) for v in adopt.values())}줄(칸 {len(adopt)}) · 기각 {nrej}줄 → 장부")
+    cmd_plan_fields(argparse.Namespace(worklist=str(fw), out=a.out, partial=False))
+
+
+# ── auto-na — 칸 설명·프로젝트 상태만으로 «해당 없음»이 확정되는 칸 (판정 없이) ─────────────
+# 사람·AI 판정에 올릴 필요가 없는 빈칸을 먼저 걷어 낸다. 서버에는 쓰지 않고 장부에만 남긴다.
+#   R1 대상 타입 항목이 프로젝트에 0개 — 가리킬 것이 없다(예: 가이드라인 0개인 프로젝트의 follows_guidelines)
+#   R2 code_module.repo_ref — 레포(REPO) 항목이 1개 이하면 칸 설명 그대로 «단일 레포면 비워 둔다»(CO-141)
+def cmd_auto_na(a) -> None:
+    dg = load(a.diagnose)
+    ledger = load(a.ledger) if a.ledger and Path(a.ledger).exists() else {}
+    cells = []
+    for r in dg["rows"]:
+        if r["kind"] != "연결" or r["state"] != "빈칸" or r["status"] in pm.RETIRED or r["key"] in ledger:
+            continue
+        pre, _ = field_ref_prefix(dg["schemas"][r["type"]][r["field"]])
+        if pre:
+            cells.append((r, pre))
+    items = load_pool(a, dg, {pre for _, pre in cells} | {"REPO"})
+    have = Counter(i.split("-")[0] for i, it in items.items() if it.get("status") not in pm.RETIRED)
+    out = []
+    for r, pre in cells:
+        if r["type"] == "code_module" and r["field"] == "repo_ref" and have["REPO"] <= 1:
+            out.append({"key": r["key"], "item": r["item_id"], "field": r["field"], "rule": "R2",
+                        "why": f"레포 항목 {have['REPO']}개 — 칸 설명: 단일 레포면 비워 둔다(CO-141)"})
+        elif have[pre] == 0:
+            out.append({"key": r["key"], "item": r["item_id"], "field": r["field"], "rule": "R1",
+                        "why": f"가리킬 대상({pre}-) 항목이 이 프로젝트에 0개"})
+    dump(a.out, out)
+    c = Counter((x["rule"], x["field"]) for x in out)
+    print(f"✅ 자동 해당 없음 {len(out)}칸 → {a.out}")
+    for (rule, f), n in c.most_common(15):
+        print(f"   {rule} {f:<28} {n}")
 
 
 # ── derive (재료 B · A — 결정적) ─────────────────────────────────────────────
@@ -674,7 +1265,11 @@ def cmd_plan_fields(a) -> None:
             items.append({"item_id": item_id, "item_type": it.get("type"), "snapshot_version": it.get("current_version"),
                           "ops": ops, "changes": list(merged.values())})
     plan = {"server": wl["server"], "project_id": wl["project_id"], "guard_version": True,
-            "change_summary": "새 스키마 칸 채우기(mc-logi-schema-fill) — {summary}. 값은 이 항목 산문 또는 담당자 답변에서 옮겼다. 산문은 그대로 둔다.",
+            "change_summary": ("새 스키마 칸 채우기(mc-logi-schema-fill · 재료 D) — {summary}. 값은 레포 코드(" + Path(wl["repo_root"]).name
+                               + ")에서 확인했다. 산문은 그대로 둔다." if wl.get("repo_root") else
+                               "관계 초안(mc-logi-schema-fill · 재료 E) — {summary}. AI 가 제안한 관계를 담당자가 검토해 채택했다. 산문은 그대로 둔다."
+                               if wl.get("source") == "relation" else
+                               "새 스키마 칸 채우기(mc-logi-schema-fill) — {summary}. 값은 이 항목 산문 또는 담당자 답변에서 옮겼다. 산문은 그대로 둔다."),
             "totals": {"items_to_update": len(items), "fields_to_set": sum(len(i["ops"]) for i in items),
                        "skipped": len(skipped)},
             "items": items, "skipped": skipped}
@@ -772,7 +1367,7 @@ def cmd_answers(a) -> None:
                 out.append({"key": k, "verdict": "해당 없음", "reason": f"담당자: {g['na']}"})
             elif not empty(g.get("value")):
                 out.append({"key": k, "verdict": "채움", "value": g["value"], "basis": f"담당자: 묶음 답({g['group']})"})
-    dump(a.out, out)
+    dump(a.out, {"source": "answers", "rows": out})
     print(f"✅ 답변 {len(out)}칸 → {a.out} (빈 답은 건너뜀 — 다음 진단에 다시 나온다)")
 
 
@@ -1042,8 +1637,8 @@ def cmd_history_plan(a) -> None:
 # ── evidence (경위 중 «검증 기록» → evidence 구조 칸) ─────────────────────────
 EVIDENCE_TYPES = ("test_case", "test_run", "document", "screenshot", "log", "external_link", "code")
 EVIDENCE_OWNER_TYPES = ("acceptance", "implementation_record")   # evidence 칸이 있는 타입(CO-167)
-RESULT_WORDS = {"pass": r"통과|passing|passed|\bpass\b|성공|green|GREEN|SUCCEEDED|\b0 failures\b",
-                "fail": r"실패|failing|failed|\bfail\b|red|RED|FAILED",
+RESULT_WORDS = {"pass": r"통과|passing|passed|\bpass\b|성공|green|GREEN|그린|SUCCEEDED|BUILD SUCCESSFUL|\b0 failures\b",
+                "fail": r"실패|레드|failing|failed|\bfail\b|red|RED|FAILED",
                 "inconclusive": r"inconclusive|판단 불가|보류|blocked|미확정|조건부"}
 
 
@@ -1250,9 +1845,19 @@ def main() -> None:
     add("diagnose", cmd_diagnose, ("--server", R), ("--project", R), ("--out-dir", R), ("--type", {}),
         ("--scan", {}), ("--refresh", {"action": "store_true"}))
     add("worklist", cmd_worklist, ("--diagnose", R), ("--kind", {"default": "구조,담당자"}), ("--type", {}), ("--out", R),
-        ("--ledger", {}))
+        ("--ledger", {}), ("--recheck", {"action": "store_true"}))
     add("derive", cmd_derive, ("--diagnose", R), ("--out", R), ("--ledger", {}),
         ("--prose", {"action": "store_true"}), ("--scan", {}))
+    add("code-worklist", cmd_code_worklist, ("--diagnose", R), ("--repo", R), ("--out", R), ("--type", {}),
+        ("--ledger", {}), ("--limit", {"type": int, "default": 0}), ("--recheck", {"action": "store_true"}))
+    add("relation-cands", cmd_relation_cands, ("--diagnose", R), ("--out", R), ("--ledger", {}), ("--server", {}),
+        ("--pool-dir", {}), ("--type", {}), ("--field", {}), ("--limit", {"type": int, "default": 0}),
+        ("--top", {"type": int, "default": 6}), ("--min-score", {"type": float, "default": 1.5}), ("--rel-cutoff", {"type": float, "default": 0.5}), ("--include-prose", {"action": "store_true"}),
+        ("--include-code-facts", {"action": "store_true"}), ("--round-dir", {}))
+    add("auto-na", cmd_auto_na, ("--diagnose", R), ("--out", R), ("--ledger", {}), ("--server", {}), ("--pool-dir", {}))
+    add("relation-fill", cmd_relation_fill, ("--worklist", R), ("--input", R))
+    add("relation-review", cmd_relation_review, ("--worklist", R), ("--out", R), ("--decisions", R))
+    add("relation-plan", cmd_relation_plan, ("--worklist", R), ("--decisions", R), ("--out", R), ("--ledger", {}))
     add("fill-fields", cmd_fill_fields, ("--worklist", R), ("--input", R), ("--ledger", {}))
     add("review-fields", cmd_review_fields, ("--worklist", R), ("--out", R))
     add("plan-fields", cmd_plan_fields, ("--worklist", R), ("--out", R), ("--partial", {"action": "store_true"}))

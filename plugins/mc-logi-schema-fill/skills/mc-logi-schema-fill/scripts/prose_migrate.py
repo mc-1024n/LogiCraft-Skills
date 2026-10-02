@@ -367,12 +367,41 @@ def cmd_draft(a) -> None:
           + (f" · 🚧 경계·선례 문구 {guarded}건(이관이면 사유 필수)" if guarded else ""))
 
 
+def guard_reason_problem(reason: str, context_text: str) -> str:
+    """🚧 경계·선례 문구가 붙은 행을 이관·채움할 때의 사유 검사 — 비어 있지 않은 것만으로는 부족하다.
+    KLID 상용(2026-10-02): 가드 행 194건 중 22건이 행마다 같은 공통 문구였다(가드가 형식만 남음).
+    사유에는 그 행 문맥의 원문 조각을 「」로 6자 이상 인용해야 하고, 그 조각이 문맥에 실재해야 한다."""
+    reason = (reason or "").strip()
+    if not reason:
+        return "사유가 비었다"
+    qs = [q for q in re.findall(r"「([^」]{6,})」", reason)]
+    if not qs:
+        return "사유에 그 행 문맥의 원문 조각을 「」로 6자 이상 인용하라(왜 이 문장이 경계·선례가 아니라 관계인지)"
+    nc = re.sub(r"\s+", " ", context_text or "")
+
+    def found(q: str) -> bool:
+        # 「…」로 줄인 인용도 받는다 — 조각마다 문맥에 순서대로 있어야 한다
+        pos = 0
+        for part in [x.strip() for x in re.split(r"…|\.\.\.", re.sub(r"\s+", " ", q)) if len(x.strip()) >= 3]:
+            i = nc.find(part, pos)
+            if i < 0:
+                return False
+            pos = i + len(part)
+        return pos > 0
+    if not any(found(q) for q in qs):
+        return f"사유의 인용 「{qs[0][:30]}」 이 그 행 문맥에 없다"
+    return ""
+
+
 def cmd_fill(a) -> None:
     """에이전트가 정한 부류를 반영. 입력 = [{key, kind, reason}] (key 는 draft 의 key)."""
     d = load(a.decisions)
     by = {r["key"]: r for r in d["decisions"]}
     inp = load(a.input)
+    if isinstance(inp, dict):
+        inp = inp.get("judged") or inp.get("rows") or []
     bad, miss = [], []
+    guard_reasons = Counter()
     for x in inp:
         if x.get("kind") not in ALL_KINDS:
             bad.append(f"{x.get('key')} kind={x.get('kind')!r}")
@@ -384,11 +413,27 @@ def cmd_fill(a) -> None:
         if not r:
             miss.append(x["key"])
             continue
-        if x["kind"] == MIGRATE and r.get("guard") and not (x.get("reason") or "").strip():
-            bad.append(f"{x['key']} — 경계·선례 문구가 붙은 행({'; '.join(r['guard'])[:60]})을 이관하려면 "
-                       "왜 그래도 관계인지 사유가 필수다(아니면 경계 선언·선례 인용·보류)")
-            continue
+        if x["kind"] == MIGRATE and r.get("guard"):
+            ctxt = " ".join(c.get("text", "") for c in (r.get("context") or []))
+            if getattr(a, "snapshot_dir", None):  # 판정자는 발췌가 아니라 항목 원문을 읽는다 — 원문 전체로도 대조
+                sp = Path(a.snapshot_dir) / f"{r['item_id']}.json"
+                if sp.exists():
+                    flat = []
+                    def walk(v):
+                        if isinstance(v, str): flat.append(v)
+                        elif isinstance(v, dict): [walk(y) for y in v.values()]
+                        elif isinstance(v, list): [walk(y) for y in v]
+                    walk(load(sp).get("item", {}).get("data") or {})
+                    ctxt += " " + " ".join(flat)
+            why = guard_reason_problem(x.get("reason"), ctxt)
+            if why:
+                bad.append(f"{x['key']} — 경계·선례 문구가 붙은 행({'; '.join(r['guard'])[:60]})을 이관하려면 {why} "
+                           "(아니면 경계 선언·선례 인용·보류)")
+                continue
+            guard_reasons[x["reason"].strip()] += 1
         r["kind"], r["reason"] = x["kind"], x.get("reason", "")
+    bad += [f"같은 사유가 가드 행 {n}건에 반복 — 행마다 그 문장을 인용해 따로 판정하라: {t[:60]!r}"
+            for t, n in guard_reasons.items() if n >= 5]
     if bad or miss:
         die("반영 거부:\n  " + "\n  ".join(bad[:20] + [f"없는 key: {m}" for m in miss[:20]]))
     dump(a.decisions, d)
@@ -522,8 +567,15 @@ def cmd_apply(a) -> None:
     log.parent.mkdir(parents=True, exist_ok=True)
     print(f"{'[예행] ' if a.dry else ''}적용 대상 {len(items)}항목 → 서버 {srv['name']} ({srv['url']})")
     ok = 0
-    with log.open("a", encoding="utf-8") as lf:
-        for it in items:
+    probe = bool(getattr(a, "probe", False)) and not a.dry
+    batch = max(1, int(getattr(a, "batch", 5) or 5))
+    chunks = [items[i:i + batch] for i in range(0, len(items), batch)] if probe else [items]
+    with log.open("a", encoding="utf-8", buffering=1) as lf:  # 줄 버퍼 — 적용 중 진행이 로그로 바로 보이게
+      for ci, chunk in enumerate(chunks, 1):
+        print(f"⏳ 묶음 {ci}/{len(chunks)} · 이번 {len(chunk)}항목 · 누적 {sum(len(c) for c in chunks[:ci - 1])}/{len(items)}", flush=True)
+        before = stale_state(srv, plan["project_id"], [x["item_id"] for x in chunk]) if probe else None
+        t0 = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - 1))
+        for it in chunk:
             summary = " / ".join(f"{'·'.join(ch['add'])}→{ch['field']}" for ch in it["changes"])
             args = {"project_id": plan["project_id"], "id": it["item_id"], "data_mode": "patch", "patch": it["ops"],
                     "change_summary": (plan.get("change_summary") or
@@ -555,7 +607,61 @@ def cmd_apply(a) -> None:
                 die(f"{it['item_id']} — 서버가 {noop} 를 돌려줬다(성공이지만 미반영). 중단.", 3)
             ok += 1
             print(f"   ✅ {it['item_id']:<14} v{ver}  {summary}")
+        if probe:
+            after = stale_state(srv, plan["project_id"], [x["item_id"] for x in chunk])
+            ids = {x["item_id"] for x in chunk}
+            changed = sorted(k for k in before if before[k] != after.get(k))
+            lf.write(json.dumps({"probe_batch": ci, "items": sorted(ids), "targets": len(before),
+                                 "changed": changed}, ensure_ascii=False) + "\n")
+            print(f"   🔎 묶음 {ci}: 자기+하위 {len(before)}항목 재검토 상태 변화 {len(changed)}")
+            self_rel = [k for k in changed if k in ids and before[k]["stale"] and not after[k]["stale"]]
+            if self_rel and getattr(a, "restore_self", False):
+                # 새 값을 넣는 쓰기(재료 D·구조 칸)는 «실제 변경»이라 자기 재검토 표시가 자동 해제된다 — 검토가 아니므로 되살린다.
+                r = mcp(srv, "restore_review_needed", {"project_id": plan["project_id"], "item_ids": self_rel,
+                                                         "since": t0, "dry_run": False})
+                restored = {i["item_id"]: i["restored"] for i in r.get("items", [])}
+                again = stale_state(srv, plan["project_id"], self_rel)
+                # 원상 = «다시 재검토 필요 + 원래 있던 표시가 하나도 안 빠졌다». 같은 묶음의 형제 항목이 새로 붙인 표시로
+                #   늘어나는 것은 허용한다(형제끼리 서로 가리키면 생긴다 — 상용 Self API-202 실측: 5 → 7).
+                def _cnt(v):
+                    return (((v or {}).get("flags") or {}).get("propagated") or {}).get("count") or 0
+                still = [k for k in self_rel if not (again.get(k) or {}).get("stale") or _cnt(again.get(k)) < _cnt(before[k])]
+                lf.write(json.dumps({"probe_batch": ci, "restored_self": restored, "still_differs": still},
+                                    ensure_ascii=False) + "\n")
+                print(f"      ↳ 자기 표시 자동 복원: {restored}" + (f" · 원상 불일치 {still}" if still else " · 원상 일치"))
+                if still:
+                    die(f"자기 표시 복원 뒤에도 원상과 다르다 → {still} — 멈춘다", 4)
+                changed = [k for k in changed if k not in self_rel]
+                self_rel = []
+            if changed and getattr(a, "allow_dependents", False) and not self_rel:
+                # 재료 D(코드 근거)처럼 «새 관계»를 만드는 라운드 — 하위에 표시가 붙는 것이 예상 동작이다. 기록만 하고 계속.
+                print("      ↳ 하위 표시 변화(예상 동작으로 허용): " + ", ".join(changed[:12]))
+                changed = []
+            if changed:
+                lines = [f"{k}: {json.dumps(before[k], ensure_ascii=False)} → {json.dumps(after.get(k), ensure_ascii=False)}"
+                         for k in changed]
+                die("재검토 상태가 바뀌었다 — 이 묶음에서 멈춘다(적용된 것은 그대로):\n   " + "\n   ".join(lines[:12])
+                    + ("\n   ↳ 자기 표시가 풀린 항목: " + ", ".join(self_rel)
+                       + " — 원인 확인 뒤 restore_review_needed(dry_run 먼저)로 복원" if self_rel else "")
+                    + "\n   ↳ 하위에 새로 붙은 표시는 이 쓰기가 «산문 복사»로 인정되지 않았다는 뜻 — 값·근거를 다시 보라", 4)
     print(f"{'[예행] ' if a.dry else ''}완료 {ok}/{len(items)}")
+
+
+def stale_state(srv, project_id: str, ids) -> dict:
+    """묶음 전후 비교용 — 적용 항목 «자신» + 그것을 가리키는 항목(하위)의 재검토 상태.
+
+    ☠️ 하위만 보면 안 된다: 항목 수정이 «자기» 재검토 표시를 자동 해제하는 경로가 있다(상용 Self 2026-09-28,
+    21항목·47행이 조용히 풀렸다 — CO-189). 두 쪽을 다 본다.
+    """
+    targets = set(ids)
+    for i in ids:
+        n = mcp(srv, "get_neighbors", {"project_id": project_id, "id": i, "direction": "in"})
+        targets |= {x["id"] for x in n.get("backward", [])}
+    out = {}
+    for t in sorted(targets):
+        g = mcp(srv, "get_item", {"project_id": project_id, "id": t, "fields": ["_none"]})["item"]
+        out[t] = {"stale": g.get("stale"), "flags": g.get("stale_flags")}
+    return out
 
 
 # ── verify ────────────────────────────────────────────────────────────────
@@ -640,11 +746,13 @@ def main() -> None:
     add("snapshot", cmd_snapshot, ("--server", R), ("--project", R), ("--dir", R),
         ("--from-scan", {}), ("--from-plan", {}), ("--ids", {"default": ""}))
     add("draft", cmd_draft, ("--scan", R), ("--snapshot-dir", R), ("--out", R))
-    add("fill", cmd_fill, ("--decisions", R), ("--input", R))
+    add("fill", cmd_fill, ("--decisions", R), ("--input", R), ("--snapshot-dir", {}))
     add("review-md", cmd_review_md, ("--decisions", R), ("--out", R))
     add("plan", cmd_plan, ("--decisions", R), ("--snapshot-dir", R), ("--out", R),
         ("--string-fields", {"nargs": "*", "default": []}), ("--schemas", {}))
     add("apply", cmd_apply, ("--server", R), ("--plan", R), ("--log", R), ("--only", {"default": ""}),
+        ("--probe", {"action": "store_true"}), ("--batch", {"type": int, "default": 5}),
+        ("--allow-dependents", {"action": "store_true"}), ("--restore-self", {"action": "store_true"}),
         ("--limit", {"type": int, "default": 0}), ("--dry", {"action": "store_true"}))
     add("verify", cmd_verify, ("--plan", R), ("--decisions", R), ("--rescan", R), ("--after-dir", R),
         ("--only", {"default": ""}), ("--out", R))

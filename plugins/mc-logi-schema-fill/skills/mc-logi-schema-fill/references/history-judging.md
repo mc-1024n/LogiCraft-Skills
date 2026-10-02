@@ -58,3 +58,8 @@
   (`현행` 은 `{"pid","kind":"현행"}` 만).
 - JSON 은 Write 도구로 쓴다. 쓴 뒤 `python3 -c "import json;d=json.load(open('<파일>'));print(len(d))"` 로 개수가 입력과 같은지 확인하라.
 - ☠️ `pkill`/`kill` 패턴·stdin 대기 명령(`cat > file`) 금지. DB·서버 접근 금지. 입력 파일 수정 금지.
+
+## ☠️ 구현 기록(implementation_record) 은 분리 대상이 아니다
+구현 기록의 notes 는 «무엇을 어떻게 구현·검증했나»를 적는 **기록 자체**다 — CO 번호·QA 판정·검사 수치·커밋이 곧 본문이다.
+경위로 빼면 항목이 빈다. 전부 「현행」으로 둔다(MindLog 실측: 판정자 9명 중 1명만 이렇게 봤고, 나머지는 IMPREC notes 를 통째로 경위로 빼려 했다).
+그중 **다시 찾아갈 위치(커밋·테스트 경로)** 는 Phase 3.6 이 `evidence` 칸으로 따로 옮긴다.
