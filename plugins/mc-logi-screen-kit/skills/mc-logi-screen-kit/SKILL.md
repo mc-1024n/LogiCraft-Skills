@@ -4,7 +4,7 @@ description: Logicraft 특정 프로젝트의 특정 화면(screen_spec)과 그 
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.5.0"
+  version: "1.5.1"
   domain: logicraft-orchestration
   triggers: 화면 키트, screen kit, 화면 다운로드, 화면 구현 준비, 화면 키트 동기화, SCREEN-NNN 키트, SCREEN-NNN 다운로드, 화면 로컬 다운, 화면 구현 준비해줘, logicraft 화면 로컬로 내려받아, screen-design 동기화, D001 화면 키트, D002 화면 다운로드
   role: orchestrator-readonly
@@ -271,10 +271,11 @@ node <arrange-screen-kit.mjs> --staging "$KIT/.staging" --out "$KIT" \
   --domain <DOMAIN-NNN> --domain-name "<도메인명>" --slug <slug> --sync-session <n> --screens "$SCREENS"
 ```
 
-**종료코드 분기** (다운로더): **0**=성공(이어서 arrange) · **4**=엔드포인트 미배포(구버전 서버, `/kit-export` 없음) → **옛 fetcher 폴백** · **2**=네트워크/인증 오류 → **사용자 보고 + 수정 요청**(자동 폴백 금지 — 고칠 설정 문제를 느린·열화 폴백으로 숨기지 말 것) · **1/3**=인자/무결성 오류 → stderr 확인. arranger 성공 출력은 `✅ arrange 완료 — 화면 N …`.
+**종료코드 분기** (다운로더): **0**=성공(이어서 arrange) · **4**=엔드포인트 미배포(구버전 서버, `/kit-export` 없음) → **옛 fetcher 폴백** · **2**=네트워크/인증 오류 → **사용자 보고 + 수정 요청**(자동 폴백 금지 — 고칠 설정 문제를 느린·열화 폴백으로 숨기지 말 것) · **5**=대량 폐기 가드로 중단(디스크 미변경 — 폐기 대상이 로컬의 30% 초과·10건 이상. 출력의 타입별 건수를 사용자에게 보여 확인받은 뒤에만 `--allow-mass-retire`, 스스로 붙이지 말 것) · **1/3**=인자/무결성 오류 → stderr 확인. arranger 성공 출력은 `✅ arrange 완료 — 화면 N …`.
 
 - `--ids` 집합이 커도 다운로더가 40개씩 청크로 나눠 호출(414 회피). UNCHANGED 는 스테이징에 유지되어 재다운로드 skip.
 - 렌더 css: 와이어프레임의 공통 `/api/static/wireframe/wireframe.css` 는 다운로더가 self-contain(상대 `wireframe.css`)하고, SD 디자인 css_url 은 함께 받아 `design-{rid}.css` 로 arranger 가 상대화 → **오프라인 렌더 가능**.
+- **낡은 사본 정리**: arranger 는 이번 실행에서 쓰지 않은 옛 사본(화면에 연결돼 orphan 에서 벗어난 UC/AC 의 옛 orphan 사본 · 다른 화면으로 옮겨 간 UC/AC · 범위에서 빠진 API·상수 사본)을 `_retired/_stale/` 로 옮기고 `🧹 낡은 사본 N건` 으로 목록을 찍는다(삭제 아님). `--screens` 가 키트의 모든 화면을 덮을 때만 `_shared/{api,constant,role,guideline}` 까지 정리하고, 일부 화면만 다룬 실행에서는 공유 사본을 건드리지 않는다(`ℹ️ 일부 화면만 다룬 실행` 안내). **`🧹` 목록은 Phase 5 보고에 그대로 옮긴다.**
 - `_no-wireframe.md`·`_sd-meta.md`·orphan 처리는 arranger 가 결정적 수행. UC/AC 는 screen→UC(직접)·screen→UC→AC(depth-2)로 화면 아래 중첩.
 
 > ⚠️ **옛 `logi-implement-fetcher`(LLM 요약) 방식은 폐기(ADR-026).** ITEM 본문 "요약"은 서버 결정적 스켈레톤이 대체(의역 0). 아래 fetcher 절차는 **다운로더/arranger 미배포·실패 시 폴백 참고용**으로만 남긴다. 폴백 사용 시 Phase 5 보고에 "⚠️ 다운로더 미가용 — fetcher 폴백(느리고 30~40% 열화)" 명시.

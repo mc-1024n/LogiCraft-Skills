@@ -27,6 +27,13 @@
  *   [--domain DOMAIN-002] [--domain-name "영상 관제"] [--slug klid-2nd]
  *   [--sync-session 3] [--screens SCREEN-001,SCREEN-002]  (피벗 화면 명시; 없으면 staging 의 screen_spec 전량)
  *
+ * 낡은 사본 정리 (CO-202):
+ *   이 스크립트는 스테이징에 있는 ITEM 만 다시 쓴다. 그래서 예전에 썼지만 이번엔 쓰지 않은 파일
+ *   (화면에 연결돼 orphan 에서 벗어난 UC/AC 의 옛 orphan 사본, 다른 화면으로 옮겨 간 UC/AC,
+ *   범위에서 빠진 API·상수 사본)이 옛 내용 그대로 남아 같은 ITEM 의 사본이 둘이 됐다.
+ *   끝에서 그런 파일을 _retired/_stale/ 로 옮긴다(삭제 아님). 키트의 모든 화면을 이번에 다뤘을
+ *   때만 _shared 공유 사본까지 정리하고, 일부 화면만 다룬 실행에서는 공유 사본을 건드리지 않는다.
+ *
  * 종료코드: 0=성공, 1=인자 오류, 3=무결성 검증 실패
  */
 import { promises as fs } from "node:fs";
@@ -66,8 +73,12 @@ if (!outDir) die(1, "--out <dir> 필수.");
 async function readIf(path) { try { return await fs.readFile(path, "utf-8"); } catch { return null; } }
 async function readJsonIf(path) { const t = await readIf(path); if (t == null) return null; try { return JSON.parse(t); } catch { return null; } }
 
+/** 이번 실행에서 쓴 경로 — 끝에서 «이번에 안 쓴 낡은 사본» 을 가려내는 데 쓴다(CO-202). */
+const written = new Set();
+
 /** 쓰기 + read-back 무결성 검증. */
 async function writeVerified(path, content) {
+  written.add(path);
   await fs.mkdir(dirname(path), { recursive: true });
   await fs.writeFile(path, content, "utf-8");
   const back = await fs.readFile(path, "utf-8");
@@ -368,6 +379,79 @@ async function main() {
     await writeVerified(join(outDir, "_retired", `${id}.md`), `# RETIRED ${id}\n\nlogicraft 활성 목록에서 제외됨. 코드 제거 검토.\n`);
   }
 
+  // 8.5) 낡은 사본 정리 — 관리 대상 폴더에서 «이번에 쓰지 않은 파일» 을 _retired/_stale/ 로 옮긴다.
+  //      (머리말 「낡은 사본 정리」 참조. 삭제하지 않는다 — 되돌릴 수 있어야 한다.)
+  const stale = []; // {rel, why}
+  async function listFiles(dir) {
+    const out = [];
+    let ents;
+    try {
+      ents = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return out; // 폴더 없음
+    }
+    for (const e of ents) {
+      if (e.isFile()) out.push(join(dir, e.name));
+      else if (e.isDirectory() && e.name === "_raw") out.push(...(await listFiles(join(dir, e.name))));
+    }
+    return out;
+  }
+  async function sweep(dir, why, keep = () => false) {
+    for (const f of await listFiles(dir)) {
+      if (written.has(f) || keep(f)) continue;
+      const rel = f.slice(outDir.length).replace(/^[\\/]+/, "");
+      const to = join(outDir, "_retired", "_stale", rel);
+      await fs.mkdir(dirname(to), { recursive: true });
+      await fs.rename(f, to);
+      stale.push({ rel, why });
+    }
+  }
+  const idOf = (f) => f.split(/[\\/]/).pop().replace(/\.(md|json)$/, "");
+  // 이번 실행에서 화면 아래로 배치된 UC/AC — orphan 사본이 남아 있으면 승격된 것이다.
+  const placedUnderScreen = new Set(
+    [...written].filter((f) => /[\\/]screens[\\/][^\\/]+[\\/](uc|ac)[\\/]/.test(f)).map(idOf),
+  );
+  // 키트의 모든 화면을 이번에 다뤘는가 — 아니면 공유 사본은 다른 화면 몫일 수 있어 건드리지 않는다.
+  let kitScreenDirs = [];
+  try {
+    kitScreenDirs = (await fs.readdir(join(outDir, "screens"), { withFileTypes: true }))
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name);
+  } catch {
+    /* screens/ 없음 */
+  }
+  const processed = new Set(screens.map((sc) => sc.id));
+  const fullRun = kitScreenDirs.every((d) => processed.has(d));
+  // (a) 이번에 다룬 화면의 uc/ac — 소속이 바뀌어 더는 이 화면 것이 아닌 사본
+  for (const sc of screens) {
+    await sweep(join(kit.screenDir(sc.id), "uc"), "이 화면 소속이 아님");
+    await sweep(join(kit.screenDir(sc.id), "ac"), "이 화면 소속이 아님");
+  }
+  // (b) orphan — 전체 실행이면 이번에 안 쓴 것 전부, 부분 실행이면 «화면으로 승격된 것» 만
+  for (const sub of ["uc-orphan", "ac-orphan"]) {
+    await sweep(join(outDir, "_shared", sub), "orphan → 화면으로 승격 또는 범위에서 빠짐", (f) =>
+      fullRun ? false : !placedUnderScreen.has(idOf(f)),
+    );
+  }
+  // (c) 공유 사본(api/constant/role/guideline) — 전체 실행일 때만
+  if (fullRun) {
+    for (const sub of new Set(Object.values(SHARED_SUB))) {
+      await sweep(join(outDir, "_shared", sub), "이번 범위에 없음(옛 사본)");
+    }
+  }
+  if (stale.length) {
+    console.log(`🧹 낡은 사본 ${stale.length}건을 _retired/_stale/ 로 옮김:`);
+    for (const x of stale.slice(0, 20)) console.log(`   ${x.rel} — ${x.why}`);
+    if (stale.length > 20) console.log(`   … 외 ${stale.length - 20}건`);
+  }
+  if (!fullRun) {
+    const rest = kitScreenDirs.filter((d) => !processed.has(d));
+    console.log(
+      `ℹ️  일부 화면만 다룬 실행 — _shared 공유 사본(api·constant·role·guideline)은 정리하지 않았습니다 ` +
+        `(이번에 안 다룬 화면 ${rest.length}개: ${rest.slice(0, 5).join(", ")}${rest.length > 5 ? " …" : ""}).`,
+    );
+  }
+
   // 9) SCREENS.md
   const uiFlag = uiItems.length ? `populated ${uiItems.length}건` : "⚠️ 비어있음 — implement Phase 0.5 에서 시드 필요";
   const changedRows = Object.entries(report.items || {})
@@ -441,7 +525,8 @@ async function main() {
   console.log(
     `✅ arrange 완료 — 화면 ${counts.screen} · UC ${counts.uc} · AC ${counts.ac} · ` +
       `API ${counts.api} · CONST ${counts.constant} · ROLE ${counts.role} · GUIDE ${counts.guideline} · UI ${counts.ui} · ` +
-      `와이어프레임 ${counts.wireframe} · 디자인 ${counts.design}${retired.length ? ` · RETIRED ${retired.length}` : ""}`,
+      `와이어프레임 ${counts.wireframe} · 디자인 ${counts.design}${retired.length ? ` · RETIRED ${retired.length}` : ""}` +
+      `${stale.length ? ` · 낡은 사본 정리 ${stale.length}` : ""}`,
   );
 }
 
