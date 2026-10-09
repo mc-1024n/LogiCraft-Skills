@@ -11,6 +11,7 @@
  * 복제 회피 = ADR-026 "드리프트 0" 정신 유지 — 서버 hash 를 델타 키로 그대로 사용).
  *
  * 인증: LOGICRAFT_API_KEY env → 없으면 ~/.claude.json 의 mcpServers(logicraft*) 에서 자동 조달.
+ *       stdio 형식(env·args) 과 HTTP 형식(url + headers.Authorization) 둘 다 읽는다(CO-202).
  *       base 도 동일(--base-url > LOGICRAFT_API_BASE > MCP 설정). **로컬 기본값 없음**(CO-049).
  *       --server <name> 으로 MCP 항목을 지정할 수 있다(기본 logicraft → logicraft-dev).
  *
@@ -24,6 +25,13 @@
  *   --types         포함 목록(CSV). 지정 시 그 타입만 받음 — 서버에 신규 타입이 늘어나도 자동 포함 안 됨.
  *   --exclude-types 제외 목록(CSV). --types 생략 + 이것만 지정하면 "도메인 전체 − 제외" 를 받음
  *                   → 서버에 ITEM 타입이 새로 추가되어도 키트에 자동 포함(fail-open). 둘 다 지정 시 둘 다 적용.
+ *   ★ 타입 필터(--types·--exclude-types)로 좁힌 부분 동기화는 **필터를 통과한 ITEM 만** 건드린다(CO-202).
+ *     필터 밖 ITEM 은 폐기 판정 대상이 아니고, manifest·version-master 에 이전 상태 그대로 남는다.
+ *
+ * 폐기(_retired 이동) 안전장치 (CO-202):
+ *   한 번에 폐기 대상이 로컬 ITEM 의 30% 초과 **그리고** 10건 이상이면 디스크를 건드리지 않고
+ *   종료코드 5 로 멈춘다. 실제로 대량 폐기가 맞으면 --allow-mass-retire 를 붙여 다시 실행한다.
+ *   --timeout-ms <n>      요청 타임아웃(기본 60000). 타임아웃·네트워크 오류는 1회 재시도.
  *
  * 도메인 스코프 (--domain):
  *   서버 필터는 domain_id 컬럼 일치만 보므로, 도메인 귀속이 약한 횡단 타입은 전역으로 받는다.
@@ -33,9 +41,13 @@
  *   --global-types        항상 전역 수집할 타입 CSV (기본 DEFAULT_ALWAYS_GLOBAL_TYPES)
  *   --no-graph-scope      그래프 폴백도 끄기 = 순수 domain_id 필터. 유실 위험 있으니 비권장.
  *   스코프 밖으로 빠진 핵심 타입은 실행 로그와 version-master.md 에 경고로 남는다.
+ *   --pending-exclude-types  미판정(pending) 후보에서 뺄 타입 CSV (기본 DEFAULT_PENDING_EXCLUDE_TYPES
+ *                            = core-item-set.md §제외). pin 의 rejected[] 에 적힌 ID 도 후보에서 빠진다.
+ *   도메인 본체(--domain 의 DOMAIN ITEM)는 pin 과 무관하게 항상 받아 <out>/_domain.md 로 쓴다.
  *
  * 종료코드: 0=성공, 1=인자/환경 오류, 2=네트워크/인증 오류(수정필요), 3=무결성 검증 실패,
- *          4=엔드포인트 미배포(404 — 서버에 /kit-export 없음, 스킬은 fetcher 폴백)
+ *          4=엔드포인트 미배포(404 — 서버에 /kit-export 없음, 스킬은 fetcher 폴백),
+ *          5=대량 폐기 가드로 중단(디스크 미변경 — 확인 후 --allow-mass-retire)
  */
 import { promises as fs, readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -110,9 +122,16 @@ function readMcpConfig(preferred) {
         const h = argv.find((a) => typeof a === "string" && /^authorization\s*:/i.test(a));
         if (h) key = h.slice(h.indexOf(":") + 1);
       }
+      if (!key && srv.headers && typeof srv.headers === "object") {
+        // HTTP 형식 등록 — {"type":"http","url":…,"headers":{"Authorization":"Bearer …"}} (CO-202)
+        const hk = Object.keys(srv.headers).find((n) => /^authorization$/i.test(n));
+        if (hk) key = srv.headers[hk];
+      }
       key = String(key).replace(/^\s*Bearer\s+/i, "").trim();
       if (/^\$\{.*\}$/.test(key)) key = ""; // 미치환 플레이스홀더는 키가 아니다
-      const urlArg = argv.find((a) => typeof a === "string" && /^https?:\/\//.test(a));
+      const urlArg =
+        (typeof srv.url === "string" && /^https?:\/\//.test(srv.url) ? srv.url : null) ||
+        argv.find((a) => typeof a === "string" && /^https?:\/\//.test(a));
       const base = urlArg ? urlArg.replace(/\/mcp\/?$/, "").replace(/\/$/, "") : "";
       if (key || base) return { name, key, base };
     }
@@ -155,6 +174,11 @@ const excludeTypes =
     : null;
 const idsFilter = typeof args.ids === "string" ? args.ids : null; // 특정 ID 집합 스코프(screen-kit)
 const dryRun = Boolean(args["dry-run"]);
+const allowMassRetire = Boolean(args["allow-mass-retire"]);
+const TIMEOUT_MS = Number(args["timeout-ms"]) > 0 ? Number(args["timeout-ms"]) : 60000;
+/** 대량 폐기 가드 기준 — 둘 다 넘어야 멈춘다(작은 키트의 소수 폐기는 막지 않는다). */
+const MASS_RETIRE_MIN = 10;
+const MASS_RETIRE_RATIO = 0.3;
 const reportPath = typeof args.report === "string" ? args.report : null; // 후처리(arranger)용 run 상태 출력
 
 /**
@@ -202,6 +226,18 @@ const csvArg = (name, fallback) =>
 /** 옛 동작(순수 domain_id 필터)로 되돌리는 탈출구. --no-cross-domain 은 구 이름 별칭. */
 const noGraphScope = Boolean(args["no-graph-scope"] || args["no-cross-domain"]);
 const alwaysGlobalTypes = new Set(noGraphScope ? [] : csvArg("global-types", DEFAULT_ALWAYS_GLOBAL_TYPES));
+/**
+ * 미판정(pending) 후보에서 빼는 타입 — core-item-set.md §제외 와 같은 목록.
+ * 구현 키트가 애초에 받지 않기로 한 타입이라, 후보에 올리면 매 SYNC 마다 같은 것을
+ * 다시 기각해야 한다(KLID 2차: pending 121건 중 103건이 이 타입들이었다 — CO-202).
+ * pin 의 items 에 직접 적은 ID 는 이 목록과 무관하게 받는다(후보 제안만 막는다).
+ */
+const DEFAULT_PENDING_EXCLUDE_TYPES = [
+  "code_module", "implementation_record", "rfp_item", "requirement", "glossary",
+  "risk", "slo", "runbook", "incident", "postmortem", "monitor_alert",
+  "navigation_tree", "app_shell", "diagram_c4_context", "diagram_deployment",
+];
+const pendingExcludeTypes = new Set(csvArg("pending-exclude-types", DEFAULT_PENDING_EXCLUDE_TYPES));
 
 /**
  * ── 스코프 pin (.kit-scope.json) ─────────────────────────────────────
@@ -247,12 +283,40 @@ if (!API_KEY)
     1,
     "API key 를 결정할 수 없습니다.\n" +
       "  · LOGICRAFT_API_KEY env 로 지정하거나\n" +
-      "  · ~/.claude.json 의 mcpServers.<logicraft>.env.AUTH_TOKEN 을 사용하세요(자동 인식).",
+      "  · ~/.claude.json 의 mcpServers.<logicraft> 에 키를 두세요(자동 인식 — env.AUTH_TOKEN ·\n" +
+      "    args 의 'Authorization: …' · HTTP 형식의 headers.Authorization).",
   );
 // 키 값은 절대 출력하지 않는다 — 출처 이름만.
 process.stdout.write(`🔑 base=${API_BASE} (${BASE_SOURCE}) · key=${KEY_SOURCE}\n`);
 
 // ── HTTP ─────────────────────────────────────────────────────────────
+/**
+ * 타임아웃 + 1회 재시도 fetch. 타임아웃이 없으면 큰 본문 응답이 끊길 때 `TypeError: terminated`
+ * 만 남고 원인을 알 수 없었다(CO-202). 본문까지 읽은 뒤 돌려준다 — 끊김은 본문 수신 중에 난다.
+ * 반환: {status, ok, text}. 네트워크 실패는 원인 문구를 붙여 throw.
+ */
+async function fetchT(url) {
+  let lastErr;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: { authorization: `Bearer ${API_KEY}` },
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+      const text = await res.text();
+      return { status: res.status, ok: res.ok, text };
+    } catch (e) {
+      lastErr = e;
+      // undici 는 재시도 때 abort 를 `fetch failed` 로 감싸 올리기도 한다 — cause 까지 본다.
+      const isTimeout = (x) => Boolean(x) && (x.name === "TimeoutError" || x.name === "AbortError");
+      const why = isTimeout(e) || isTimeout(e && e.cause) ? `타임아웃(${TIMEOUT_MS}ms)` : (e && e.message) || String(e);
+      if (attempt === 1) process.stderr.write(`⚠ 요청 실패(${why}) — 1회 재시도\n`);
+      else throw new Error(`${why} — 2회 시도 모두 실패. 응답이 크면 --timeout-ms 를 늘리세요.`);
+    }
+  }
+  throw lastErr;
+}
+
 async function exportCall(params) {
   const url = new URL(`${API_BASE}/projects/${encodeURIComponent(projectId)}/kit-export`);
   for (const [k, v] of Object.entries(params)) {
@@ -260,7 +324,7 @@ async function exportCall(params) {
   }
   let res;
   try {
-    res = await fetch(url, { headers: { authorization: `Bearer ${API_KEY}` } });
+    res = await fetchT(url);
   } catch (e) {
     die(2, `네트워크 오류: ${e.message} (base=${API_BASE})`);
   }
@@ -272,11 +336,12 @@ async function exportCall(params) {
     die(4, `엔드포인트 미배포(404) — 이 서버에 /kit-export 가 없습니다(구버전 서버). 스킬은 fetcher 폴백을 사용하세요.`);
   }
   if (res.status === 414) die(2, "URI 너무 김(414) — ids 집합이 너무 큼. exportChunked 청크 크기를 줄이세요.");
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    die(2, `HTTP ${res.status}: ${body.slice(0, 300)}`);
+  if (!res.ok) die(2, `HTTP ${res.status}: ${res.text.slice(0, 300)}`);
+  try {
+    return JSON.parse(res.text);
+  } catch (e) {
+    die(2, `응답 JSON 파싱 실패(본문이 끊겼을 수 있음): ${e.message}`);
   }
-  return res.json();
 }
 
 /**
@@ -320,10 +385,16 @@ async function loadManifest() {
 }
 
 // ── 파일 경로 (기존 키트 구조: <out>/<type>/<id>.md + <out>/<type>/_raw/<id>.json) ──
+// ★ 도메인 본체(--domain 의 DOMAIN ITEM)만은 키트 루트의 _domain.md / _raw/_domain.json 이다
+//   (SKILL.md 출력 구조). 예전엔 스킬 Phase 4 가 손으로 썼고 다운로더는 건드리지 않아,
+//   도메인이 갱신돼도 SYNC 가 「변경 0」이라 답하며 옛 사본이 남았다(CO-202).
+const isKitDomain = (item) => Boolean(domain) && item.id === domain;
 function mdPath(item) {
+  if (isKitDomain(item)) return join(outDir, "_domain.md");
   return join(outDir, item.type, `${item.id}.md`);
 }
 function rawPath(item) {
+  if (isKitDomain(item)) return join(outDir, "_raw", "_domain.json");
   return join(outDir, item.type, "_raw", `${item.id}.json`);
 }
 
@@ -387,9 +458,9 @@ const ORIGIN = API_BASE.replace(/\/api\/?$/, "");
 /** 임의 full URL 텍스트 fetch. 공개 정적 서빙이라도 Bearer 붙여 무해. 실패 시 null. */
 async function fetchText(full) {
   try {
-    const r = await fetch(full, { headers: { authorization: `Bearer ${API_KEY}` } });
+    const r = await fetchT(full);
     if (!r.ok) return null;
-    return await r.text();
+    return r.text;
   } catch {
     return null;
   }
@@ -460,7 +531,7 @@ function buildMd(item, status, prevVersion) {
     `prev_version: ${prevVersion ?? "null"}`,
     `content_hash: ${item.content_hash}`,
     `stale: ${item.stale}`,
-    `raw: ./_raw/${item.id}.json`,
+    `raw: ${isKitDomain(item) ? "./_raw/_domain.json" : `./_raw/${item.id}.json`}`,
   ].join("\n");
   const linksBlock = renderLinks(item.links);
   const body = stripFrontmatter(item.skeleton_md);
@@ -568,6 +639,8 @@ async function main() {
       // ── pin 우선: 스킬(LLM)이 판정해 둔 목록을 그대로 재현 (결정적) ──
       scopeSource = "pin";
       const want = new Set(scopePin.items);
+      want.add(domain); // 도메인 본체는 pin 에 없어도 항상 받는다(→ _domain.md)
+      const rejected = new Set(Array.isArray(scopePin.rejected) ? scopePin.rejected : []);
       serverItems = globalItems.filter((s) => want.has(s.id));
       // 판정 후보는 **그래프가 이 도메인과 연결된다고 보는 것 중 pin 에 없는 것** 으로 좁힌다.
       // 프로젝트 전역을 그대로 pending 에 넣으면 다른 도메인 ITEM 까지 섞여 신호가 죽는다.
@@ -576,7 +649,9 @@ async function main() {
         .filter(
           (s) =>
             !want.has(s.id) &&
-            s.type !== "domain" && // 도메인 노드 자체는 판정 대상이 아니다(_domain.md 로 별도 처리)
+            !rejected.has(s.id) && // 스킬이 이미 기각한 ID — 다시 묻지 않는다
+            !pendingExcludeTypes.has(s.type) && // 구현 키트가 받지 않는 타입(core-item-set §제외)
+            s.type !== "domain" && // 다른 도메인 노드는 판정 대상이 아니다(본체는 위에서 강제 포함)
             (alwaysGlobalTypes.has(s.type) || assigned.get(s.id)?.has(domain)),
         )
         .map((s) => s.id);
@@ -666,35 +741,106 @@ async function main() {
       deltaMeta[s.id] = { status: "UNCHANGED", prev_version: null };
     }
   }
+  // 도메인 본체 사본(_domain.md)이 서버 현행과 다르면 manifest 가 같아도 다시 쓴다 —
+  // 옛 키트의 _domain.md 는 스킬이 손으로 쓴 요약이라 manifest 와 무관하게 낡아 있을 수 있다.
+  {
+    const dm = domain ? serverItems.find((s) => s.id === domain) : null;
+    if (dm && !changed.includes(dm)) {
+      let cur = "";
+      try {
+        cur = await fs.readFile(join(outDir, "_domain.md"), "utf-8");
+      } catch {
+        /* 없음 → 다시 쓴다 */
+      }
+      if (!cur.includes(`content_hash: ${dm.content_hash}`)) {
+        changed.push(dm);
+        deltaMeta[dm.id] = { status: "UNCHANGED", prev_version: null };
+      }
+    }
+  }
   if (formatMigration) {
     console.log(`🔗 링크 포맷 마이그레이션 (${local.link_format ?? "legacy"} → ${LINK_FORMAT}) — 전건 재렌더`);
   }
   // 삭제 감지 — 이번 필터 범위(domain/types/ids)에서 로컬에 있으나 서버에 없는 것
   const serverIds = new Set(serverItems.map((s) => s.id));
   const idsSet = idsFilter ? new Set(String(idsFilter).split(",").map((s) => s.trim()).filter(Boolean)) : null;
+  const typeList = types ? String(types).split(",").map((t) => t.trim()).filter(Boolean) : null;
+  // 이번 실행의 타입 필터(--types·--exclude-types)를 통과하는 로컬 항목인가.
+  // ☠️ 필터 밖 항목은 서버 응답에 «애초에 안 실려 온» 것이지 사라진 게 아니다 — 폐기 판정도,
+  //    manifest 에서 지우는 것도 하면 안 된다(CO-202: `--types acceptance` 한 번에 723건이
+  //    _retired 로 옮겨지고 manifest 에서 사라졌다).
+  // --ids 는 여기 넣지 않는다 — 화면 키트에서 --ids 는 부분 필터가 아니라 «키트 범위 정의»라,
+  // 목록에서 빠진 ITEM 은 예전처럼 manifest 에서 내려가야 한다(arrange 가 그 사본을 정리한다).
+  const passesFilter = (id, l) =>
+    (!typeList || typeList.includes(l.type)) && (!excludeTypes || !excludeTypes.has(l.type));
   const inScope = (id, l) =>
     (idsSet ? idsSet.has(id) : true) &&
-    (!domain || l.domain_id === domain || alwaysGlobalTypes.has(l.type)) &&
-    (!types || String(types).split(",").map((t) => t.trim()).includes(l.type)) &&
-    (!excludeTypes || !excludeTypes.has(l.type));
+    passesFilter(id, l) &&
+    (!domain || l.domain_id === domain || alwaysGlobalTypes.has(l.type));
   // 그래프 스코프에서는 배정이 links 로 정해져 로컬 manifest 만으로 재현할 수 없다.
   // 그래서 "서버 프로젝트 전체에서 사라진 것" 만 RETIRED 로 본다 — 스코프가 좁아져
   // 이번에 안 담긴 ITEM 을 삭제로 오인해 지우는 사고를 막는다(유실 방지 우선).
   const globalIds = globalItems ? new Set(globalItems.map((s) => s.id)) : null;
+  // globalIds 는 --types 가 있으면 «그 타입만의» 목록이다 — 그래서 여기도 passesFilter 를 먼저 건다.
   const deleted = Object.entries(local.items)
-    .filter(([id, l]) => (globalIds ? !globalIds.has(id) : inScope(id, l) && !serverIds.has(id)))
+    .filter(([id, l]) =>
+      globalIds ? passesFilter(id, l) && !globalIds.has(id) : inScope(id, l) && !serverIds.has(id),
+    )
     .map(([id]) => id);
+  // 필터 밖이라 이번에 손대지 않는 로컬 항목 — manifest·version-master 에 그대로 승계한다.
+  const carried = Object.entries(local.items).filter(([id, l]) => !passesFilter(id, l));
+  const localCount = Object.keys(local.items).length;
+  const deletedByType = {};
+  for (const id of deleted) {
+    const t = local.items[id]?.type || "?";
+    deletedByType[t] = (deletedByType[t] || 0) + 1;
+  }
+  const massRetire = deleted.length >= MASS_RETIRE_MIN && deleted.length > localCount * MASS_RETIRE_RATIO;
 
   console.log(
     `📊 서버 ${serverItems.length}건 · 변경 ${changed.length} · 유지 ${serverItems.length - changed.length}` +
-      (deleted.length ? ` · 삭제 ${deleted.length}` : ""),
+      (deleted.length ? ` · 폐기 ${deleted.length}` : ""),
   );
+
+  if (carried.length) {
+    console.log(`↪︎  부분 동기화 — 필터 밖 ${carried.length}건은 건드리지 않고 이전 상태로 둡니다.`);
+  }
+  const kitDomainItem = domain ? serverItems.find((s) => s.id === domain) : null;
+  if (kitDomainItem) {
+    const prev = local.items[domain]?.version;
+    console.log(
+      `🏛  도메인 ${domain} ` +
+        (prev == null ? `v${kitDomainItem.version} (신규 등록)` : prev === kitDomainItem.version ? `v${prev} (유지)` : `v${prev} → v${kitDomainItem.version}`),
+    );
+  } else if (domain && scopeByClient && passesFilter(domain, { type: "domain" })) {
+    console.log(`⚠️  도메인 본체 ${domain} 를 서버 응답에서 찾지 못했습니다 — _domain.md 는 갱신되지 않습니다.`);
+  }
+  if (deleted.length) {
+    console.log(
+      `\n⚠️  폐기 처리 대상 ${deleted.length}건 (로컬 ${localCount}건 중) — 서버에서 사라진 ITEM 을 _retired/ 로 옮깁니다:\n` +
+        Object.entries(deletedByType).sort((a, b) => b[1] - a[1]).map(([t, n]) => `    ${t}: ${n}건`).join("\n"),
+    );
+  }
 
   if (dryRun) {
     if (changed.length) console.log("  변경:", changed.map((c) => `${c.id}(v${c.version})`).join(", "));
     if (deleted.length) console.log("  삭제:", deleted.join(", "));
+    if (massRetire && !allowMassRetire)
+      console.log(`  🛑 실제 실행이면 대량 폐기 가드로 중단됩니다(종료코드 5) — 맞는 폐기면 --allow-mass-retire.`);
     console.log("— dry-run, 디스크 미변경 —");
     return;
+  }
+
+  // 대량 폐기 가드 — 아무것도 쓰기 전에 멈춘다. 정상 SYNC 에서 한 번에 30% 가 폐기되는 일은 드물고,
+  // 스코프·필터 오판이면 설계 사본이 통째로 _retired 로 넘어간다(성공으로 보고되면서).
+  if (massRetire && !allowMassRetire) {
+    die(
+      5,
+      `대량 폐기 가드 — 폐기 대상 ${deleted.length}건이 로컬 ${localCount}건의 ${Math.round((deleted.length / localCount) * 100)}% 입니다. ` +
+        `디스크는 건드리지 않았습니다.\n` +
+        `  · 서버에서 실제로 그만큼 폐기·삭제했다면: 같은 명령에 --allow-mass-retire 를 붙여 다시 실행\n` +
+        `  · 아니라면: 프로젝트·도메인·필터(--types/--ids)·서버 주소가 맞는지 확인 (--dry-run 으로 목록 확인)`,
+    );
   }
 
   // 3) 변경분 본문 — 그래프 스코프에서는 1) 에서 이미 본문까지 받았으므로 재페치하지 않는다.
@@ -745,6 +891,7 @@ async function main() {
 
   // 6) manifest 갱신 — 서버 메타를 진실로 기록
   const nextItems = {};
+  for (const [id, l] of carried) nextItems[id] = l; // 필터 밖 — 이전 기록 그대로
   for (const s of serverItems) {
     nextItems[s.id] = {
       type: s.type,
@@ -761,7 +908,7 @@ async function main() {
     link_format: LINK_FORMAT,
     global_types: [...alwaysGlobalTypes],
     scope_mode: scopeSource,
-    count: serverItems.length,
+    count: Object.keys(nextItems).length,
     items: nextItems,
   };
   await writeVerified(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
@@ -778,11 +925,18 @@ async function main() {
   const nNew = Object.values(statusAll).filter((v) => v === "NEW").length;
   const nChanged = Object.values(statusAll).filter((v) => v === "CHANGED").length;
   const nUnchanged = Object.values(statusAll).filter((v) => v === "UNCHANGED").length;
-  const rows = serverItems
-    .slice()
+  const rows = [
+    ...serverItems.map((s) => ({ id: s.id, type: s.type, version: s.version, status: statusAll[s.id] })),
+    ...carried.map(([id, l]) => ({ id, type: l.type, version: l.version, status: "UNCHANGED (이번 필터 밖)" })),
+  ]
     .sort((a, b) => a.id.localeCompare(b.id))
-    .map((s) => `| [[${s.id}]] | ${s.type} | ${s.version} | ${statusAll[s.id]} |`)
+    .map((r) => `| [[${r.id}]] | ${r.type} | ${r.version} | ${r.status} |`)
     .join("\n");
+  // 상수가 바뀌면 IMPLEMENTATION.md 의 ★상수 값 표(스킬 Phase 4 가 합성)가 낡는다 — 다운로더는 그 표를
+  // 다시 쓰지 못하므로 «재생성 필요»를 드러낸다(KLID: CONST-035 가 varchar(30) 구 값으로 남아 있었다).
+  const constChanged =
+    changed.filter((s) => s.type === "constant" && deltaMeta[s.id]?.status !== "UNCHANGED").length +
+    (deletedByType.constant || 0);
   const changelog =
     [
       ...changed.filter((s) => deltaMeta[s.id]?.status === "NEW").map((s) => `- NEW [[${s.id}]]`),
@@ -807,6 +961,8 @@ async function main() {
         `| 전역 수집 | ${[...alwaysGlobalTypes].join(", ") || "없음"} |\n` +
         (pendingIds.length ? `| ⚠️ 미판정 | ${pendingIds.length}건 — 스킬 Phase 2 판정 필요(이번 키트 미포함) |\n` : "")
       : "") +
+    (carried.length ? `| 부분 동기화 | 필터 밖 ${carried.length}건은 이전 상태 승계(이번 실행에서 미확인) |\n` : "") +
+    (constChanged ? `| ⚠️ 상수 변경 | ${constChanged}건 — IMPLEMENTATION.md ★상수 값 표 재생성 필요 |\n` : "") +
     "\n" +
     (lostWarnings.length
       ? `## ⚠️ 스코프 밖 ITEM (유실 점검)\n\n` +
@@ -838,15 +994,24 @@ async function main() {
     }
     await writeVerified(
       reportPath,
-      JSON.stringify({ mode, synced_at: manifest.synced_at, project_id: projectId, domain: domain ?? null, items: reportItems, deleted }, null, 2),
+      JSON.stringify({ mode, synced_at: manifest.synced_at, project_id: projectId, domain: domain ?? null, items: reportItems, deleted, partial: Boolean(typeList || excludeTypes), carried: carried.map(([id]) => id) }, null, 2),
     );
   }
 
   const secs = ((Date.now() - started) / 1000).toFixed(1);
   console.log(
     `✅ SYNC 완료 — 기록 ${wrote}건${renders ? ` · 렌더 ${renders}파일` : ""}` +
-      `${deleted.length ? ` · 삭제 ${deleted.length}` : ""} · ${secs}s · 무열화 검증 통과`,
+      `${deleted.length ? ` · 폐기 ${deleted.length}` : ""} · ${secs}s · 무열화 검증 통과`,
   );
+  if (constChanged) {
+    console.log(`⚠️  상수 ${constChanged}건 변경 — IMPLEMENTATION.md 의 ★상수 값 표를 다시 만들어야 합니다(스킬 Phase 4).`);
+  }
+  if (wrote || deleted.length) {
+    console.log(
+      `ℹ️  다운로더는 ITEM 사본·_domain.md·version-master.md 만 갱신합니다. ` +
+        `IMPLEMENTATION.md·CLAUDE.md 키트 블록은 스킬(Phase 4·4.5)이 갱신합니다.`,
+    );
+  }
 }
 
 main().catch((e) => die(2, e && e.stack ? e.stack : String(e)));

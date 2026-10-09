@@ -4,7 +4,7 @@ description: Logicraft 특정 프로젝트의 특정 도메인을 로컬에서 �
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.7.0"
+  version: "1.7.1"
   domain: logicraft-orchestration
   triggers: 구현 키트, implement kit, 도메인 다운로드, 구현 준비, 구현 키트 동기화, 버전 동기화, D001 구현 키트, D002 다운로드, DOMAIN-XXX 구현 준비, logicraft 로컬 다운, 바이브코딩 준비, spec 다운로드
   role: orchestrator-readonly
@@ -242,12 +242,18 @@ Phase 2 카탈로그(`get_related` depth=2 ∪ `get_neighbors` ∪ 타입별 `li
   "decided_at": "<ISO>",
   "rule": "Phase2 그래프 카탈로그 + core-item-set Tier + 도메인 책임 판정",
   "items": ["DFEAT-022", "API-035", "EVT-001", "..."],
+  "rejected": ["MOD-894", "..."],
   "pending": []
 }
 ```
 
 - `items` 는 **이 키트에 담을 ID 전체**. 다운로더는 이 목록을 그대로 받아온다.
 - **`pending` 은 다운로더가 관리한다** — 스킬은 판정 후 비우고, 다운로더가 다시 채운다.
+- **`rejected` 는 기각한 ID 의 기억이다** — 판정에서 "이 키트에 안 담는다"로 정한 ID 를 여기에 적는다.
+  다운로더는 `items ∪ rejected` 를 뺀 나머지만 `pending` 에 올리므로, 한 번 기각한 것을 매 SYNC 마다 다시 묻지 않는다.
+  (없어도 되는 키다 — 옛 pin 은 그대로 동작한다.)
+- `core-item-set.md` §제외 타입(`code_module`·`implementation_record`·`incident` 등)은 다운로더가 **애초에 pending 에 올리지 않는다**
+  (`--pending-exclude-types` 로 조정). 그 타입을 굳이 담으려면 `items` 에 ID 를 직접 적는다.
 - ★ **이 파일은 키트와 함께 git 커밋한다.** 그래야 다른 PC·다른 팀원이 같은 키트를 얻는다.
   커밋 안 하면 그 PC 에서는 pin 이 없어 그래프 폴백(재현율 약 90%)으로 동작한다.
 
@@ -272,7 +278,8 @@ NEW/CHANGED/UNCHANGED/RETIRED 는 Phase 3 다운로더가 `.kit-manifest.json`(i
 3. **다운로더 실행 후 종료코드 분기**:
    - **0** = 성공 → Phase 4.
    - **4** = 엔드포인트 미배포(서버에 `/kit-export` 없음 = 구버전 LogiCraft, 배치 export 미배포) → **폴백**(옛 fetcher, MCP `get_item` 기반).
-   - **2** = 네트워크/인증 오류(서버 다운·키/스코프 문제) → **사용자에게 보고 + 수정 요청.** 자동 fetcher 폴백 금지(고칠 수 있는 설정 문제를 느린·열화 폴백으로 숨기지 말 것).
+   - **2** = 네트워크/인증 오류(서버 다운·키/스코프 문제) → **사용자에게 보고 + 수정 요청.** 자동 fetcher 폴백 금지(고칠 수 있는 설정 문제를 느린·열화 폴백으로 숨기지 말 것). 타임아웃(기본 60초·1회 재시도)이면 `--timeout-ms` 를 늘려 재실행.
+   - **5** = **대량 폐기 가드로 중단**(디스크 미변경). 폐기(`_retired/` 이동) 대상이 로컬 ITEM 의 30% 초과이면서 10건 이상일 때 선다. **스스로 `--allow-mass-retire` 를 붙여 재실행하지 말 것** — 출력의 타입별 건수를 사용자에게 보여 주고, 실제로 그만큼 설계를 폐기했는지 확인받은 뒤에만 플래그를 붙인다. 아니라면 프로젝트·도메인·필터·서버 주소를 의심한다.
    - **1** = 인자 오류 → 호출 인자 수정.
 
 → 폴백은 이 Phase 아래 "#### ★ Agent 이름 해석 + 등록 fallback" 이후 옛 fetcher 절차를 그대로 따른다(동일 디렉터리 구조 산출, 단 요약이 LLM 이라 **느리고 30~40% 열화**). 폴백 사용 시 Phase 5 보고에 "⚠️ 다운로더 미가용 — fetcher 폴백 사용(원인: 스크립트 미배포 / 엔드포인트 미배포). 서버·스크립트 배포 확인 권장" 명시.
@@ -293,7 +300,7 @@ node <download-kit.mjs> \
   [--domain DOMAIN-NNN] [--exclude-types code_module,rfp_item,...] [--dry-run]
 ```
 - **api-key·base (자동 조달)**: 우선순위는 `--base-url`/env > **MCP 설정**(`~/.claude.json` 의 `mcpServers`) > 에러. MCP 를 쓰는 환경이면 **아무 env 없이 실행**된다. 다른 서버를 쓰려면 `LOGICRAFT_API_KEY=… LOGICRAFT_API_BASE=https://<host>/api` 를 주거나 `--server <mcp항목명>` 으로 고른다.
-  · MCP 항목의 `env.AUTH_TOKEN`(또는 `LOGICRAFT_API_KEY`), `--header Authorization:…` 을 모두 인식하고 `Bearer ` 접두는 벗겨 쓴다. 미치환 플레이스홀더(`${...}`)는 키로 치지 않는다.
+  · MCP 항목의 `env.AUTH_TOKEN`(또는 `LOGICRAFT_API_KEY`), `--header Authorization:…`, HTTP 형식 등록의 `url` + `headers.Authorization` 을 모두 인식하고 `Bearer ` 접두는 벗겨 쓴다. 전역·프로젝트 스코프(`projects[*].mcpServers`) 둘 다 본다. 미치환 플레이스홀더(`${...}`)는 키로 치지 않는다.
   · base 는 MCP 의 URL 에서 끝의 `/mcp` 를 떼어 만든다(`https://host/api/mcp` → `https://host/api`).
 - **★ 타입 선택 — `--exclude-types` 방식이 기본(권장)**: `--types`(포함 목록)를 **생략**하고
   `core-item-set.md` 의 "제외" 목록만 `--exclude-types` CSV 로 전달한다 → "도메인 전체 − 제외" 를 받아
@@ -301,14 +308,17 @@ node <download-kit.mjs> \
   Tier 3 조건 미충족 타입(예: 웹 프로파일에서 permission_manifest)은 서버에 해당 ITEM 이 없으면 자연히 0건이라
   별도 제외가 필요 없다 — 제외 목록에는 "항상 구현 무관"인 타입만 넣는다.
 - **--types**(포함 목록)는 특정 타입만 부분 재동기화할 때만 사용 — 이 방식은 신규 타입이 자동 포함되지 않음.
+  타입 필터로 좁힌 실행은 **필터를 통과한 ITEM 만** 건드린다: 필터 밖 ITEM 은 폐기 판정 대상이 아니고 manifest·`version-master.md` 에 이전 상태 그대로 남는다(표에 `UNCHANGED (이번 필터 밖)`). 로그의 `↪︎ 부분 동기화 — 필터 밖 N건` 줄로 확인한다.
 - **--domain**: 도메인 스코프. **--out**: 키트 루트.
 - **★ 스코프는 Phase 2.5 의 `.kit-scope.json` 이 정한다 — `--domain` 은 보조**:
   다운로더는 `<out>/.kit-scope.json` 이 있으면 그 `items` 를 **그대로** 받아온다(결정적 재현).
   pin 이 없으면 그래프 폴백(자기 `domain_id` + 1-hop 이웃, 재현율 약 90%)으로 동작하고
   그 사실을 로그에 알린다. `nfr`·`implementation_guideline`·`permission_role` 은 전역 수집.
   **별도 인자 불필요** — pin 은 `--out` 아래에서 자동 탐색된다(다른 위치면 `--scope-file`).
-- **델타·RETIRED·무결성**: 재실행 시 변경분만, UNCHANGED skip, 서버에서 사라진 것은 `_retired/` 이동. 쓰기 후 read-back 바이트 검증(무열화).
-- 출력이 `📊 … 변경 N` + `✅ SYNC 완료` 이면 성공. 오류 시 종료코드(1 인자/2 HTTP·인증/3 무결성)·stderr 확인.
+- **델타·RETIRED·무결성**: 재실행 시 변경분만, UNCHANGED skip, 서버에서 사라진 것은 `_retired/` 이동(폐기가 있으면 `⚠️ 폐기 처리 대상 N건` 블록에 타입별 건수가 따로 찍힌다). 쓰기 후 read-back 바이트 검증(무열화).
+- **도메인 본체**: `--domain` 의 DOMAIN ITEM 은 pin 과 무관하게 항상 받아 `<out>/_domain.md` + `<out>/_raw/_domain.json` 으로 쓴다. 로그의 `🏛 도메인 DOMAIN-00N vA → vB` 줄로 확인한다.
+- 출력이 `📊 … 변경 N` + `✅ SYNC 완료` 이면 성공. 오류 시 종료코드(1 인자/2 HTTP·인증/3 무결성/5 대량 폐기 가드)·stderr 확인.
+- **★ `⚠️ 상수 N건 변경` 이 뜨면** Phase 4 의 `IMPLEMENTATION.md` ★상수 값 표 재생성은 **필수**다(다운로더는 그 표를 다시 쓰지 못한다 — 건너뛰면 구현자가 옛 상수 값을 읽는다).
 - **★ 유실 경고를 반드시 읽는다**: 실행 로그에 `⚠️ 도메인 스코프 밖에 남은 핵심 ITEM` 블록이
   뜨면 그 내용을 Phase 5 보고에 그대로 옮긴다. 특히 **🚨 (이번 키트 0건 / 프로젝트엔 N건)** 은
   구현이 그 설계를 못 보는 상태이므로, 사용자에게 알리고 `logicraft 에서 domain_id 를 채울지`
@@ -367,7 +377,7 @@ fetcher 책무: ITEM 별 `get_item` → 원본 `_raw/<ID>.json` 저장 → 타�
 
 ### Phase 4 — 도메인 본체 + 버전 마스터 + 진입점 작성 (메인)
 
-1. `_domain.md` + `_raw/_domain.json` 작성 (도메인 요약: bounded context / 책임 / ubiquitous language / 외부 의존 / ADR 정책)
+1. **`_domain.md` + `_raw/_domain.json` — 다운로더가 이미 생성**(Phase 3, 서버 스켈레톤 verbatim). 메인은 재작성하지 않고 **존재와 버전(로그의 `🏛` 줄)만 확인**한다. 손으로 요약을 덮어쓰면 다음 SYNC 가 다시 서버 원문으로 되돌린다. (옛 fetcher 폴백일 때만 메인이 직접 작성.)
 2. **`version-master.md` — 다운로더가 이미 생성**(Phase 3): 헤더 메타(project_id·domain·last sync·mode) + Changelog(NEW/CHANGED/RETIRED) + ITEM 표(ID/type/version/status). 메인은 재작성하지 않는다. 필요 시 도메인 item 버전·sync_session 등 부가 헤더만 보강 가능(선택).
 3. **`IMPLEMENTATION.md` 작성/갱신** (바이브코딩 진입점):
    - ★ **본문에 등장하는 ITEM ID 는 전부 `[[API-259]]` 형태 wikilink 로 쓴다** — 다운로더가
@@ -425,7 +435,7 @@ Markdown 표로 사용자에게 (CLAUDE.md 블록 등록/갱신 여부 1줄 포�
 
 ## 스코프 (.kit-scope.json)
 - 결정: `pin(스킬 LLM 판정)` | `그래프 폴백` — 로그의 "스코프 결정" 줄 그대로
-- 미판정(pending) N건 → 있으면 **다음 실행에서 Phase 2.5 가 판정**한다고 안내
+- 미판정(pending) N건 → 있으면 **다음 실행에서 Phase 2.5 가 판정**한다고 안내 (기각한 ID 는 `rejected` 에 적어 재등장 방지)
 - ★ pin 파일을 **git 커밋**하라고 안내 (다른 PC 에서 같은 키트를 얻는 유일한 경로)
 
 ## ⚠️ 스코프 밖 ITEM (다운로더 유실 경고 — 있으면 반드시 전재)
