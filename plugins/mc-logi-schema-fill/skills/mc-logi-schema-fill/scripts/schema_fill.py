@@ -821,8 +821,9 @@ def cmd_relation_fill(a) -> None:
         outside = tgt not in {c["id"] for c in r["candidates"]}
         r["judged"][tgt] = {"verdict": v, "reason": why, "outside": outside}
         n += 1
-    bad += [f"같은 사유가 가드 행 {n}건에 반복 — 행마다 그 문장을 인용해 따로 판정하라: {t[:60]!r}"
-            for t, n in guard_reasons.items() if n >= 5]
+    # ☠️ 2026-10-03 제거 — `guard_reasons` 는 cmd_fill_fields(L344) 에서 복사돼 남은 조각이고
+    #   이 함수엔 정의가 없어 relation-fill 이 NameError 로 «항상» 죽었다.
+    #   관계 판정에는 가드(🚧) 개념 자체가 없다(relation-judging.md 에 없다).
     if bad:
         die("반영 거부 — 아무것도 쓰지 않았다:\n   " + "\n   ".join(bad[:20]))
     dump(a.worklist, wl)

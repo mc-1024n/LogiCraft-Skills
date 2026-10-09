@@ -123,6 +123,12 @@ def server(name: str):
             h = next((a for a in argv if isinstance(a, str) and re.match(r"^authorization\s*:", a, re.I)), None)
             if h:
                 k = h.split(":", 1)[1]
+        if not k:
+            # HTTP 형식 등록(`claude mcp add --transport http … --header "Authorization: Bearer …"`)은
+            # 키를 args 가 아니라 headers 에 둔다 — {"type":"http","url":…,"headers":{"Authorization":…}}.
+            hdrs = srv.get("headers") or {}
+            if isinstance(hdrs, dict):
+                k = next((v for n, v in hdrs.items() if isinstance(n, str) and n.lower() == "authorization"), "") or ""
         k = re.sub(r"^\s*Bearer\s+", "", str(k), flags=re.I).strip()
         if re.fullmatch(r"\$\{.*\}", k):
             k = ""
@@ -132,7 +138,7 @@ def server(name: str):
             if not url.endswith("/mcp"):
                 url += "/mcp"
             return {"name": name, "url": url, "key": k, "src": src}
-    die(f"MCP 서버 '{name}' 의 주소·키를 찾지 못했다 (~/.claude.json · .mcp.json · env LOGICRAFT_MCP_URL/LOGICRAFT_API_KEY)")
+    die(f"MCP 서버 '{name}' 의 주소·키를 찾지 못했다 (~/.claude.json · .mcp.json 의 env·args·headers.Authorization · env LOGICRAFT_MCP_URL/LOGICRAFT_API_KEY)")
 
 
 def mcp(srv, tool: str, args: dict, retries: int = 2):

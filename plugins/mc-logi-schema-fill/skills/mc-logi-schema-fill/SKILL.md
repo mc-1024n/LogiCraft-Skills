@@ -4,7 +4,7 @@ description: LogiCraft 스키마 개편(«산문을 칸으로», CO-138~171)으�
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: 0.9.0
+  version: 0.9.1
   requires: "LogiCraft 서버 main b1abce67 이후(새 칸 + scan_prose_refs + 전파 억제 CO-177·178·181~184·191·192 + 자기 재검토 표시 보존·복원 CO-189 restore_review_needed + 제목 동기화 수정 CO-190). 이전 서버에 쓰면 재검토 표시가 대량 전파되거나 자기 표시가 조용히 풀린다"
 ---
 
@@ -181,6 +181,7 @@ python3 $SF history-paras --snapshot-dir $D/snap --out $R/hist/paras.json
 **서버와 프로젝트를 «말로» 확정한다.** 설정엔 보통 상용(`logicraft`)과 개발(`logicraft-dev`)이 함께 있다.
 기본값은 없다 — 이후 모든 명령에 같은 `--server` 를 넘기고 도중에 바꾸지 마라.
 ☠️ 스크립트는 `~/.claude.json` 과 **현재 폴더에서 위로 올라가며** `.mcp.json` 을 찾는다.
+   키는 서버 항목의 `env`(AUTH_TOKEN 등) · `args` 의 `Authorization: …` · **HTTP 형식 등록의 `headers.Authorization`** 어디에 있어도 읽는다(0.9.1).
 프로젝트 전용 서버 설정이면 **그 프로젝트 폴더에서** 실행해야 찾는다.
 
 ```
