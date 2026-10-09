@@ -1,5 +1,5 @@
 
-### Phase 3.5 — 점유 선언 (work_claim create)
+### Phase 3.4 — 점유 선언 (work_claim create)
 게이트 승인 직후, Phase 4 fan-out **전에** 메인이 CO 당 claim **1개**를 생성한다(owner=사용자 키 자동). claim 은 CO 전체를 덮는다(도메인 여럿이면 경로·ITEM 을 합집합으로).
 ```
 create_work_claim(project_id,

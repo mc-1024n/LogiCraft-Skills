@@ -11,7 +11,7 @@
 ```
 - 도메인 code_root 경계 안에서만 작업한다.
 <!-- IF code_boundary == package -->
-- `core/`·`db/migrations/`·앱 진입점은 **공통** — 도메인 에이전트가 임의 수정 금지. 필요하면 notes_for_main 으로 요청(오케스트레이터가 조율).
+- {{shared_base}} 은(는) **공통** — 도메인 에이전트가 임의 수정 금지. 필요하면 notes_for_main 으로 요청(오케스트레이터가 조율).
 <!-- ELSE -->
 - 다른 서브모듈/서비스는 **경계 밖** — 임의 수정 금지. 필요하면 notes_for_main 으로 요청.
 <!-- ENDIF code_boundary -->

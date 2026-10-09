@@ -104,7 +104,7 @@ CO 가 「린트 그린」을 수용기준으로 적었더라도 **그대로 보
 - IMPREC `evidence` 는 커밋·spec·파일 경로로 구조화 — 본문에 경위·「테스트 N건 통과」 서술 금지.
 
 ## 절대 경계
-- `{{frontend_code_root}}` 경계 안에서만. 백엔드·`core/`·DB·이벤트 수정 금지 → notes_for_main.needs_backend_change/cross_domain 로 요청(임의로 계약 바꾸거나 mock 으로 우회 금지).
+- `{{frontend_code_root}}` 경계 안에서만. 백엔드·공유기반·DB·이벤트 수정 금지 → notes_for_main.needs_backend_change/cross_domain 로 요청(임의로 계약 바꾸거나 mock 으로 우회 금지).
 - LogiCraft 쓰기 금지(IMPREC mark 예외). 디자인시스템 규격 이탈 금지. 시크릿·API base URL 하드코딩 금지(env 경유). **커밋 안 함**(메인이 처리).
 
 ## 노하우 색인 — ☠️ 착수 전에 **반드시** 이 표를 훑는다

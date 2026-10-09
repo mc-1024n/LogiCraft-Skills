@@ -11,7 +11,7 @@ description: {{project_name}} 전용 greenfield 구현 오케스트레이터. �
 
 1. **키트가 진실원.** `docs/design/<slug>-<DOMAIN-ID>/IMPLEMENTATION.md` 가 곧 구현 지시다.
 <!-- IF phase0_foundation -->
-2. **공통 기반 선행.** 도메인들이 `core/`·`db/migrations/`·앱 진입점을 공유한다. 무작정 병렬로 띄우면 충돌 → **Phase 0(스키마+앱 골격)을 먼저 순차로** 세운 뒤 도메인 fan-out.
+2. **공통 기반 선행.** 도메인들이 {{shared_base}} 을(를) 공유한다. 무작정 병렬로 띄우면 충돌 → **Phase 0(스키마+앱 골격)을 먼저 순차로** 세운 뒤 도메인 fan-out.
 <!-- ENDIF phase0_foundation -->
 <!-- IF dependency_layers -->
 3. **의존 계층 순서.** 도메인 간 계약 의존이 있어 완전 병렬 불가 → 계층 순서로 라운드를 나눈다.
@@ -80,7 +80,7 @@ knowhow_dir_abs: "<{{knowhow_dir}} 의 절대경로>"   # ☠️ 상대경로 �
 ### Phase E.5 — 노하우 반영 (에이전트 파일 갱신)  🚦게이트
 회수한 각 에이전트 출력의 `notes_for_main.learned` 를 본다. **전부 비어있으면 건너뛴다**(보고에 "노하우 신규 없음").
 - 있으면 항목별로 **사용자에게 제시** — 어느 에이전트의 `## 노하우` 에 무엇을 추가할지 + 근거(evidence)·재발조건.
-- 동의한 항목만 해당 `{{prefix}}-d00N-implementer`(프론트는 `{{prefix}}-web-implementer`) 파일의 `## 노하우` 섹션에 **append**. 기존 항목은 **함부로 지우지 않는다**(축적이지 교체가 아님) — 단 아래 **상한 게이트**에 걸리면 정리한다.
+- 동의한 항목만 해당 `{{prefix}}-d00N-implementer`<!-- IF frontend_track -->(프론트는 `{{prefix}}-web-implementer`)<!-- ENDIF frontend_track --> 파일의 `## 노하우` 섹션에 **append**. 기존 항목은 **함부로 지우지 않는다**(축적이지 교체가 아님) — 단 아래 **상한 게이트**에 걸리면 정리한다.
 - **QA(Phase E)에서 fail → 재구현으로 드러난 함정도 후보**로 함께 올린다.
 <!-- IF dependency_layers -->
 - **계층 라운드마다 수행한다** — 앞 계층에서 얻은 노하우가 다음 계층 구현에 실제로 쓰이게 하려면 라운드 종료 시점에 반영해야 한다(전량 빌드 후 몰아서 = 늦음).
@@ -132,7 +132,7 @@ knowhow_dir_abs: "<{{knowhow_dir}} 의 절대경로>"   # ☠️ 상대경로 �
 ## 게이트 요약
 1. Phase A — 착수 범위
 2. Phase E.5 — 노하우 반영 확인 (`learned` 가 있을 때만<!-- IF dependency_layers -->, 계층 라운드마다<!-- ENDIF dependency_layers -->)
-3. QA fail 2라운드 초과 / 미매핑 / breaking / core 변경 요청 → 그때 확인
+3. QA fail 2라운드 초과 / 미매핑 / breaking / 공유기반 변경 요청 → 그때 확인
 그 외 자동.
 
 ## 원칙

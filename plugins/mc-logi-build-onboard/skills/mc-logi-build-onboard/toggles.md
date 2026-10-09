@@ -2,7 +2,7 @@
 
 이 파일은 `mc-logi-build-onboard` 가 **현재 프로젝트에 맞는 구현 오케스트레이션 세트**(dispatch / design-backfill / (선택) build 스킬 / (선택) E2E 3종 + 도메인 implementer·qa-verifier 에이전트)를 조립할 때 참조하는 **의사결정 규칙**이다.
 
-핵심 발상: 프로젝트마다 세트가 달라지는 이유는 "값 몇 개"가 아니라 **13개 구조 스위치의 on/off 조합**이다. 아키타입(greenfield-monolith / brownfield-submodule)은 그 스위치의 **프리셋**일 뿐이고, 프리셋에 안 맞는 3번째 구조는 스위치를 개별 판정해 **조합**한다.
+핵심 발상: 프로젝트마다 세트가 달라지는 이유는 "값 몇 개"가 아니라 **14개 구조 스위치의 on/off 조합**이다. 아키타입(greenfield-monolith / brownfield-submodule)은 그 스위치의 **프리셋**일 뿐이고, 프리셋에 안 맞는 3번째 구조는 스위치를 개별 판정해 **조합**한다.
 
 이 세트의 뿌리는 KLID 2차(brownfield-submodule)에서 시작해 Graph-RAG System(greenfield-monolith)으로 진화했다. Graph-RAG 쪽이 더 나중·정제판이므로 **기본 프리셋의 기준선**으로 삼고, KLID 특성은 스위치 오버라이드로 흡수한다.
 
@@ -13,7 +13,7 @@
 | 층 | 이름 | 성격 | 온보딩의 처리 |
 |---|---|---|---|
 | 🟩 A | **불변(invariant)** | 양쪽 프로젝트에서 글자까지 거의 동일 | `templates/_invariant/*` 를 항상 삽입 (스위치 무관) |
-| 🟨 B | **스위치(switch)** | 뼈대 자체를 켜고 끔 — 아래 13개 | Discovery+인터뷰로 on/off 판정 → 조각 조립 |
+| 🟨 B | **스위치(switch)** | 뼈대 자체를 켜고 끔 — 아래 14개 | Discovery+인터뷰로 on/off 판정 → 조각 조립 |
 | 🟥 C | **슬롯(slot)** | 값만 채움 (project_id·매핑표 등) | Discovery 결과·인터뷰로 치환 |
 
 - 🟩 A 는 이 파일이 관리하지 않는다(§6 목록만 참조). 스위치와 무관하게 늘 들어간다.
@@ -22,7 +22,7 @@
 
 ---
 
-## 1. 13개 스위치 정의
+## 1. 14개 스위치 정의
 
 각 스위치는 **① 무엇을 제어하나 ② 자동 판정 신호(Discovery) ③ 값 ④ 게이트하는 템플릿 조각 ⑤ 왜 중요한가** 를 갖는다. 자동 판정이 애매하면 **추정 말고 인터뷰**(AI 임의 추정 금지 원칙).
 
@@ -130,6 +130,14 @@
 
 ---
 
+### SW14. `frontend_track` — 프론트(화면) 구현 트랙 유무
+- **제어**: `{prefix}-web-implementer` 에이전트를 생성할지 + dispatch·build 본문이 **그 에이전트를 참조하는 문장**(description 의 프론트 fan-out · 「백엔드 먼저, 프론트 뒤」 · 게이트의 `영향 프론트:` 줄 · 노하우 반영 대상)을 넣을지.
+- **판정 신호**: repo 에 프론트 패키지(`frontend/`·UI 프레임워크가 든 `package.json`)가 있나 · LogiCraft 에 `screen_spec` 이 있나. 둘 다 없으면 off(라이브러리·임베디드·배치·API 전용 서버).
+- **값**: `on` | `off`
+- **조각**: `_switched/web-implementer.tmpl.md` + dispatch·build 템플릿의 `<!-- IF frontend_track -->` 블록
+- **왜**: 예전엔 「프론트 트랙 있으면 web-implementer 생성」이 **방출 목록에만** 걸려 있고 dispatch 본문은 조건 없이 그 에이전트를 불렀다. 화면 없는 레포(C/C++ 라이브러리)에서 **없는 에이전트로 fan-out 한다고 적힌 스킬**이 나왔고, 게이트② 「참조하는 모든 에이전트가 실재」가 구조상 항상 실패했다(SlingAgent 2026-10-01 · CO-202).
+- **e2e_track 과 다른 축이다** — e2e_track 은 「브라우저로 조작할 앱 표면이 있나」(시험), frontend_track 은 「이 세트가 화면 코드를 구현하나」(구현). 화면이 있어도 E2E 를 안 돌릴 수 있고, 그 반대(다른 팀이 만든 화면을 시험만)도 있다.
+
 ## 2. 스위치 의존 그래프 (파생 관계)
 
 몇몇 스위치는 독립이 아니라 다른 스위치에서 파생된다 — 온보딩은 이 순서로 판정한다.
@@ -151,6 +159,7 @@ e2e_track ─────┬──▶ e2e_design_link      (track=off 면 N/A)
                ├──▶ e2e_selector         (track=off 면 N/A)
                └──▶ e2e_account_strategy (track=off 또는 e2e_auth=none 이면 N/A)
 
+프론트 패키지 유무 + screen_spec 유무 ──▶ frontend_track
 앱 표면(HTTP/브라우저 진입점 유무) ──▶ e2e_track
 LogiCraft 설계 유무 ──▶ e2e_design_link
 앱의 인증 유무 + 설계의 인증 UC/AC 유무 ──▶ e2e_auth
@@ -181,6 +190,7 @@ LogiCraft 설계 유무 ──▶ e2e_design_link
 | e2e_auth | 신호 판정 (인증 UC/AC 있으면 `bypass_and_verify`) |
 | e2e_selector | grep 판정 (기본 `role`) |
 | e2e_account_strategy | 인터뷰 (§5.3 — 신규 앱은 데이터가 없어 대개 `self_provision`) |
+| frontend_track | 신호 판정 (프론트 패키지 또는 `screen_spec` 있으면 **on**) |
 
 용례: 백지에서 시작하는 단일 앱(FastAPI/Spring 등 modular monolith). LogiCraft 설계 키트가 진실원.
 
@@ -200,10 +210,11 @@ LogiCraft 설계 유무 ──▶ e2e_design_link
 | e2e_auth | 신호 판정 (기존 시스템은 대개 인증 있음 → `bypass_and_verify`) |
 | e2e_selector | grep 판정 (레거시는 testid 없는 경우가 많아 대개 `role`) |
 | e2e_account_strategy | 인터뷰 (§5.3 — 운영 데이터 의존 시나리오가 많아 대개 `mixed`) |
+| frontend_track | 신호 판정 (프론트 패키지 또는 `screen_spec` 있으면 **on**) |
 
 용례: 이미 돌아가는 다중 서브모듈 시스템을 테스트·수정 반복으로 고도화. change_detail(CO)이 진실원.
 
-> E2E 스위치는 두 프리셋에서 값이 같다 — 아키타입(greenfield/brownfield·monolith/submodule)이 아니라
+> E2E 스위치와 `frontend_track` 은 두 프리셋에서 값이 같다 — 아키타입(greenfield/brownfield·monolith/submodule)이 아니라
 > **앱 표면·인증·설계 유무**라는 다른 축에서 갈리기 때문이다. 프리셋으로 못 정하고 신호로 판정한다.
 
 ---
@@ -255,6 +266,7 @@ Discovery 가 두 프리셋 중 하나로 딱 안 떨어질 때(예: brownfield-
 | `{tech_stack}` | LogiCraft ADR/킥오프 + repo(pyproject/build.gradle) | Python3.12/FastAPI/PG16 |
 | `{build_cmds}` | repo (Makefile·pyproject·gradle) | `uv run pytest …` |
 | `{frontend_stack}` | repo(package.json) + 키트 DS | React19/Vite/Tailwind |
+| `{shared_base}` (공유기반 경로 — `code_boundary=package` 일 때) | ★ repo 스캔으로 후보 제시 → **인터뷰로 확정** | 웹앱 `` `core/`·`db/migrations/`·앱 진입점 `` / 라이브러리 `` `jni/lib/libCommon/`·`tools/csctest/`·빌드 스크립트 `` |
 | **의존 계층 내용** (layers=on 시) | 인터뷰 (LogiCraft 계약 의존 참고) | 계층1 access+identity … |
 | `{commit_forbidden}` (커밋금지 파일) | 인터뷰/repo(.gitignore·secrets) | 환경설정 properties, .env |
 | 도메인별 **함정·진실원·경계**(에이전트 "도메인 특화지침") | ★ 온보딩이 LogiCraft 설계 정독해 **초안 생성**(§5.1) | 근거 ITEM 붙은 초안 → 사용자 확정 |
@@ -425,6 +437,17 @@ E2E 슬롯은 다른 슬롯과 성격이 다르다 — **문서나 코드를 읽
 > 요약: **특화지침 = 온보딩이 설계 읽고 초안(근거첨부)** · **노하우 = 구현하며 축적**. 둘은 에이전트의 서로 다른 섹션이며 채우는 주체·시점이 다르다.
 
 ---
+
+### 5.5 공유기반 경로는 프로젝트마다 다르다 (★ `{shared_base}` · 추정 금지)
+
+`code_boundary=package` 면 dispatch·conventions·implementer·qa-verifier 가 「도메인 에이전트가 손대면 안 되는 **공유기반**」을 이름으로 적는다.
+예전 템플릿은 이것을 `core/`·`db/migrations/`·앱 진입점으로 **고정**해 뒀는데, 그건 웹앱(modular monolith)에서만 맞는다.
+라이브러리·임베디드 레포에서는 그 경로가 없고 **실제 공유기반(공용 lib·하네스·빌드 스크립트)은 경계 규칙에 안 잡혔다**(SlingAgent · CO-202).
+
+- **후보 찾기**: 여러 도메인 폴더가 함께 import/include 하는 경로 · 스키마/마이그레이션 폴더 · 앱 진입점 · 공용 빌드·테스트 하네스.
+- **확정은 인터뷰**: 후보를 보여 주고 「이 중 도메인 에이전트가 임의로 고치면 안 되는 것」을 고르게 한다. 추정으로 채우지 않는다.
+- **형식**: 문장 안에 그대로 들어가는 **한 줄 나열** — 백틱 경로를 `·` 로 잇는다(예 `` `core/`·`db/migrations/`·앱 진입점 ``).
+- 공유기반이 정말 없으면(도메인이 완전히 독립) `code_boundary` 판정부터 다시 본다 — `package` 가 아닐 가능성이 높다.
 
 ## 6. 불변 조각 목록 (🟩 A — 스위치 무관, 항상 삽입)
 

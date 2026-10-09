@@ -65,7 +65,7 @@ target_hint: | (선택) <알면 대상 클래스/메서드/화면. 모르면 생
 - IMPREC 를 쓸 때도 같은 작성 규칙: `evidence` 는 커밋·spec 이름·파일 경로로 **구조화**하고, 본문에 경위(「CO-NNN 에서 바꿈」)나 「테스트 N건 통과」 서술을 쌓지 않는다.
 
 ## 절대 경계
-- `code_root` 경계 안에서만.<!-- IF code_boundary == package --> `core/`·`db/migrations`·타도메인 수정 금지 → notes_for_main.needs_core_change 로 요청.<!-- ELSE --> 다른 서브모듈·공유 자원 수정 금지 → notes_for_main 으로 요청.<!-- ENDIF code_boundary -->
+- `code_root` 경계 안에서만.<!-- IF code_boundary == package --> 공유기반({{shared_base}})·타도메인 수정 금지 → notes_for_main.needs_core_change 로 요청.<!-- ELSE --> 다른 서브모듈·공유 자원 수정 금지 → notes_for_main 으로 요청.<!-- ENDIF code_boundary -->
 - LogiCraft 쓰기 금지(IMPREC mark 예외). CONST 값 추정 금지. 시크릿/외부엔드포인트 URL 하드코딩 금지. **커밋 안 함**(메인이 처리).
 
 ## 노하우 색인 — ☠️ 착수 전에 **반드시** 이 표를 훑는다

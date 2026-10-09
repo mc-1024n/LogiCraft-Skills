@@ -1,8 +1,8 @@
 ---
 name: mc-logi-build-onboard
-description: 현재 프로젝트에 맞는 "구현 오케스트레이션 세트"(수정 dispatch + 설계 backfill + (greenfield 시) build 스킬 + (앱 표면 있으면) E2E 시나리오 저작·실행·정합점검 3종 + 도메인별 implementer·독립 qa-verifier 에이전트)를 빌드/온보딩하는 메타 스킬. KLID(brownfield-submodule)·Graph-RAG(greenfield-monolith)에서 교차 추출한 불변 뼈대(templates/_invariant)에, 프로젝트 구조를 판정한 13개 스위치(toggles.md)로 조각(templates/_switched)을 조립하고 슬롯을 채워 방출한다. 아키타입 2종(프리셋)을 기본으로, 프리셋 밖 구조는 스위치를 개별 판정해 조합. Discovery(LogiCraft project_id + repo 스캔) → 스위치 확정 게이트 → 슬롯 인터뷰 → 조립 → 도메인 지침 초안(설계 정독·근거첨부) → 검증 게이트 순. 사용자가 "이 프로젝트 온보딩해줘", "구현 세트 만들어줘", "dispatch/build 스킬 세팅", "/mc-logi-build-onboard" 라고 하면 실행. AI 임의 추정 금지 — 설계·repo 근거 없는 값은 비우고 보고, 게이트에서 사용자 확정. ★ 이미 세트가 있으면 재온보딩(업그레이드 모드)으로 분기한다 — 덮어쓰지 않고 실물에만 있는 절·호출을 감지·분류·질의한 뒤 병합하며, 착수 전에 덮일 파일 목록을 보이고 백업 여부를 묻는다(`.claude/` 가 gitignore 면 되돌릴 수 없으므로 경고). QA 검증은 구현과 다른 모델에 맡기도록 모델·호출법·대체경로·실패신호 4값을 인터뷰로 확정하고 방출물에 실렸는지 검증한다. 에이전트 노하우는 본체에 쌓지 않고 주제 묶음(_knowhow/)으로 분리해 본체 400줄·묶음 600줄 상한을 게이트로 강제하되, 묶음 열람은 권유가 아니라 절차다 — 묶음은 머리말만 먼저 열고(전문 읽기는 «머리말 선독 + 걸린 항목 4건 이상» 조건일 때만, 사유 서술로는 안 막힌다), 항목 읽기엔 limit 을 강제하며, 출력 how(headnote|items|full)와 전사본의 실제 Read offset·limit 을 대조해 게이트가 «어떻게 열었나»까지 재고, 노하우를 append 하면 같은 동작으로 머리말을 재생성한다 — 색인을 «행동» 트리거로 걸고, 에이전트가 착수 전 색인 전 행을 훑어 출력 knowhow_read 에 읽은 것·건너뛴 것을 적게 하며, 회수 때 전사본의 실제 열람과 대조한다. 되돌리기 어려운 금지 규칙은 묶음이 아니라 본체 상시에 둔다.
+description: 현재 프로젝트에 맞는 "구현 오케스트레이션 세트"(수정 dispatch + 설계 backfill + (greenfield 시) build 스킬 + (앱 표면 있으면) E2E 시나리오 저작·실행·정합점검 3종 + 도메인별 implementer·독립 qa-verifier 에이전트)를 빌드/온보딩하는 메타 스킬. KLID(brownfield-submodule)·Graph-RAG(greenfield-monolith)에서 교차 추출한 불변 뼈대(templates/_invariant)에, 프로젝트 구조를 판정한 14개 스위치(toggles.md)로 조각(templates/_switched)을 조립하고 슬롯을 채워 방출한다. 아키타입 2종(프리셋)을 기본으로, 프리셋 밖 구조는 스위치를 개별 판정해 조합. Discovery(LogiCraft project_id + repo 스캔) → 스위치 확정 게이트 → 슬롯 인터뷰 → 조립 → 도메인 지침 초안(설계 정독·근거첨부) → 검증 게이트 순. 사용자가 "이 프로젝트 온보딩해줘", "구현 세트 만들어줘", "dispatch/build 스킬 세팅", "/mc-logi-build-onboard" 라고 하면 실행. AI 임의 추정 금지 — 설계·repo 근거 없는 값은 비우고 보고, 게이트에서 사용자 확정. ★ 이미 세트가 있으면 재온보딩(업그레이드 모드)으로 분기한다 — 덮어쓰지 않고 실물에만 있는 절·호출을 감지·분류·질의한 뒤 병합하며, 착수 전에 덮일 파일 목록을 보이고 백업 여부를 묻는다(`.claude/` 가 gitignore 면 되돌릴 수 없으므로 경고). QA 검증은 구현과 다른 모델에 맡기도록 모델·호출법·대체경로·실패신호 4값을 인터뷰로 확정하고 방출물에 실렸는지 검증한다. 에이전트 노하우는 본체에 쌓지 않고 주제 묶음(_knowhow/)으로 분리해 본체 400줄·묶음 600줄 상한을 게이트로 강제하되, 묶음 열람은 권유가 아니라 절차다 — 묶음은 머리말만 먼저 열고(전문 읽기는 «머리말 선독 + 걸린 항목 4건 이상» 조건일 때만, 사유 서술로는 안 막힌다), 항목 읽기엔 limit 을 강제하며, 출력 how(headnote|items|full)와 전사본의 실제 Read offset·limit 을 대조해 게이트가 «어떻게 열었나»까지 재고, 노하우를 append 하면 같은 동작으로 머리말을 재생성한다 — 색인을 «행동» 트리거로 걸고, 에이전트가 착수 전 색인 전 행을 훑어 출력 knowhow_read 에 읽은 것·건너뛴 것을 적게 하며, 회수 때 전사본의 실제 열람과 대조한다. 되돌리기 어려운 금지 규칙은 묶음이 아니라 본체 상시에 둔다.
 metadata:
-  version: 1.6.0
+  version: 1.7.0
 ---
 
 # mc-logi-build-onboard — 구현 오케스트레이션 세트 온보딩
@@ -13,7 +13,7 @@ metadata:
 
 | 파일 | 역할 |
 |---|---|
-| `toggles.md` | ★ 두뇌 — 13개 스위치 정의·판정신호·프리셋 2종·프리셋 밖 조합규칙·슬롯 목록 |
+| `toggles.md` | ★ 두뇌 — 14개 스위치 정의·판정신호·프리셋 2종·프리셋 밖 조합규칙·슬롯 목록 |
 | `templates/_TEMPLATING.md` | 치환 문법(`{{slot}}`·`<!-- IF -->`·`<!-- INSERT -->`)·슬롯 카탈로그·방출 위치·검증 규칙 |
 | `templates/_invariant/*` | 🟩 항상 생성 (dispatch·backfill·implementer·qa-verifier) |
 | `templates/_switched/*` | 🟨 스위치 on 일 때만 (build·conventions·work_claim·phase0·layers·e2e 4종) |
@@ -43,7 +43,8 @@ metadata:
 - 코드 루트에 실제 소스가 있나 / README·빈 폴더뿐인가 → `has_build` 신호.
 - `.gitmodules` 존재 / 코드 루트가 서브모듈 폴더들인가 → `commit_strategy`·`code_boundary` 신호.
 - 빌드 파일(pyproject/build.gradle/package.json/Makefile) → `{{build_cmds}}`·`{{tech_stack_table}}`·`{{package_layout}}` 원자료.
-- `frontend/`·`package.json` → 프론트 트랙 유무 → `{{frontend_stack_block}}`.
+- `frontend/`·`package.json`(UI 프레임워크) · LogiCraft `screen_spec` 건수 → `frontend_track` 신호 → on 이면 `{{frontend_stack_block}}`.
+- 여러 도메인 폴더가 함께 쓰는 경로(공용 lib·스키마/마이그레이션·앱 진입점·빌드·테스트 하네스) → `{{shared_base}}` **후보**(확정은 인터뷰 — toggles.md §5.5).
 - `CLAUDE.md` → `{{project_id}}`·도메인 표·주의사항.
 - **E2E 신호** → `e2e_track`: 브라우저로 조작 가능한 앱 표면(프론트 앱·라우트·dev 스크립트)이 있나 · 기존 `playwright.config.*`/`cypress.config.*`/spec 폴더 · `grep -r "data-testid"` 건수(→ `e2e_selector`) · 인증 라우트 유무(→ `e2e_auth`).
 
@@ -86,6 +87,10 @@ work_claim           ?         인터뷰 필요 (팀 작업 여부)
   **다를 수 있다**(실측: KLID 은 스킬 `mc-klid-*` · 에이전트 `klid-*`). 한 슬롯으로 만들면
   **스킬이 자기를 틀린 이름으로 부른다.**
 - `work_claim` on/off (팀 구성 질문).
+- `{{shared_base}}` (`code_boundary=package` 일 때) — **공유기반 경로**. Discovery 가 찾은 후보를 보여 주고
+  「도메인 에이전트가 임의로 고치면 안 되는 것」을 고르게 한다. ☠️ 웹앱 기본값(`core/`·`db/migrations/`·앱 진입점)을
+  **묻지 않고 넣지 마라** — 라이브러리·임베디드 레포에는 그 경로가 없고 실제 공유기반이 경계 규칙에서 빠진다(toggles.md §5.5).
+- `frontend_track` 이 신호로 안 갈리면(프론트 패키지는 있는데 이 세트로 구현할지 불분명 등) 묻는다.
 - `{{layer_rounds}}` (dependency_layers=on 시) — 계약 의존 근거로 계층 순서. LogiCraft 계약 의존 참고해 초안 제시 후 확정.
 - `{{commit_forbidden}}` — 커밋금지 파일(secrets·설정).
 - 매핑표의 code_root·에이전트명 최종 확인.
@@ -149,7 +154,7 @@ work_claim           ?         인터뷰 필요 (팀 작업 여부)
    - 항상: `{{prefix}}-dispatch/SKILL.md`, `{{prefix}}-design-backfill/SKILL.md`, `{{prefix}}-qa-verifier.md`, 도메인마다 `{{domain_agent_name}}.md`.
    - `has_build=on`: `{{prefix}}-build/SKILL.md`.
    - `conventions_location==shared`: `.claude/conventions.md`.
-   - **프론트 트랙 있으면**(repo `frontend/`·`package.json` 또는 키트에 `screen_spec` 존재): `_switched/web-implementer.tmpl.md` → `{{prefix}}-web-implementer.md`. 없으면 생성 안 함.
+   - `frontend_track=on`: `_switched/web-implementer.tmpl.md` → `{{prefix}}-web-implementer.md`. off 면 생성하지 않고, dispatch·build 본문의 프론트 참조도 `<!-- IF frontend_track -->` 로 함께 빠진다(없는 에이전트를 부르는 스킬이 나오지 않게).
    - `e2e_track=on`: `.claude/e2e-conventions.md` + E2E 스킬 3종(`{{prefix}}-e2e-author`/`-run`/`-verify`). 규약 파일을 먼저 만들고 3종이 그것을 참조하게 한다(슬롯 값은 규약 한 곳에만 — 3종에 중복 박지 않는다).
 > ☠️ **아래 「Write」는 «신규 온보딩» 기준이다.** Phase 0-A 가 기존 세트를 감지했으면
 > **그대로 덮어쓰지 마라** — §재온보딩의 ①감지 ②분석 ③질의 ④처리를 거친 **병합**이다.
@@ -414,6 +419,11 @@ git ls-files .claude | wc -l          # 0 이면 git 이 안전망이 아니다
   - backfill 에 `fields:` 블록·작성 규칙 5검사가 없다 → 추가
   - 이 절들은 **템플릿이 새로 가진 것**이라 ②에서 «실물에만 있음»과 반대 방향이다 — 실물의 커스텀 절을 덮지 말고 **끼워 넣는다**.
   - ☠️ 기존 CO 파일(`CO-NNN-*.md`)은 고치지 않는다 — `_TEMPLATE.md` 만. 옛 CO 는 backfill 이 A 초안에서 커밋 코드로 칸 값을 뽑는다.
+
+  **①-a′ 구버전 신호 — 1.7.0 에서 받을 것** (CO-202)
+  - dispatch 에 `### Phase 3.5` 헤딩이 **둘**(점유 선언 · 공유기반 선처리) → 점유 선언을 `Phase 3.4` 로
+  - `.claude/agents/` 에 `{{prefix}}-web-implementer.md` 가 **없는데** dispatch·build 가 그 이름을 부른다 → `frontend_track=off` 로 판정하고 프론트 참조를 걷어 낸다
+  - `code_boundary=package` 인데 공유기반 문구가 `core/`·`db/migrations/`·앱 진입점 **고정 문구**다 → 그 경로가 이 레포에 실재하는지 확인하고, 아니면 `{{shared_base}}` 를 인터뷰로 확정해 바꾼다(실재하면 그대로 두되 슬롯 값으로 기록)
 
   **①-b 참조 감지 — 헤딩만 보면 «호출 한 줄»을 놓친다** ☠️
   프로젝트가 만든 자산(커스텀 에이전트·스크립트·슬래시 명령)을 **기존 절 안에서 부르고 있으면**

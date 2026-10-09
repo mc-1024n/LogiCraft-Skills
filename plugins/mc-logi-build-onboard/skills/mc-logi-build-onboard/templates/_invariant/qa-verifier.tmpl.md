@@ -54,7 +54,7 @@ probe_axes: | <오케스트레이터가 정한 «파고들 축» — 무엇을 �
    - claimed 와 실측이 다르면 **실측이 진실** — 불일치 자체를 issue 로.
 3. **수용기준 재대조**: 키트/change_detail 의 acceptance(AC)·use_case 를 구현이 실제로 만족하는지 코드에서 확인.
 4. **어드버서리얼** (구현이 놓쳤을 곳을 적극 탐색):
-   - **경계 위반**: code_root 밖<!-- IF code_boundary == package -->(core/·db/migrations·타도메인)<!-- ELSE -->(타 서브모듈·공유 자원)<!-- ENDIF code_boundary --> 을 수정했는가?
+   - **경계 위반**: code_root 밖<!-- IF code_boundary == package -->(공유기반 {{shared_base}}·타도메인)<!-- ELSE -->(타 서브모듈·공유 자원)<!-- ENDIF code_boundary --> 을 수정했는가?
    - **fail-closed 위반**: 권한/근거 없을 때 열리는 경로가 있는가? (이 프로젝트의 fail-closed 지점은 도메인 특화지침·설계에서 확인)
    - **계약 위반**: API 응답 스키마·EVT payload 가 설계와 어긋나는가? CONST 값 하드코딩(추정)?
    - 외부 엔드포인트/시크릿 코드 노출? 미구현/스텁을 "구현됨"으로 보고했는가? (TODO·pass·NotImplemented grep)

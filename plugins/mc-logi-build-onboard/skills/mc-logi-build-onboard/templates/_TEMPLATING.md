@@ -60,6 +60,7 @@
 | `{{package_layout}}` | 코드 레이아웃 트리 | repo 스캔 |
 | `{{frontend_stack_block}}` | 프론트 트랙 스택 블록 (없으면 빈 문자열) | repo(package.json) + 키트 DS |
 | `{{frontend_code_root}}` | 프론트 code_root (`frontend`) — web-implementer 용 | repo 스캔 |
+| `{{shared_base}}` | 공유기반 경로 한 줄 나열 (`code_boundary=package` 일 때 — 예 `` `core/`·`db/migrations/`·앱 진입점 ``). 프로젝트마다 다르다 — toggles.md §5.5 | repo 스캔 후보 → **인터뷰 확정** |
 | `{{frontend_stack_short}}` | 프론트 스택 짧은 표기 (Next.js / React SPA) — 제목·description 용 | repo(package.json) |
 | `{{frontend_build_cmds}}` | 프론트 빌드·테스트·린트 명령 (`pnpm lint && pnpm test && pnpm build`) | repo(package.json scripts) |
 | `{{web_guidance}}` | ★ 온보딩이 screen_spec·DS·consumes_apis 정독해 초안한 프론트 특화지침(근거 SCREEN/API/DS ID 첨부). 근거 없으면 골격만. | screen_spec + design_system + api 계약 |
@@ -101,7 +102,7 @@
   값이 있으면 유지한다. 선택적 절(있으면 쓰고 없으면 통째로 빠지는 경고·준비 블록)에 쓴다.
   → 빈 슬롯을 그냥 치환하면 `⚠️ 환경 전제:` 뒤가 비어버리는 어색한 문서가 나온다. 이 문법으로 막는다.
 
-**스위치 이름**(toggles.md §1): `has_build` · `phase0_foundation` · `dependency_layers` · `work_claim` · `commit_strategy`(single|submodule) · `agent_mode`(dual|modify) · `conventions_location`(shared|embedded) · `code_boundary`(package|submodule|repo) · `e2e_track` · `e2e_design_link`(logicraft|local) · `e2e_auth`(none|bypass|bypass_and_verify) · `e2e_selector`(testid|role) · `e2e_account_strategy`(self_provision|seed|mixed)
+**스위치 이름**(toggles.md §1): `has_build` · `phase0_foundation` · `dependency_layers` · `work_claim` · `commit_strategy`(single|submodule) · `agent_mode`(dual|modify) · `conventions_location`(shared|embedded) · `code_boundary`(package|submodule|repo) · `e2e_track` · `e2e_design_link`(logicraft|local) · `e2e_auth`(none|bypass|bypass_and_verify) · `e2e_selector`(testid|role) · `e2e_account_strategy`(self_provision|seed|mixed) · `frontend_track`
 
 ## 3. 조각 삽입 — `<!-- INSERT ... -->`
 ```
@@ -110,7 +111,7 @@
 - `IF` 없이 쓰면 무조건 삽입(불변 조각 재사용).
 
 ## 4. 도메인 반복 — implementer.tmpl.md
-`implementer.tmpl.md` 는 **매핑표의 도메인마다 1회** 인스턴스화한다(도메인별 슬롯 치환). 프론트 트랙이 있으면 `{{prefix}}-web-implementer` 도 별도 생성(웹 전용 변형은 조립기가 프론트 슬롯으로).
+`implementer.tmpl.md` 는 **매핑표의 도메인마다 1회** 인스턴스화한다(도메인별 슬롯 치환). `frontend_track=on` 이면 `{{prefix}}-web-implementer` 도 별도 생성(웹 전용 변형은 조립기가 프론트 슬롯으로).
 
 ## 5. 방출 위치
 | 템플릿 | 방출 경로 |
@@ -125,7 +126,7 @@
 | _switched/conventions.tmpl.md (IF shared) | `.claude/conventions.md` |
 | implementer.tmpl.md ×N | `.claude/agents/{{domain_agent_name}}.md` |
 | qa-verifier.tmpl.md | `.claude/agents/{{prefix}}-qa-verifier.md` |
-| _switched/web-implementer.tmpl.md (IF 프론트 트랙) | `.claude/agents/{{prefix}}-web-implementer.md` |
+| _switched/web-implementer.tmpl.md (IF frontend_track) | `.claude/agents/{{prefix}}-web-implementer.md` |
 | _switched/e2e-conventions.tmpl.md (IF e2e_track) | `.claude/e2e-conventions.md` |
 | _switched/e2e-author.SKILL.tmpl.md (IF e2e_track) | `.claude/skills/{{skill_prefix}}-e2e-author/SKILL.md` |
 | _switched/e2e-run.SKILL.tmpl.md (IF e2e_track) | `.claude/skills/{{skill_prefix}}-e2e-run/SKILL.md` |
@@ -143,6 +144,9 @@
   정방향만 보면 **호출 줄이 사라져도 통과한다**(파일은 남으므로). 실패가 아니라 **보고** 항목이다 —
   독립 실행용 자산일 수 있다.
 - 매핑표의 도메인 수 == 생성된 implementer 수.
+- `frontend_track=off` 면 방출물 어디에도 `web-implementer` 가 남지 않아야 한다(`grep -rn web-implementer` 0건). on 이면 `{{prefix}}-web-implementer.md` 존재.
+- `code_boundary==package` 면 방출물의 공유기반 문구가 **인터뷰로 확정한 `{{shared_base}}`** 인지 확인한다 — 이 레포에 없는 경로(`core/`·`db/migrations/`)가 남아 있으면 실패.
+- dispatch 의 `### Phase N` 헤딩 번호가 중복되지 않는지(`grep -n '^### Phase' | sort | uniq -d` 0건).
 - `conventions_location==shared` 면 `.claude/conventions.md` 존재 + 스킬·에이전트 참조 경로 일치.
 - `e2e_track=on` 이면 `.claude/e2e-conventions.md` + E2E 스킬 3종 존재 + 3종이 모두 그 규약 경로를 참조.
 - 남은 `{{...}}`·`<!-- IF/INSERT ... -->` 마커가 없는지(미치환 잔존물) 스캔.
