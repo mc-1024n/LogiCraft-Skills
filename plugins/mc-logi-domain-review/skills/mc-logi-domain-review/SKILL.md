@@ -4,7 +4,7 @@ description: Logicraft 도메인을 10 차원(coverage/links/schema/stale/policy
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.5.0"
+  version: "1.5.1"
   domain: logicraft-orchestration
   triggers: 도메인 검토, 도메인 감사, 갭 검출, 도메인 정합, ITEM 갭, 도메인 review, gap analysis, D001 검토, D002 검토, DOMAIN-XXX 검토, 도메인 audit
   role: orchestrator-readonly
@@ -410,7 +410,7 @@ legacy grep: `<ON/OFF>`
 ### 워커가 반복하는 3가지 실수 (프롬프트에 미리 못박을 것)
 1. **도메인 스코프 누수** — `list_items` 에 `domain_id` 를 안 걸어 프로젝트 전체를 센다.
    실측: D001 이 DFEAT 를 91건으로 보고(실제 7건). 전역 활성 수를 미리 구해 상한으로 대조하라
-   (`get_implementation_coverage` 는 `domain_id` 를 무시하고 project 전역을 준다 — 그 값이 좋은 상한표다).
+   (`get_implementation_coverage` 를 범위 인자 없이 부르면 project 전역을 준다 — 그 값이 좋은 상한표다. `domain_id="DOMAIN-NNN"` 을 주면 그 도메인만 집계한다).
 2. **project-level 타입 오판** — `test_scenario`·`integration_point`·`external_system`·`rfp_item` 은
    `domain_id` 가 안 먹는다. 도메인 필터만 걸면 0건이라 "없다"고 단정한다. 전체 조회 후 링크로 귀속 판정시켜라.
 3. **"토큰 효율" 회피** — 전수 fetch 를 안 하고 `unable_to_verify` 로 처리하거나 "열거 생략"으로 뭉갠다.
