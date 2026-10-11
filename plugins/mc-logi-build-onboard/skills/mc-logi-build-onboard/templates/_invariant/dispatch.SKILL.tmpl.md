@@ -463,7 +463,7 @@ knowhow_dir_abs: "<{{knowhow_dir}} 의 절대경로>"   # ★ 필수 필드. 빠
 #### ★ IMPREC 추적 게이트 (구현 ✅ 로 닫기 **전**)  🚦
 회수한 각 구현 에이전트 출력의 `tracking` 을 본다. **구현이 성공했는데 IMPREC 기록이 비어 있으면 그대로 ✅ 로 닫지 않는다.**
 
-- ☠️ **확인은 「보고」가 아니라 「실측」으로 한다.** `get_implementation_coverage(scope=domain)` 또는
+- ☠️ **확인은 「보고」가 아니라 「실측」으로 한다.** `get_implementation_coverage(domain_id="DOMAIN-NNN")` 또는
   `list_items(type=implementation_record, domain_id=...)` 로 **이번 CO 분이 실제로 늘었는지** 센다.
   *"IMPREC 갱신했습니다"* 라는 문장은 근거가 아니다 — 에이전트가 도구를 갖고 있어도 호출을 건너뛸 수 있다.
 - 비어 있으면 해당 구현 에이전트를 재호출하거나(가벼움), 메인이 `create_implementation_record` /
