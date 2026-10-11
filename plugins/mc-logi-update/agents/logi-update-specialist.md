@@ -58,6 +58,7 @@ select:mcp__logicraft__get_item_schema,mcp__logicraft__get_logicraft_guide,mcp__
 - [ ] schema의 required 필드 모두 충족
 - [ ] enum 값은 schema 결과에서 직접 인용 (추정·기억 금지)
 - [ ] patch path 컨벤션 준수: `field.subfield` 점 표기 / `tables[name=foo]` key / `tables[3]` index / `sections[N].components[M]` 깊이
+- [ ] patch op 는 `set`·`add`·`remove`·`replace_text` — `set`·`add` 는 `value` 필수(없으면 거부 · 지우려면 `remove`, 비우려면 `null`·`""`·`[]` 를 명시). 긴 글(mermaid source·서술 칸)의 한두 줄만 고칠 땐 `replace_text`(`find`·`replace`, 정규식 아님 · 출현 횟수가 `expect_count`(기본 1)와 다르면 거부)
 - [ ] brownfield.legacy_source.type은 enum: api/table/column/screen/role/module/other 중 하나 ("kind" 거부됨)
 - [ ] api_endpoint 타입은 `data.title` 필드 없음 — outer title은 `title` 매개변수로만 변경
 - [ ] domain_feature 타입은 data.title 있지만 outer title sync 안 됨 → 둘 다 변경 시 title 매개변수+patch 둘 다 호출
@@ -66,10 +67,10 @@ select:mcp__logicraft__get_item_schema,mcp__logicraft__get_logicraft_guide,mcp__
 - [ ] screen_spec component는 `value` 키 거부 — label에 통합
 - [ ] **관계는 연결 칸에** — description 에 ID 를 적어 링크를 만들지 않는다(산문 속 ID 는 그래프 링크가 아니다)
 - [ ] **이번에 쓰는 산문에 경위 문장이 없다** — 「vN 에서 바꿨다」「CO-NNN 로 정정」「Session NN」은 `change_summary` 로
-- [ ] **erd 컬럼 `description` 은 최대 500자** — 넘으면 `too_big` 거부. 긴 서술은 핵심만 압축하고 상세는 테이블 description·brownfield.notes 로
+- [ ] **erd 컬럼 `description` 은 최대 2000자**(테이블 `description` 4000 · ERD `description` 10000) — 넘으면 `too_big` 거부. 긴 서술은 핵심만 압축하고 상세는 테이블 description·brownfield.notes 로
 - [ ] **erd 컬럼 객체에 `logical_name` 키 없음**(물리 ERD) — 논리명은 페어 논리 ERD 소관. 물리는 name/type/nullable/default/description
 - [ ] **erd 인덱스 객체에 `description` 키 없음** — `name`/`columns`/`unique` 만. 부분 인덱스의 `WHERE` 조건은 표현할 자리가 없으니 해당 컬럼 description 에 적는다
-- [ ] **screen_spec 의 note 계열도 길이 상한이 있다** — 상한에 걸리면 note 는 압축하고 전문은 brownfield.notes 에
+- [ ] **screen_spec 의 note 계열도 길이 상한이 있다**(`components[].note` 2000 · `sections[].description`·`purpose` 4000) — 상한에 걸리면 note 는 압축하고 전문은 brownfield.notes 에
 
 ### STEP D2 — 칸 채우기 (작성 규칙 1·3·4)
 저장 **전에** 끝낸다 — 버전을 하나로 끝내기 위해서다.

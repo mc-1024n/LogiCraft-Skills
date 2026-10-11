@@ -43,6 +43,8 @@
 - key path: `tables[name=foo].columns[name=bar]`
 - index: `tables[3]`, `sections[N]`
 - add op 별칭: `tables[-]`
+- `set`·`add` 는 `value` 필수 — 없으면 거부. 지우려면 `remove`, 비우려면 `null`·`""`·`[]` 를 명시
+- `replace_text` op: `{op, path, find, replace, expect_count?}` — 문자열 칸의 조각을 글자 그대로 치환(정규식 아님). 출현 횟수가 `expect_count`(기본 1)와 다르면 거부 · 긴 글의 한두 줄만 고칠 때 전문을 다시 보내지 않는다
 - nested 2단계 path: `sections[N].components[M].triggers_api`
 - ★ `brownfield/notes` (슬래시) 거부 → `brownfield.notes` (점) 사용
 
