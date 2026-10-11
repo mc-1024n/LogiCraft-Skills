@@ -4,7 +4,7 @@ description: mc-logi-implement-kit 이 만든 로컬 구현 키트(./docs/design
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.3.1"
+  version: "1.3.2"
   domain: logicraft-orchestration
   triggers: 키트 구현, 도메인 구현, 구현해줘, 키트대로 구현, 구현 계획, 구현 시작, D001 구현, DOMAIN-XXX 구현, 스펙 플랜 구현, 구현 추적, implement
   role: orchestrator
@@ -106,7 +106,7 @@ Phase 5  추적           IMPREC 기록 + 키트 현황 갱신 + mc-logi-update 
    IMPLEMENTATION.md 전체, _domain.md, version-master 헤더. 여기서 얻는 것:
    구현 대상 영역 표 / 빌드 순서 / 의존 그래프 / 구속 제약 / 보존·경계 정책 / 키트 ⚠️ 불일치 목록 /
    구현 현황(이미 구현된 영역 — 재구현 방지).
-4. **이미 구현된 영역 감지**: 키트 구현 현황과 logicraft `get_implementation_coverage(scope=domain)` 로
+4. **이미 구현된 영역 감지**: 키트 구현 현황과 logicraft `get_implementation_coverage(domain_id="DOMAIN-NNN")` 로
    기구현 ITEM 을 식별 — 이번 범위에서 제외하거나 "재구현/수정" 인지 사용자에게 확인.
 5. **★ 화면(screen_spec) 범위 분리 안내 (중복 구현 방지 — 런타임 필수 안내)**: 키트/도메인 범위에
    `screen_spec` 이 포함돼 있으면, 사용자에게 다음을 **명시적으로 안내**한다:
@@ -202,7 +202,7 @@ Phase 5  추적           IMPREC 기록 + 키트 현황 갱신 + mc-logi-update 
 3. **mc-logi-update 권고**: Phase 3 에서 적재한 "구현 중 확정/설계 불일치" 목록을 사용자에게
    제시 — logicraft 설계 ITEM 반영은 mc-logi-update 로 별도 진행 (이 스킬이 직접 설계를
    수정하지 않는다).
-4. `get_implementation_coverage(scope=domain)` 로 도메인 커버리지 보고.
+4. `get_implementation_coverage(domain_id="DOMAIN-NNN")` 로 도메인 커버리지 보고.
 5. 메모리 저장 문의 (구현 중 확정된 프로젝트 사실 — 키트/레포가 기록 못 하는 것만).
 
 ## 에러·중단 처리
