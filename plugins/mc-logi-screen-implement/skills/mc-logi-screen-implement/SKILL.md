@@ -4,7 +4,7 @@ description: mc-logi-screen-kit 이 만든 로컬 화면 키트(./docs/screen-de
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.1.1"
+  version: "1.1.2"
   domain: logicraft-orchestration
   triggers: 화면 구현, 화면 구현해줘, 키트대로 화면 구현, 화면 구현 시작, SCREEN-NNN 구현, D001 화면 구현, 화면 구현 계획, 화면 구현 추적, screen implement, 화면 구현 오케스트레이터
   role: orchestrator
@@ -211,7 +211,7 @@ Phase 0·1·2·3·4 는 logicraft read(get_*, find_*, list_*) 또는 레포 코�
    프로젝트 `CLAUDE.md` 의 `mc-logi-screen-kit` 블록도 갱신 (해당 도메인 행 구현 현황 1줄 + ⚠️ 변경 재반영 필요 표식 해제).
 6. **mc-logi-update 권고**: Phase 4 에서 적재한 "구현 중 확정/설계 불일치" 목록을 사용자에게 제시.
    logicraft 설계 ITEM 반영은 mc-logi-update 로 별도 진행 (이 스킬이 직접 설계를 수정하지 않는다).
-7. `get_implementation_coverage(scope=domain)` 로 도메인 커버리지 보고.
+7. `get_implementation_coverage(domain_id="DOMAIN-NNN")` 로 도메인 커버리지 보고.
 8. 메모리 저장 문의 (구현 중 확정된 프로젝트 사실 — 키트/레포가 기록 못 하는 것만).
 
 ---
