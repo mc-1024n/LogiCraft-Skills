@@ -4,7 +4,7 @@ description: mc-logi-screen-kit 이 만든 로컬 화면 키트(./docs/screen-de
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.3.4"
+  version: "1.3.5"
   domain: logicraft-orchestration
   triggers: 화면 디자인, 화면 디자인해줘, screen design, 고충실도 목업, 고충실도 디자인, SCREEN-NNN 디자인, D001 화면 디자인, 화면 비주얼 디자인, 디자인 목업 만들어줘
   role: orchestrator
@@ -230,6 +230,7 @@ Phase 6   ui_component 보강  디자인에서 쓴 컴포넌트 ↔ ui-catalog.m
    ```
    - **render_id·surface 를 screen_spec 와이어프레임과 동일하게** 맞춰 비교 뷰 짝지음. SD 는 별 ITEM 이라
      와이어프레임을 **덮어쓰지 않는다.** 같은 render_id 재업로드는 교체.
+   - 교체 때 `width`·`height` 를 생략하면 **이전 치수가 남는다**(응답 `warnings[code=RENDER_DIMENSIONS_KEPT]`). 시안의 크기가 바뀌었으면 촬영한 창 너비와 그 너비에서의 문서 전체 높이를 함께 보낸다.
 5. **검증**: 응답 `render.css_url` 세팅·`action`(add/replace) 확인. `E_AUTH_FORBIDDEN`(권한)·item(SD) 미존재
    (오프로젝트)면 우회 불가 — 사용자에게 알리고 중단(토큰 RBAC·project_id 사안).
 6. **결과 보고**: SD-NNN + 업로드 render(id·surface·url) + 게이트1 반복 횟수 + raw hex 클린 여부 +
