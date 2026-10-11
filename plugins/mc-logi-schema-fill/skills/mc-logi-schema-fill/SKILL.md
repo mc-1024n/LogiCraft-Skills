@@ -4,7 +4,7 @@ description: LogiCraft 스키마 개편(«산문을 칸으로», CO-138~171)으�
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: 0.9.1
+  version: 0.10.0
   requires: "LogiCraft 서버 main b1abce67 이후(새 칸 + scan_prose_refs + 전파 억제 CO-177·178·181~184·191·192 + 자기 재검토 표시 보존·복원 CO-189 restore_review_needed + 제목 동기화 수정 CO-190). 이전 서버에 쓰면 재검토 표시가 대량 전파되거나 자기 표시가 조용히 풀린다"
 ---
 
@@ -13,7 +13,7 @@ metadata:
 ## 왜 이 스킬이 있나
 
 LogiCraft 는 산문(description·notes)에 몰려 있던 내용을 **칸**으로 옮길 수 있게 스키마를 넓혔다
-(39타입 · 새 칸 109 · 담당자 칸 18의 모양 변경 — 목록은 `references/new-fields.json`).
+(49타입 · 새 칸 122 · 담당자 칸 18의 모양 변경 — 목록은 `references/new-fields.json`).
 칸만 생겼고 **기존 항목은 비어 있다.** 각 프로젝트 담당자가 채워야 한다.
 
 칸이 비면 생기는 일:
@@ -33,7 +33,7 @@ LogiCraft 는 산문(description·notes)에 몰려 있던 내용을 **칸**으�
 - 예전에는 설계 항목의 중요한 내용이 **산문**(설명·비고)에 섞여 있었다 — 「이 화면은 ADR-024 를 따른다」,
   「이행은 3단계: …」, 「담당: 플랫폼팀」.
 - 사람은 읽을 수 있지만 **도구는 못 읽는다.** 그래서 ADR-024 가 바뀌어도 이 화면은 영향 범위에 안 떴다.
-- 그래서 스키마를 넓혀 그 내용을 담을 **칸**을 만들었다(39타입 · 새 칸 109). 세 종류다.
+- 그래서 스키마를 넓혀 그 내용을 담을 **칸**을 만들었다(49타입 · 새 칸 122). 세 종류다.
 
 | 종류 | 예 | 채우면 좋아지는 것 |
 |---|---|---|
@@ -70,6 +70,10 @@ LogiCraft 는 산문(description·notes)에 몰려 있던 내용을 **칸**으�
 | **판정자가 새로 짜야 하는 구조 값** | 산문을 읽고 재구성한 설정 객체 | **보류** — 원문 글자 그대로 넣을 수 없으면 채우지 않는다(재구성한 값은 산문 복사로 인정되지 않아 하위 항목에 재검토 표시가 번진다) |
 
 ☠️ 관계 초안은 **AI 의 판단**이 근거다. 그래서 자동으로 적용하지 않는다 — 이 점을 반드시 말한다.
+
+**채우지 않는 것** (근거가 있어 보여도 대상이 아니다)
+- `integration_point.provider_contract_apis`·`provider_contract_events` — **도입으로만 채워지는 칸**이다. 손으로 채우지 않는다.
+- **도입 미러** — `adopted_from` 이 있는 api_endpoint·domain_event·integration_point, `paired_with.adopted_at` 이 있는 external_system. 본문에 남은 번호는 **제공자 프로젝트의 번호**라 이 프로젝트의 칸에 올리지 않는다(서버도 미러에는 산문 경고를 내지 않는다). 작업표에 후보로 뜨면 판정에서 제외한다.
 
 ### ⑤ 스킬 없이 직접 채워도 된다
 AI 제안이 싫거나, 항목 수가 적거나, 관계를 가장 잘 아는 사람이 설계 담당자 본인이라면 **직접 검토해 채우는 편이 낫다.**
@@ -288,7 +292,7 @@ python3 $SF derive --diagnose <diag>/diagnose.json --ledger <폴더>/ledger.json
 | 재료 | 무엇 | 실측(CudoCall 상용 복사본) |
 |---|---|---|
 | **C1 역방향** | A 의 산문이 B 를 적었는데 칸은 **B 쪽**에 있다 — 요구사항 「근거: DFEAT-002/004 · API-017~019」 → DFEAT·API 의 `implements_requirements` | 94칸 — dev 41프로젝트 93건이 전부 비어 있었다 |
-| **C2 규칙 밖** | 경고 규칙이 **일부러 없는** 칸(`references/new-fields.json` 의 `unruled_pointer_fields`) — ADR→ADR `based_on_adrs` · 상수→상수 `uses_constants` | 21칸 |
+| **C2 규칙 밖** | 경고 규칙이 **일부러 없는** 칸(`references/new-fields.json` 의 `unruled_pointer_fields`) — ADR→ADR `based_on_adrs` · 상수→상수 `uses_constants` · 런북→설치 명세 `for_deployments` · 설치 명세→런북 `runbooks` | 21칸 |
 | **C3 「영향 ITEM:」** | 위험·사고 요약의 명시 목록 → 같은 항목의 `affects`(이미 값이 있어도 덧붙인다) | 19칸 |
 
 - 범위 표기(「DFEAT-020/021」·「API-031~045」)를 펼친다(50개 이하).

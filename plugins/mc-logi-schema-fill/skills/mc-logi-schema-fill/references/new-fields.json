@@ -6,7 +6,10 @@
   "kind_rule": "칸의 종류(연결/구조)는 여기 적지 않는다 — 실행 시 get_item_schema 의 json_schema 에서 ID 패턴(^XXX-\\d+$)으로 판정한다. 서버가 진실원이다",
   "generated": "2026-09-25",
   "co176": "CO-176 — adr.based_on_adrs · constant.uses_constants 추가, incident.affects 에 DFEAT·EXTSYS 허용(칸은 기존)",
-  "unruled": "저장 경고(*_IN_PROSE) 규칙이 없는 연결 칸 — 스킬이 산문을 직접 훑는다(derive 재료 C2). CO-176 이 경고를 일부러 안 붙였다"
+  "unruled": "저장 경고(*_IN_PROSE) 규칙이 없는 연결 칸 — 스킬이 산문을 직접 훑는다(derive 재료 C2). CO-176 이 경고를 일부러 안 붙였다",
+  "co204": "CO-204 — based_on_adrs 를 6타입에 추가(ui_component · design_system · scenario_sketch · diagram_c4_context · diagram_deployment · diagram_state). 산문 경고(ADR_IN_PROSE) 대상",
+  "co215": "CO-215 — diagram_c4_component.depicts_features · diagram_state.depicts_dfeats · diagram_deployment.constrained_by_nfrs(산문 경고 대상) · runbook.for_deployments · deployment_spec.runbooks(산문 경고 없음 → unruled_pointer_fields)",
+  "not_targets": "채움 대상이 아닌 칸(여기 넣지 않는다) — integration_point.provider_contract_apis · provider_contract_events 는 도입으로만 채워진다(CO-214)"
  },
  "new_fields": {
   "requirement": [
@@ -29,7 +32,8 @@
   "diagram_c4_component": [
    "based_on_adrs",
    "depicts_apis",
-   "uses_constants"
+   "uses_constants",
+   "depicts_features"
   ],
   "class_diagram": [
    "based_on_adrs",
@@ -201,6 +205,32 @@
   ],
   "constant": [
    "uses_constants"
+  ],
+  "ui_component": [
+   "based_on_adrs"
+  ],
+  "design_system": [
+   "based_on_adrs"
+  ],
+  "scenario_sketch": [
+   "based_on_adrs"
+  ],
+  "diagram_c4_context": [
+   "based_on_adrs"
+  ],
+  "diagram_deployment": [
+   "based_on_adrs",
+   "constrained_by_nfrs"
+  ],
+  "diagram_state": [
+   "based_on_adrs",
+   "depicts_dfeats"
+  ],
+  "runbook": [
+   "for_deployments"
+  ],
+  "deployment_spec": [
+   "runbooks"
   ]
  },
  "owner_fields": {
@@ -265,6 +295,12 @@
   ],
   "constant": [
    "uses_constants"
+  ],
+  "runbook": [
+   "for_deployments"
+  ],
+  "deployment_spec": [
+   "runbooks"
   ]
  }
 }
