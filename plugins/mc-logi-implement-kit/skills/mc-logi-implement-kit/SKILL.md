@@ -4,7 +4,7 @@ description: Logicraft 특정 프로젝트의 특정 도메인을 로컬에서 �
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.7.1"
+  version: "1.7.2"
   domain: logicraft-orchestration
   triggers: 구현 키트, implement kit, 도메인 다운로드, 구현 준비, 구현 키트 동기화, 버전 동기화, D001 구현 키트, D002 다운로드, DOMAIN-XXX 구현 준비, logicraft 로컬 다운, 바이브코딩 준비, spec 다운로드
   role: orchestrator-readonly
@@ -399,7 +399,7 @@ fetcher 책무: ITEM 별 `get_item` → 원본 `_raw/<ID>.json` 저장 → 타�
      · value 는 logicraft 원문 그대로(의역 금지). 객체/배열이면 JSON 그대로.
      · env_var(is_secret=true)는 값 대신 `<secret — env 주입>` 표기.
      · uses_constant 역링크가 비어도 belongs_to_domain 으로 키트에 포함되니 표에는 반드시 넣고, 사용처는 "⚠️ 미연결" 로 표기.
-   - **구현 현황**: `get_implementation_coverage(scope=domain)` + `list_unimplemented(domain_id)` → "이미 구현됨 / 미구현 / 어디부터 시작" 표
+   - **구현 현황**: `get_implementation_coverage(domain_id="DOMAIN-NNN")` + `list_unimplemented(domain_id)` → "이미 구현됨 / 미구현 / 어디부터 시작" 표
    - **변경 알림**: 이번 run CHANGED ITEM 목록 → "코드 재반영 필요" 강조
    - 각 ITEM 파일 인덱스 — `[[ID]]` wikilink (볼트에서 클릭 이동, 그래프 연결)
 
