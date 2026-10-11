@@ -4,7 +4,7 @@ description: 현재 구현된 코드가 로컬 구현 키트(docs/design/{slug}-
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.2.0"
+  version: "1.2.1"
   domain: logicraft-orchestration
   triggers: 구현 정합, 코드 정합 점검, 키트 대비 코드, 구현 검토, 코드 표류, 구현 정합성 감사, conformance review, 키트 정합, D004 구현 검토, implement review
   role: orchestrator-readonly
@@ -120,7 +120,7 @@ Phase 5  메모리 저장 문의
 
 1. **키트 카탈로그 로드**: `IMPLEMENTATION.md`(빌드순서·의존맵·구현현황·구현함정), `version-master.md`(ITEM 버전 표·last sync), 차원별 ITEM 요약 `.md` + `_raw/*.json` 경로 인덱스.
 2. **코드 루트 식별**: 빌드 도구(gradle/maven)·소스 루트·계층 구조·테스트 인프라를 serena `get_symbols_overview` / Explore 로 실측. 컨트롤러·엔티티·마이그레이션·테스트 디렉터리 위치.
-3. **IMPREC·coverage 수집** (logicraft 가용 시): `get_implementation_coverage(scope=domain)`, ITEM 별 implementation record(status·progress·커밋·구현노트). 불가 시 2방향 degrade 표시.
+3. **IMPREC·coverage 수집** (logicraft 가용 시): `get_implementation_coverage(domain_id="DOMAIN-NNN")`, ITEM 별 implementation record(status·progress·커밋·구현노트). 불가 시 2방향 degrade 표시.
 4. **ADR 정책 추출**: 키트 ADR 요약 + `IMPLEMENTATION.md` 구현 함정 단락에서 정책 목록 구성(policy auditor 입력). 메모리 grep 보조.
 5. **타겟 범위 산출**: Phase 0 결정에 따라 점검 대상 ITEM 집합 확정.
 
