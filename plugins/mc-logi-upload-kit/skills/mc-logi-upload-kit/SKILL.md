@@ -2,7 +2,7 @@
 name: mc-logi-upload-kit
 description: 로컬에 작업해둔 파일(HTML 데모·아티팩트·디자인 렌더·markdown 첨부)을 LogiCraft 에 REST 로 직접 업로드하는 스킬. 본문이 AI 컨텍스트를 거치지 않아 5MB 데모도 토큰 0 으로 등록된다. 사용자가 "이 파일 데모로 올려줘", "demo.html 업로드", "이 HTML 아티팩트 등록", "디자인 렌더 파일 올려줘", "/mc-logi-upload-kit" 등 로컬 파일을 LogiCraft 산출물로 등록하려 할 때 실행. download-kit(키트 다운로더)의 역방향 업로더. ★ 텍스트 산출물 전용 — hwp·pdf·zip 같은 바이너리나 자료실 파일은 mc-logi-file-transfer 을 쓸 것.
 metadata:
-  version: 1.4.0
+  version: 1.4.1
 ---
 
 # mc-logi-upload-kit — LogiCraft 파일 업로더
@@ -65,6 +65,7 @@ LOGICRAFT_API_KEY=<lc_ 키> LOGICRAFT_API_BASE=<서버 base> \
 ```
 - 종료코드: **0** 성공 · **1** 인자 오류 · **2** HTTP/인증 오류(키·스코프·네트워크·base) · **3** 파일 오류.
 - 성공 시 `✅ <타입> 업로드 완료` + 생성된 id/version JSON 출력.
+- ⚠️ `design_render` 의 치수 — REST 는 `width`·`height` 쿼리(양의 정수 px · 촬영한 창 너비와 그 너비에서의 문서 전체 높이)를 받지만 **이 스크립트는 아직 보내지 않는다**(`surface` 만 보낸다). 같은 렌더를 교체하면 이전 치수가 그대로 남고 응답 `warnings[code=RENDER_DIMENSIONS_KEPT]` 가 그 값을 싣는다 — 치수가 바뀐 교체라면 MCP `upload_design_render` 에 `width`·`height` 를 함께 주어 올린다.
 
 ### Phase 3 — 결과 보고
 생성된 id·version 을 사용자에게 보고. 데모면 `/app/projects/<id>/demo` 갤러리에서 확인 가능함을 안내.
