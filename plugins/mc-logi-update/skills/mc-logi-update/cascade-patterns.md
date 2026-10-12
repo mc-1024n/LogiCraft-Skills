@@ -259,9 +259,9 @@ sections 변경 시 surface 별로 `upload_static_render` 재호출 필요 — �
 **cascade 후보**: 보통 종착(자동 후보 없음). 단 신규 컴포넌트가 신규 API/DFEAT 를 인용하면 그 ITEM 존재만 확인.
 **auto_propagate**: 모델 대전환 시 true(자동 큐잉 권장). 단 본문 전면 refresh 라 작업량 큼 → Phase 5 보고에 "C4 전면 refresh" 명시.
 
-### test_scenario (TEST-XXX) — 검증 산출물 종착 (AC 와 동류, 통합/시스템 시험)
+### test_scenario (TEST-XXX) — 검증 산출물 종착 (단위 레벨·통합·시스템 시험)
 
-통합(integration, cross-UC end-to-end)·시스템(system, REQ/NFR 검증) 시험 시나리오. `covers_use_cases`(UC)·`exercises_screens`(SCREEN)·`verifies_requirements`(REQ)·`verifies_nfrs`(NFR)·`related_apis`(API) 로 추적하고, `steps[]`(순번·업무처리내용 action·시험항목 test_item·사전조건·입력자료 input_data·예상결과 expected·화면ID screen_ref)가 그 흐름을 1:1 반영. AC 와 같은 **검증 산출물 = 하류 종착**(cascade 받는 입장, 하류 없음).
+단위 레벨(unit — 행 하나가 독립 케이스. `unit_scope`: `screen`=단위시험(화면·프로그램 단위 · 감리 산출물) / `module`=모듈 시험(로직 단위 · 선택 사항))·통합(integration, cross-UC end-to-end)·시스템(system, REQ/NFR 검증) 시험 시나리오. `verifies_acceptance`(AC · 행 단위는 `steps[].acceptance_ref`)·`verifies_domain_features`(DFEAT)·`covers_use_cases`(UC)·`exercises_screens`(SCREEN)·`verifies_requirements`(REQ)·`verifies_nfrs`(NFR)·`related_apis`(API) 로 추적하고, `steps[]`(순번·업무처리내용 action·시험항목 test_item·사전조건·입력자료 input_data·예상결과 expected·화면ID screen_ref)가 그 흐름을 1:1 반영. 인수 기준(AC)은 «기준»이고 시험이 아니다 — 이 타입이 그 기준을 확인한다(AC 가 바뀌면 그것을 가리키는 시험이 재검토 대상). **검증 산출물 = 하류 종착**(cascade 받는 입장, 하류 없음).
 
 **필수 자체 점검**
 - `steps[].screen_ref`(SCREEN)·`related_apis`(API)·`covers_use_cases`(UC)·`verifies_requirements/nfrs` 인용 대상이 **활성**인지(deprecated 인용 금지).
