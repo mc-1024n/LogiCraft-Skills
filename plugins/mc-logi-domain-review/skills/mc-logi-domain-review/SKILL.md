@@ -4,7 +4,7 @@ description: Logicraft 도메인을 10 차원(coverage/links/schema/stale/policy
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, ToolSearch, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 metadata:
-  version: "1.5.1"
+  version: "1.6.0"
   domain: logicraft-orchestration
   triggers: 도메인 검토, 도메인 감사, 갭 검출, 도메인 정합, ITEM 갭, 도메인 review, gap analysis, D001 검토, D002 검토, DOMAIN-XXX 검토, 도메인 audit
   role: orchestrator-readonly
@@ -137,7 +137,7 @@ Agent(subagent_type="logi-domain-auditor", description="Audit D002 test_scenario
 >
 > `requirement` 차원 = 요구사항(REQ)이 상위 진실원천 **RFP(rfp_item)** 와 하위 현재설계(도메인)의 사이에서 **최신·정합·추적가능**한지 검토 (도메인 기준 반복 수정으로 REQ 가 가장 stale 해지는 역전 구조 포착). RFP↔REQ 미연결(derived_from_rfp 부재)·REQ 가 폐기 모델 서술(도메인보다 stale)·RFP divergence 미명시·RFP 핵심요구 미하향·**RFP 비책임 부분 미명시(RQ-006 advisory — "이 부분은 우리 영역 아닌 것으로 보임")**. dimensions/requirement.md 룰. 정책: RFP 원천=rfp_item, 충돌 시 도메인 우선+RFP 배경. 사용자가 "요구사항만"·"RFP 정합"을 요청하면 단독 실행 가능. **★ requirement auditor 입력에는 후보 rfp_item(RFP-NNN) 목록도 adr_policies 와 함께 제공**(메인이 Phase 2 에서 list_items(type=rfp_item) 1회 수집). **★ 검증 모드 3단계(가용 입력별 자동)**: REQ 0건→차원 SKIP / REQ+RFP없음→domain↔REQ 대조만(RQ-002/005) / REQ+RFP+도메인→전체(RQ-001~006). dimensions/requirement.md "검증 모드" 참조.
 
-> `test_scenario` 차원 = 통합(integration, cross-UC end-to-end)·시스템(system, REQ/NFR 검증) 시험 시나리오(`test_scenario`, TEST-NNN)가 도메인 핵심 흐름·책임 REQ/NFR 를 빠짐없이 검증하는지(커버리지 TST-001/002) + `steps` 본문이 폐기 ITEM·옛 흐름/화면/API 를 검증하지 않는지(현행성 TST-003~005) + 추적성·품질(TST-006/007) 검토. **AC(acceptance)와 짝** — AC=단위/인수기준, TEST=통합/시스템 레벨. dimensions/test_scenario.md 룰. ★ TEST 는 **project-level·cross-domain**(`related_domains[]`) — `list_items(type=test_scenario)` 후 related_domains/covers_use_cases/verifies_* ∩ 도메인으로 귀속 식별. 도메인이 아직 시험 시나리오 산출물 단계 전이면 SKIP+안내 1건(과잉 금지). 사용자가 "통합시험"·"시스템시험"·"시험 시나리오 검토"·"TEST 정합"을 요청하면 단독 실행 가능.
+> `test_scenario` 차원 = 단위 레벨(unit — `unit_scope` 로 단위시험(화면)/모듈 시험(로직·선택)을 가른다)·통합(integration, cross-UC end-to-end)·시스템(system, REQ/NFR 검증) 시험 시나리오(`test_scenario`, TEST-NNN)가 도메인 핵심 흐름·책임 REQ/NFR 를 빠짐없이 검증하는지(커버리지 TST-001/002) + `steps` 본문이 폐기 ITEM·옛 흐름/화면/API 를 검증하지 않는지(현행성 TST-003~005) + 추적성·품질(TST-006/007) 검토. **AC(acceptance)와 짝** — AC=인수 기준(기준이지 시험이 아니다), TEST=그것을 확인하는 시험(단위 레벨·통합·시스템). dimensions/test_scenario.md 룰. ★ TEST 는 **project-level·cross-domain**(`related_domains[]`) — `list_items(type=test_scenario)` 후 related_domains/covers_use_cases/verifies_* ∩ 도메인으로 귀속 식별. 도메인이 아직 시험 시나리오 산출물 단계 전이면 SKIP+안내 1건(과잉 금지). 사용자가 "통합시험"·"시스템시험"·"시험 시나리오 검토"·"TEST 정합"을 요청하면 단독 실행 가능.
 
 #### ★ Agent 이름 해석 + 등록 fallback (중요)
 

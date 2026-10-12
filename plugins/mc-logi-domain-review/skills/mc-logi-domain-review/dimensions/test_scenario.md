@@ -1,8 +1,15 @@
-# Test Scenario Dimension (통합/시스템 시험 시나리오)
+# Test Scenario Dimension (단위 레벨·통합·시스템 시험 시나리오)
 
-통합(integration)·시스템(system) 시험 시나리오(`test_scenario`, TEST-NNN)가 도메인의 핵심 흐름(cross-UC end-to-end)·책임 요구사항(REQ)·NFR 을 **빠짐없이·올바르게** 검증하는지 + `steps[]` 본문의 **현행성**(폐기·옛 흐름 검증 여부)을 검토.
+단위 레벨(unit)·통합(integration)·시스템(system) 시험 시나리오(`test_scenario`, TEST-NNN)가 도메인의 핵심 흐름(cross-UC end-to-end)·책임 요구사항(REQ)·NFR·인수 기준(AC)을 **빠짐없이·올바르게** 검증하는지 + `steps[]` 본문의 **현행성**(폐기·옛 흐름 검증 여부)을 검토.
 
-> AC(acceptance 차원)가 **단위/인수기준** 레벨이면, 이 차원은 **통합·시스템 시험** 레벨 — 여러 UC 를 잇는 end-to-end(integration), REQ/NFR 검증(system). 둘은 짝(검증 산출물 커버리지+현행성).
+> AC(acceptance 차원)는 **인수 기준** — «기준»이지 시험이 아니다. 이 차원은 그 기준과 설계를 확인하는 **시험** 쪽이다. 둘은 짝(검증 산출물 커버리지+현행성).
+>
+> 시험의 레벨은 `kind` 로 가른다.
+> - **단위 레벨**(`kind=unit`) — 행 하나가 독립 케이스. `unit_scope` 로 다시 가른다: `screen` = **단위시험**(화면·프로그램 단위 · 감리 산출물 「단위시험 케이스」) / `module` = **모듈 시험**(로직 단위 · 선택 사항 — 없다고 누락으로 보지 않는다).
+> - **통합**(`kind=integration`) — 여러 UC 를 잇는 end-to-end.
+> - **시스템**(`kind=system`) — REQ/NFR 검증.
+>
+> 시험이 인수 기준을 가리키는 칸은 `verifies_acceptance`(행 단위는 `steps[].acceptance_ref`)이다. 관계는 시험 → 인수 기준 한 방향으로만 저장된다.
 
 핵심 관계 체인:
 - TEST(integration) → `covers_use_cases` → UC (cross-UC end-to-end 흐름)
@@ -23,7 +30,7 @@ TEST 는 **project-level**(domain_id 없음, `related_domains[]` 로 도메인 �
 3. deprecated 대조용 `list_items(type=use_case|screen_spec|api_endpoint, include_retired=true)`.
 
 → 도메인 귀속 TEST 0건이면:
-- (a) 도메인이 아직 **통합/시스템 시험 산출물 단계 전**이면 → 전 룰 SKIP + `notes_for_main` 에 "통합/시스템 시험 시나리오 미작성(산출물 단계 전) — 검증 불가/해당없음" 1건(P2).
+- (a) 도메인이 아직 **시험 산출물 단계 전**이면 → 전 룰 SKIP + `notes_for_main` 에 "시험 시나리오 미작성(산출물 단계 전) — 검증 불가/해당없음" 1건(P2).
 - (b) 이미 시험 시나리오를 작성한 프로젝트인데 이 도메인만 0건이면 → **TST-001**(P1).
 
 ## 검토 룰
@@ -65,7 +72,7 @@ TEST 는 **project-level**(domain_id 없음, `related_domains[]` 로 도메인 �
 - `related_domains` 미지정(도메인 횡단 추적 단절) → **P2**.
 
 #### TST-007: kind 대비 필수 link/steps 빈약 → **P2**
-- kind=integration 인데 `covers_use_cases` 빔 / kind=system 인데 `verifies_requirements`·`verifies_nfrs` **둘 다** 빔 / `steps[].expected` 부재 / `objective` 빈약.
+- kind=integration 인데 `covers_use_cases` 빔 / kind=system 인데 `verifies_requirements`·`verifies_nfrs` **둘 다** 빔 / kind=unit 인데 `verifies_acceptance`·`verifies_domain_features`·`related_apis`·행의 `acceptance_ref` **전부** 빔 / kind=unit 인데 `unit_scope` 없음 / `unit_scope=screen`(단위시험)인데 `exercises_screens`·행의 `screen_ref` 전무 / `steps[].expected` 부재 / `objective` 빈약.
 
 ## Gap 분류 코드
 - `D<NNN>-TST-001`: 핵심 흐름 통합시험 부재
@@ -97,4 +104,5 @@ TEST 는 **project-level**(domain_id 없음, `related_domains[]` 로 도메인 �
 - **read-only** — 검출·초안 제안만. 수정은 mc-logi-update (cascade-patterns.md `test_scenario` 섹션과 짝).
 - TEST 는 **project-level·cross-domain** — 다른 도메인 위주 TEST(related_domains 에 이 도메인 없음)를 그 도메인 누락으로 보지 말 것.
 - 도메인이 아직 시험 시나리오 산출물 단계 전이면 **과잉 TST-001 금지**(SKIP + 안내 1건).
-- AC(acceptance 차원)와 짝 — AC=단위/인수기준 레벨, TEST=통합/시스템 레벨. 같은 "검증 산출물 커버리지+현행성" 패밀리.
+- AC(acceptance 차원)와 짝 — AC=인수 기준(기준이지 시험이 아니다), TEST=그것을 확인하는 시험(단위 레벨·통합·시스템). 같은 "검증 산출물 커버리지+현행성" 패밀리.
+- **모듈 시험(`kind=unit`·`unit_scope=module`)은 선택 사항** — 테스트 코드가 진실원인 프로젝트에는 없는 것이 정상이다. 없다는 이유로 gap 을 내지 말 것. 단위시험(`unit_scope=screen`)은 감리 산출물이라 프로젝트가 그 산출물을 내는 단계일 때만 커버리지를 본다.
