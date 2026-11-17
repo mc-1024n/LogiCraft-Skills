@@ -1,6 +1,6 @@
 ---
 name: {{skill_prefix}}-build
-description: {{project_name}} 전용 greenfield 구현 오케스트레이터. 로컬 키트(docs/design/*/IMPLEMENTATION.md)를 진실원으로, 도메인별 구현 에이전트({{prefix}}-d00N-implementer)와 독립 QA({{prefix}}-qa-verifier)를 팀처럼 지휘한다. 사용자가 "구현하자", "이 도메인 만들어줘", "다음 계층 진행", "/{{skill_prefix}}-build" 등 구현 진행을 요청하면 실행. 착수 범위는 사용자 확인 후 진행(AI 임의 진행 금지). 이 스킬은 오케스트레이션만 — 실제 코드는 도메인 에이전트, 검증은 QA 에이전트가 한다.
+description: {{project_name}} 전용 greenfield 구현 오케스트레이터. 로컬 키트(docs/design/*/IMPLEMENTATION.md)를 진실원으로, 도메인별 구현 에이전트(<매핑표의 도메인 에이전트명>)와 독립 QA({{prefix}}-qa-verifier)를 팀처럼 지휘한다. 사용자가 "구현하자", "이 도메인 만들어줘", "다음 계층 진행", "/{{skill_prefix}}-build" 등 구현 진행을 요청하면 실행. 착수 범위는 사용자 확인 후 진행(AI 임의 진행 금지). 이 스킬은 오케스트레이션만 — 실제 코드는 도메인 에이전트, 검증은 QA 에이전트가 한다.
 ---
 
 # {{skill_prefix}}-build — {{project_name}} greenfield 구현 오케스트레이터
@@ -43,7 +43,7 @@ build_master: "docs/design/BUILD-MASTER.md"
 <!-- INSERT _switched/phase0.section.md IF phase0_foundation -->
 
 ### Phase C — 도메인 fan-out
-해당 <!-- IF dependency_layers -->계층의 <!-- ENDIF dependency_layers -->도메인마다 **한 메시지에서 병렬로** `{{prefix}}-d00N-implementer` 를 띄운다.
+해당 <!-- IF dependency_layers -->계층의 <!-- ENDIF dependency_layers -->도메인마다 **한 메시지에서 병렬로** `<매핑표의 도메인 에이전트명>` 를 띄운다.
 ```yaml
 project_id: {{project_id}}
 domain_id: DOMAIN-00N
@@ -53,7 +53,7 @@ kit_root:  "<이 도메인 키트 경로>"     # IMPLEMENTATION.md = 진실원
 conventions: "<repo>/{{conventions_path}}"
 <!-- ENDIF conventions_location -->
 scope: | <이번 라운드 이 도메인 구현 범위. 명시 안 하면 키트 빌드순서대로 전량>
-knowhow_dir_abs: "<{{knowhow_dir}} 의 절대경로>"   # ☠️ 상대경로 금지 — 위임 시 작업 디렉터리가 다르다
+knowhow_dir_abs: "<$(git rev-parse --show-toplevel)/{{knowhow_dir}} 를 계산한 절대경로>"   # ☠️ 상대경로 금지 — 위임 시 작업 디렉터리가 다르다 · 파일에 박아 두지 말고 부를 때 계산
 ```
 ★ 프롬프트에 **명령형 한 줄**을 반드시 넣는다: 「착수 전 본체 `## 노하우 색인` 을 **모든 행** 훑고
   해당 묶음을 **실제로 열어** 읽어라. 도중에 «이 행동»을 하려는 순간 그 행을 다시 봐라. `knowhow_read` 는 필수다.」
@@ -72,6 +72,19 @@ knowhow_dir_abs: "<{{knowhow_dir}} 의 절대경로>"   # ☠️ 상대경로 �
 
 ### Phase E — 독립 QA ({{prefix}}-qa-verifier)
 회수 직후 대상마다 QA 병렬. 구현이 red 면 QA 생략, 바로 재구현.
+
+★ **검증은 구현과 다른 모델로 돈다** — 온보딩에서 확정한 값(dispatch Phase 5.5 와 같다):
+
+| 항목 | 값 |
+|---|---|
+| **검증 모델·위임** | `{{qa_model}}` |
+| **부르는 방법** | `{{qa_invoke}}` |
+| **실패 시 대체 경로** | `{{qa_fallback}}` |
+| **실패 판별 신호** | `{{qa_fail_signal}}` |
+
+- 판정은 **종료 코드가 아니라 verdict 줄**로 한다. verdict 가 없으면 「QA 안 돎」 — `{{qa_fail_signal}}` 로 가르고 `{{qa_fallback}}` 으로 대신 돌린 뒤 **대신 돌렸다는 사실을 보고에 남긴다.**
+- QA 위임은 로그를 파일로 남기게 부른다(끊긴 판의 판정을 로그에서 회수할 수 있게).
+- QA 프롬프트에 「**전체 시험은 오케스트레이터가 Phase E.95 에서 한 번 돈다 — 여기서는 연관 시험만**」을 한 줄로 박는다.
 프롬프트: domain_id·code_root·kit_root<!-- IF conventions_location == shared -->·conventions<!-- ENDIF conventions_location -->·implemented·claimed_verification·**knowhow_dir_abs**(절대경로 · 위임 시 묶음은 미러에 안 따라간다) + 「색인 전 행 훑기 · `knowhow_read` 필수」.
 - `pass`/`pass_with_notes` → Phase F.
 - `fail` → 해당 구현 에이전트에 issues+fix_hint 담아 재호출(최대 2라운드), 그래도 fail 이면 red 보고.
@@ -80,7 +93,7 @@ knowhow_dir_abs: "<{{knowhow_dir}} 의 절대경로>"   # ☠️ 상대경로 �
 ### Phase E.5 — 노하우 반영 (에이전트 파일 갱신)  🚦게이트
 회수한 각 에이전트 출력의 `notes_for_main.learned` 를 본다. **전부 비어있으면 건너뛴다**(보고에 "노하우 신규 없음").
 - 있으면 항목별로 **사용자에게 제시** — 어느 에이전트의 `## 노하우` 에 무엇을 추가할지 + 근거(evidence)·재발조건.
-- 동의한 항목만 해당 `{{prefix}}-d00N-implementer`<!-- IF frontend_track -->(프론트는 `{{prefix}}-web-implementer`)<!-- ENDIF frontend_track --> 파일의 `## 노하우` 섹션에 **append**. 기존 항목은 **함부로 지우지 않는다**(축적이지 교체가 아님) — 단 아래 **상한 게이트**에 걸리면 정리한다.
+- 동의한 항목만 해당 `<매핑표의 도메인 에이전트명>`<!-- IF frontend_track -->(프론트는 `{{prefix}}-web-implementer`)<!-- ENDIF frontend_track --> 파일의 `## 노하우` 섹션에 **append**. 기존 항목은 **함부로 지우지 않는다**(축적이지 교체가 아님) — 단 아래 **상한 게이트**에 걸리면 정리한다.
 - **QA(Phase E)에서 fail → 재구현으로 드러난 함정도 후보**로 함께 올린다.
 <!-- IF dependency_layers -->
 - **계층 라운드마다 수행한다** — 앞 계층에서 얻은 노하우가 다음 계층 구현에 실제로 쓰이게 하려면 라운드 종료 시점에 반영해야 한다(전량 빌드 후 몰아서 = 늦음).
@@ -92,7 +105,7 @@ knowhow_dir_abs: "<{{knowhow_dir}} 의 절대경로>"   # ☠️ 상대경로 �
 ☠️ **축적만 하면 성능이 떨어진다.** 에이전트는 매 호출마다 자기 파일을 통째로 읽으므로,
 길어질수록 **고정 비용이 늘고 정작 중요한 항목이 묻힌다.**
 
-**실측(KLID)** — QA 노하우 660줄 · 화면 구현 노하우 **1,976줄**. 원인 셋:
+**실측(사례 A)** — QA 노하우 660줄 · 화면 구현 노하우 **1,976줄**. 원인 셋:
 ① 통합해 놓고 **원본 302줄을 안 지움** ② 「라운드 섹션 만들지 마라」를 **적어 놓고도 3라운드 연속 어김**
 ③ ☠️ **같은 함정이 9곳에 흩어져 적힌 수치가 서로 달랐다**(선존 lint 오류 155·157·163) —
 **작업자가 어느 걸 읽느냐로 판정이 갈린다.**
@@ -124,6 +137,22 @@ knowhow_dir_abs: "<{{knowhow_dir}} 의 절대경로>"   # ☠️ 상대경로 �
 - ★ **계층 라운드마다 수행한다** — 앞 계층 노하우가 다음 계층 구현에 실제로 쓰이려면
   라운드 종료 시점에 반영해야 한다(전량 빌드 후 몰아서 = 늦음).
 
+### Phase E.95 — 전체 시험 게이트 (메인 직접 · `{{full_test_gate}}`)
+
+구현 에이전트와 QA 는 **연관 시험만** 돌렸다(각 에이전트 본체 「시험은 범위로 돌린다」). 그 밖을 덮는 것이 이 게이트다 — **전체 시험은 여기서 한 번**이다.
+
+{{test_scope_table}}
+
+| `{{full_test_gate}}` 값 | 언제 전체 시험을 돌리나 |
+|---|---|
+| `per_co`(기본) | 이번 라운드의 구현·QA 가 다 통과한 뒤, 마스터 갱신(Phase F) **직전에 1회**<!-- IF dependency_layers --> — 계층 라운드마다<!-- ENDIF dependency_layers --> |
+| `per_batch` | 라운드 여러 개를 이어 돌릴 때 **묶음 끝에 1회**(중간 라운드는 「전체 미실행」으로 BUILD-MASTER 에 적는다) |
+| `pre_deploy` | 배포·릴리스 직전에 1회 — 전체가 매우 느린 프로젝트용 |
+
+- ☠️ 구현·QA 프롬프트에 전체 시험 명령을 넣지 마라(넣으면 대상 수 × 2회 + 재구현 횟수만큼 전체가 돈다).
+- 전체가 빨가면 이번 라운드 탓인지 먼저 가른다(그 시험 단독 재실행 · 라운드 전 지점과 대조). 원래 흔들리던 시험이면 그렇게 적고 따로 올린다.
+- 보고·BUILD-MASTER 에 **전체 시험을 돌렸는지와 수치**(파일 수 · 건수 · 소요)를 적는다.
+
 ### Phase F — 마스터 갱신 · 커밋
 - **BUILD-MASTER.md 갱신**: 도메인별 <!-- IF dependency_layers -->계층·<!-- ENDIF dependency_layers -->상태(⬜미착수/🔨구현/✅QA통과/⚠️잔여), 커밋 여부.
 - 실패·red 그대로 노출. notes 의 cross_domain·info_gaps 는 다음 액션.
@@ -132,7 +161,8 @@ knowhow_dir_abs: "<{{knowhow_dir}} 의 절대경로>"   # ☠️ 상대경로 �
 ## 게이트 요약
 1. Phase A — 착수 범위
 2. Phase E.5 — 노하우 반영 확인 (`learned` 가 있을 때만<!-- IF dependency_layers -->, 계층 라운드마다<!-- ENDIF dependency_layers -->)
-3. QA fail 2라운드 초과 / 미매핑 / breaking / 공유기반 변경 요청 → 그때 확인
+3. Phase E.95 — 전체 시험 게이트 (`{{full_test_gate}}`)
+4. QA fail 2라운드 초과 / 미매핑 / breaking / 공유기반 변경 요청 → 그때 확인
 그 외 자동.
 
 ## 원칙
@@ -142,4 +172,4 @@ knowhow_dir_abs: "<{{knowhow_dir}} 의 절대경로>"   # ☠️ 상대경로 �
 - **계층 순서 준수** — 앞 계층 QA pass 전 다음 계층 금지(기반 미완이면 재작업).
 <!-- ENDIF dependency_layers -->
 - **정직 회수** — QA 결과 가감 없이. red 숨김 금지.
-- **노하우 축적** — 에이전트가 `notes_for_main.learned` 로 올린 새 함정/패턴을 **Phase E.5 에서** 해당 `{{prefix}}-d00N-implementer` 노하우 섹션에 append(사용자 동의 하에). 에이전트는 자기 파일을 직접 못 고친다 — 반영 책임은 메인에 있다.
+- **노하우 축적** — 에이전트가 `notes_for_main.learned` 로 올린 새 함정/패턴을 **Phase E.5 에서** 해당 `<매핑표의 도메인 에이전트명>` 노하우 섹션에 append(사용자 동의 하에). 에이전트는 자기 파일을 직접 못 고친다 — 반영 책임은 메인에 있다.

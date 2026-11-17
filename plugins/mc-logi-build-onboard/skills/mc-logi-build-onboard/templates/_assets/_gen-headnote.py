@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """묶음 파일 머리에 「먼저 여기만」 목록을 만든다 — 과잉 열람을 막기 위한 파생물.
 
-## 왜 있나 (LogiCraft CO-167 실측 · 2026-09-20)
+## 왜 있나 (실측 · 2026-09-20)
 
 묶음을 쪼개 본체를 3,333 → 708줄로 줄였는데, 에이전트가 **11개 중 6~8개를 열고**
 대부분 전문을 읽어 **노하우 주입이 833 → 2,218줄(2.7배)로 늘었다.** 분할의 목적이 무너졌다.
@@ -17,10 +17,8 @@
     python3 {{knowhow_dir}}_gen-headnote.py           # 전부 갱신
     python3 {{knowhow_dir}}_gen-headnote.py --check    # 낡았는지만 확인(rc=1 이면 낡음)
 
-☠️ **멱등이 아니다 — `rc=0` 이 나올 때까지(보통 2회) 돌려라.**
-머리말을 삽입하면 그 아래 본문의 줄 번호가 전부 밀리고, 다음 계산은 «밀린 뒤»의 번호를 쓴다.
-그래서 **한 번만 돌리면 `--check` 가 계속 rc=1(낡음)** 을 낸다 — 고장이 아니라 고정점 미도달이다.
-표준 절차는 **`gen → gen → --check`**(실측 2026-09-20: 2회차에서 rc=0 도달).
+★ 머리말을 삽입하면 그 아래 본문의 줄 번호가 밀린다 — 그래서 이 스크립트는 **바뀌지 않을 때까지 스스로 다시 계산한다**
+(고정점 · 최대 5회). 한 번 돌리고 `--check` 를 보면 rc=0 이어야 한다. rc=1 이 계속되면 그것이 진짜 이상이다.
 
 ☠️ **항목을 더했으면 다시 돌려라.** 머리말은 파생물이라 본문이 바뀌면 조용히 낡는다
 (줄 번호가 밀리면 「여기로 가라」가 엉뚱한 곳을 가리킨다).
@@ -32,8 +30,7 @@
 ##  2) 파일명이 `{{prefix}}-*.md` 여야 한다(이 디렉터리 안).
 ##  3) **파생물이다.** 본문에 항목을 더했으면 다시 돌려라 — 줄 번호가 밀리면
 ##     「여기로 가라」가 엉뚱한 곳을 가리킨다(끊긴 참조와 같은 유형의 사고).
-##  4) ☠️ **멱등이 아니다.** 삽입이 줄 번호를 밀므로 1회 실행 후 `--check` 는 rc=1 이 정상이다.
-##     **rc=0 이 나올 때까지(보통 2회)** 돌려라 — `gen → gen → --check`.
+##  4) 삽입이 줄 번호를 밀므로 한 파일을 **고정점까지 반복 계산**한다(apply_until_stable). 1회 실행 뒤 --check 는 rc=0.
 
 import re, sys, pathlib
 
@@ -57,8 +54,8 @@ def summarize(text: str, width: int = 88, prefer_full: bool = False) -> str:
 
 # ★ 항목 표기는 두 가지다 — 둘 다 읽는다(2026-09-20 확장).
 #   ⓪ 등급 불릿   `- **★★ …` / `- **☠️☠️ …`
-#   ① 항목 헤딩   `### …` / `#### 🚨 …`  ← KLID 묶음 34/40 이 이 형식이었다.
-#      불릿만 보면 그 34개가 통째로 «빈 머리말»이 되고, 그러면 에이전트는 결국 전문을 열다.
+#   ① 항목 헤딩   `### …` / `#### 🚨 …`  ← 실측 사례 묶음 40개 중 34개가 이 형식이었다.
+#      불릿만 보면 그 34개가 통째로 «빈 머리말»이 되고, 그러면 에이전트는 결국 전문을 연다.
 TOP_MARK = re.compile(r"★★|☠️☠️|🚨")
 MID_MARK = re.compile(r"★|☠️|⚠️|🔗|🕳️|🎭|💬|🔴")
 
@@ -139,11 +136,21 @@ def apply(path: pathlib.Path, check: bool) -> bool:
     return True
 
 
+def apply_until_stable(path: pathlib.Path) -> bool:
+    """줄 번호가 더 안 바뀔 때까지 다시 계산한다 — 삽입이 줄 번호를 미는 것을 스스로 흡수한다."""
+    changed = False
+    for _ in range(5):
+        if not apply(path, False):
+            return changed
+        changed = True
+    raise SystemExit(f"❌ {path.name}: 5회 다시 계산해도 고정점에 못 갔다 — 머리말 형식을 확인하라")
+
+
 def main() -> int:
     check = "--check" in sys.argv
     stale = []
     for p in sorted(HERE.glob("{{prefix}}-*.md")):
-        if apply(p, check):
+        if (apply(p, True) if check else apply_until_stable(p)):
             stale.append(p.name)
             print(("낡음: " if check else "갱신: ") + p.name)
     if not stale:

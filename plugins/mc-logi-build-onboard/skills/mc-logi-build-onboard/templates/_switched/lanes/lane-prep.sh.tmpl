@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# 이미 만들어진 레인 워크트리를 «돌 수 있게» 준비한다 (mc-logi-build-onboard 방출 · 시범).
+#
+#   scripts/lanes/lane-prep.sh [워크트리 경로]      (경로를 빼면 지금 폴더의 git 꼭대기)
+#
+# 누가 부르나:
+#   - lane-new.sh 가 워크트리를 만든 직후(git 길)
+#   - Orca 레인 작업자가 지시문의 «첫 단계»로 — Orca 가 워크트리를 만들므로 그 안에서 돌린다(lane-orca.sh)
+#
+# 하는 일 — 아래 PREP_STEPS 를 차례로. 실패하면 그 자리에서 멈춘다. 다시 돌려도 안전하게 쓴다(단계 쪽 책임).
+#   단계는 온보딩이 이 저장소를 스캔해 초안하고 인터뷰로 확정한 값이다(슬롯 lane_prep).
+#   새 워크트리에는 무시 파일(의존성 폴더·빌드 산출물·.env)이 없다 — 그것을 채우는 것이 이 단계들의 일이다.
+#   환경 파일은 `lane_link_from_main <경로>` 로 메인 것을 링크한다(gitignore 확인 · 내용은 읽지 않는다).
+#
+# 🚫 메인 저장소 자체에서는 돌지 않는다(거기는 이미 준비돼 있다).
+# 🚫 환경 파일 내용은 읽지도 찍지도 않는다.
+# 종료코드: 0 끝 · 1 인자/상태 오류 · 2 준비 단계 실패
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lanes/_common.sh
+. "$HERE/_common.sh"
+
+# 준비 단계 — 한 줄에 "이름|명령" (명령은 워크트리 꼭대기에서 하위 셸로 돈다)
+<!-- IF lane_prep -->
+PREP_STEPS=(
+{{lane_prep}}
+)
+<!-- ELSE -->
+PREP_STEPS=()   # 온보딩 인터뷰에서 「준비할 것 없음」으로 확정(설치·빌드·환경 연결이 필요 없는 저장소)
+<!-- ENDIF lane_prep -->
+
+[ $# -le 1 ] || { echo "사용법: $0 [워크트리 경로]" >&2; exit 1; }
+if [ $# -eq 1 ]; then
+  [ -d "$1" ] || lane_die "폴더가 없다: $1"
+  WT="$(cd "$1" && git rev-parse --show-toplevel 2>/dev/null)" || lane_die "git 워크트리가 아니다: $1"
+else
+  WT="$(git rev-parse --show-toplevel 2>/dev/null)" || lane_die "git 워크트리 안에서 부르거나 경로를 주어라"
+fi
+WT="$(cd "$WT" && pwd -P)"
+MAIN="$(cd "$WT" && lane_main_root)"
+[ "$WT" != "$MAIN" ] || lane_die "메인 저장소($MAIN) 자체다 — 레인 워크트리에서만 돈다"
+BR="$(git -C "$WT" rev-parse --abbrev-ref HEAD)"
+
+cd "$WT"
+LOGDIR="$(mktemp -d "${TMPDIR:-/tmp}/lane-prep.XXXXXX")"
+lane_say "준비 $WT ($BR)"
+
+TOTAL=${#PREP_STEPS[@]}
+[ "$TOTAL" -gt 0 ] || echo "  준비 단계 없음(온보딩 확정)"
+i=0
+for s in ${PREP_STEPS[@]+"${PREP_STEPS[@]}"}; do
+  i=$((i + 1))
+  n="${s%%|*}"; c="${s#*|}"
+  lane_say "$i/$TOTAL $n"
+  lane_run 3 "$LOGDIR/step$i.log" lane_eval "$c" \
+    || LANE_DIE_RC=2 lane_die "[$n] 실패 (로그 $LOGDIR/step$i.log) — 고친 뒤 다시: scripts/lanes/lane-prep.sh $WT"
+done
+
+cat <<EOF
+
+✅ 레인 준비 끝
+  워크트리  : $WT
+  브랜치    : $BR
+  단계      : $TOTAL 개 초록 (로그 $LOGDIR)
+EOF

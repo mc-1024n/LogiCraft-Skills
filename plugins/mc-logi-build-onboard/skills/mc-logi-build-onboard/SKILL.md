@@ -1,68 +1,106 @@
 ---
 name: mc-logi-build-onboard
-description: 현재 프로젝트에 맞는 "구현 오케스트레이션 세트"(수정 dispatch + 설계 backfill + (greenfield 시) build 스킬 + (앱 표면 있으면) E2E 시나리오 저작·실행·정합점검 3종 + 도메인별 implementer·독립 qa-verifier 에이전트)를 빌드/온보딩하는 메타 스킬. KLID(brownfield-submodule)·Graph-RAG(greenfield-monolith)에서 교차 추출한 불변 뼈대(templates/_invariant)에, 프로젝트 구조를 판정한 14개 스위치(toggles.md)로 조각(templates/_switched)을 조립하고 슬롯을 채워 방출한다. 아키타입 2종(프리셋)을 기본으로, 프리셋 밖 구조는 스위치를 개별 판정해 조합. Discovery(LogiCraft project_id + repo 스캔) → 스위치 확정 게이트 → 슬롯 인터뷰 → 조립 → 도메인 지침 초안(설계 정독·근거첨부) → 검증 게이트 순. 사용자가 "이 프로젝트 온보딩해줘", "구현 세트 만들어줘", "dispatch/build 스킬 세팅", "/mc-logi-build-onboard" 라고 하면 실행. AI 임의 추정 금지 — 설계·repo 근거 없는 값은 비우고 보고, 게이트에서 사용자 확정. ★ 이미 세트가 있으면 재온보딩(업그레이드 모드)으로 분기한다 — 덮어쓰지 않고 실물에만 있는 절·호출을 감지·분류·질의한 뒤 병합하며, 착수 전에 덮일 파일 목록을 보이고 백업 여부를 묻는다(`.claude/` 가 gitignore 면 되돌릴 수 없으므로 경고). QA 검증은 구현과 다른 모델에 맡기도록 모델·호출법·대체경로·실패신호 4값을 인터뷰로 확정하고 방출물에 실렸는지 검증한다. 에이전트 노하우는 본체에 쌓지 않고 주제 묶음(_knowhow/)으로 분리해 본체 400줄·묶음 600줄 상한을 게이트로 강제하되, 묶음 열람은 권유가 아니라 절차다 — 묶음은 머리말만 먼저 열고(전문 읽기는 «머리말 선독 + 걸린 항목 4건 이상» 조건일 때만, 사유 서술로는 안 막힌다), 항목 읽기엔 limit 을 강제하며, 출력 how(headnote|items|full)와 전사본의 실제 Read offset·limit 을 대조해 게이트가 «어떻게 열었나»까지 재고, 노하우를 append 하면 같은 동작으로 머리말을 재생성한다 — 색인을 «행동» 트리거로 걸고, 에이전트가 착수 전 색인 전 행을 훑어 출력 knowhow_read 에 읽은 것·건너뛴 것을 적게 하며, 회수 때 전사본의 실제 열람과 대조한다. 되돌리기 어려운 금지 규칙은 묶음이 아니라 본체 상시에 둔다.
+description: LogiCraft 설계를 쓰는 프로젝트에 구현 오케스트레이션 세트(수정 dispatch · 설계 backfill · build · E2E · 도메인 구현 에이전트 · 독립 QA 에이전트 · 선택으로 병행 레인)를 만들어 넣는 메타 스킬. 이미 세트가 있으면 덮어쓰지 않고 레포 밖에 백업한 뒤 병합한다. 게이트마다 사용자 확인. "이 프로젝트 온보딩해줘", "구현 세트 만들어줘", "dispatch/build 스킬 세팅", "세트 업그레이드", "/mc-logi-build-onboard" 에 쓴다.
 metadata:
-  version: 1.7.1
+  version: 1.11.0
 ---
 
 # mc-logi-build-onboard — 구현 오케스트레이션 세트 온보딩
 
 프로젝트마다 손으로 dispatch/build/backfill 스킬 + 도메인 에이전트를 포팅하면 매번 미묘하게 달라진다(드리프트). 이 스킬이 그걸 접는다 — **불변 뼈대 + 스위치 조각 + 슬롯**을 조립해 **일관된 세트**를 방출한다.
 
+**용어** — **CO**(변경지시서: 수정 한 건의 문서 · `{{change_orders_path}}`) · **키트**(LogiCraft 설계를 내려받은 로컬 사본 `docs/design/…`) · **IMPREC**(LogiCraft 구현 기록 — 어느 설계를 어느 코드가 구현했나) ·
+**work_claim**(LogiCraft 의 «지금 이걸 고치는 중» 알림 — 팀 작업용) · **노하우 묶음**(에이전트가 쌓는 주제별 함정 메모 `{{knowhow_dir}}` — 본체엔 색인만) · **레인**(워크트리 하나 + 작업자 하나).
+
+## 필요한 것 (시작 전에 확인 — 없으면 무엇이 안 되는지 알리고 묻는다)
+
+| 무엇 | 왜 | 없으면 |
+|---|---|---|
+| LogiCraft MCP(`mcp__logicraft__*`) | 프로젝트·도메인·설계 조회, 방출물의 IMPREC 추적 | 설계 근거 없이 골격만 — 그 사실을 보고 |
+| `git` · `bash` | repo 스캔 · 방출물 검사 · 레인 스크립트(bash 3.2 이상) | 진행 불가 |
+| `git` **2.31 이상** | 병행 레인(`--path-format=absolute`) | `parallel_lanes` 를 off 로 제시 |
+| `python3` | 노하우 머리말 생성기 · Orca 레인 · 열람 대조 | 머리말 생성·검사를 못 한다 — 보고 |
+| (선택) 코드 탐색 MCP | 에이전트 `tools:` 의 `{{code_nav_tools}}` | 빈 값 — Grep 으로 한다 |
+| (선택) Orca CLI | `worktree_tool=orca` | git 길로 |
+| macOS · 리눅스 | 레인 스크립트는 둘 다에서 돈다(프로세스 확인은 lsof 없으면 /proc) | Windows 는 WSL 에서 |
+| 스킬 `mc-logi-update` | 방출된 backfill 이 설계 ITEM 수정을 이 스킬에 맡긴다 | backfill 이 설계를 못 고친다 — 「설치 필요」로 안내하고 backfill 절에 적는다 |
+| 스킬 `mc-logi-implement-kit` | 키트 SYNC(Phase 4 의 (b) 선택 · build 의 진실원) | (b) 를 못 고른다 — (a)·(c) 만 제시 · build 는 키트 없이 LogiCraft live 로 |
+| (선택) 스킬 `mc-logi-schema-fill` | backfill 이 옛 산문을 칸으로 옮길 때 가리킨다 | 그 안내만 빠진다 |
+
+Phase 0 에서 위 스킬이 설치돼 있는지(`~/.claude/skills/` · 프로젝트 `.claude/skills/` · 플러그인) 확인해 게이트①에 함께 보고한다.
+
+★ 산출물(스킬·에이전트·규약)의 문장은 **한국어**다. 다른 언어 팀이면 템플릿을 번역해 쓴다(슬롯·마커는 그대로).
+
 ## 진실원 파일 (이 스킬이 참조)
 
 | 파일 | 역할 |
 |---|---|
-| `toggles.md` | ★ 두뇌 — 14개 스위치 정의·판정신호·프리셋 2종·프리셋 밖 조합규칙·슬롯 목록 |
-| `templates/_TEMPLATING.md` | 치환 문법(`{{slot}}`·`<!-- IF -->`·`<!-- INSERT -->`)·슬롯 카탈로그·방출 위치·검증 규칙 |
+| `toggles.md` | ★ 두뇌 — 15개 스위치 정의·판정신호·프리셋 2종·프리셋 밖 조합규칙·슬롯 해설(§5) |
+| `templates/_TEMPLATING.md` | 치환 문법(`{{slot}}`·`<!-- IF -->`·`<!-- INSERT -->`)·**슬롯 카탈로그(진실원 · 「출처」 칸)**·방출 위치·검증 규칙 |
 | `templates/_invariant/*` | 🟩 항상 생성 (dispatch·backfill·implementer·qa-verifier) |
-| `templates/_switched/*` | 🟨 스위치 on 일 때만 (build·conventions·work_claim·phase0·layers·e2e 4종) |
+| `templates/_switched/*` | 🟨 스위치 on 일 때만 (build·conventions·work_claim·phase0·layers·e2e 4종·web-implementer·**병행 레인** `lanes/`) |
+| `templates/_assets/_gen-headnote.py` | 노하우 머리말 생성기(슬롯 치환해 방출) |
+| `references/qa-delegation.md` | QA 모델 인터뷰 상세 · 갈래별 값 예시 |
+| `references/reonboarding.md` | 재온보딩 상세 — 감지·분석 판정 기준 · 버전별 신호 · 노하우 정리 |
+| `references/knowhow-measurement.md` | 재온보딩 사후 측정 — 노하우 전달을 재는 법 |
+| `references/verification-notes.md` | Phase 5 검사들의 배경(왜 그 검사가 있나) |
 
-**시작 전 반드시 `toggles.md` 와 `templates/_TEMPLATING.md` 를 정독한다.** 스위치 판정·조립 규칙이 거기 있다.
+**시작 전 반드시 `toggles.md` 와 `templates/_TEMPLATING.md` 를 정독한다.** 사례 이름은 익명이다(실측 사례 A~E).
 
 ## 원칙 (전 파이프라인 관통)
 
 - **AI 임의 추정 금지** — 스위치·슬롯 값은 repo/LogiCraft 근거 또는 인터뷰로만 확정. 근거 없으면 비우고 "정보부족" 보고(placeholder·가짜 ID 금지).
-- **게이트 우선** — 스위치 확정·슬롯·도메인 지침·최종 검증 4지점에서 사용자 확인. 나머지 자동.
-- **기존 세트 존중** — 이미 `{{prefix}}-dispatch` 등이 있으면 덮어쓰기 전 diff 보고 후 확인(재온보딩=업그레이드 모드).
-- **방출만, 실행 안 함** — 이 스킬은 세트를 만들 뿐 구현을 돌리지 않는다. 구현은 만들어진 build/dispatch 로.
+- **게이트 우선** — ①스위치 확정 · (1.5 실측 동의) · ②슬롯 · ③도메인 지침 · ④최종 검증에서 사용자 확인. 그 사이의 «읽기»만 자동이다.
+- **기존 세트 존중** — 이미 `{{skill_prefix}}-dispatch` 등이 있으면 재온보딩(업그레이드 모드) — 덮어쓰기 전 백업·diff·질의.
+- **구현은 안 돌린다 · 실측 실행은 게이트 뒤·동의 후에만** — 이 스킬은 세트를 만들 뿐 구현을 돌리지 않는다. 다만 슬롯 값을 «돌려 보고» 확정해야 하는 것이 있다:
+  앱 기동 · 인증 우회 시험 · 시험용 데이터 삭제 호출 · 권한 부여 · 연관/전체 시험 실행 · QA 모델 시험 호출.
+  이것들은 **게이트① 뒤에, 호출마다 대상·되돌리는 법을 보이고 동의를 받은 뒤**에만 한다. 대상이 localhost·개발 환경이 아니면 **멈추고 묻는다.** 🚫 운영 환경은 건드리지 않는다.
+- **파일 쓰기는 방출물·부트스트랩뿐** — `.gitignore`·`CLAUDE.md` 처럼 원래 있던 파일을 고칠 때는 **넣을 줄을 게이트④에서 먼저 보이고** 확인받는다.
 
 ---
 
 ## 파이프라인
 
-### Phase 0 — Discovery (자동 수집)
-스위치 판정신호와 슬롯 값을 모은다. **repo 스캔 + LogiCraft 이중**.
+### Phase 0 — Discovery (읽기만)
+스위치 판정신호와 슬롯 값을 모은다. **repo 스캔 + LogiCraft 이중.** 이 단계는 아무것도 실행·변경하지 않는다(예외: 재온보딩의 ⓪ 백업 — 동의 후 레포 밖에 복사만).
 
 **★ 0-A. 기존 세트 감지 — 재온보딩인지 먼저 가른다**
-`.claude/skills/*-dispatch/` 또는 `.claude/agents/*-implementer.md` 가 **이미 있으면 재온보딩**이다.
-그러면 **§재온보딩(업그레이드 모드)로 분기**한다 — 신규 온보딩과 절차가 다르다.
+`.claude/skills/*-dispatch/` 와 `.claude/agents/*-implementer.md` 가 **둘 다 있으면 재온보딩**이다(하나만 있으면 반쪽 세트 — 게이트①에 알리고 재온보딩으로 갈지 묻는다) → 아래 **⓪ 를 지금 한다**(Phase 1 보다 먼저), 이후 §재온보딩 절차로 병합한다.
 ☠️ 이 분기를 안 하면 **손으로 쌓은 것을 덮어쓴다.** 감지 결과를 게이트①에 함께 보고한다.
 
+**⓪ 덮일 대상과 백업 (재온보딩일 때 · 🚦 무엇보다 먼저)**
+1. **되돌릴 수 있는지** — `git check-ignore -q .claude/skills && echo IGNORED` · `git ls-files .claude | wc -l`(0 이면 git 이 안전망이 아니다).
+   ☠️ `.claude/` 가 gitignore 인 프로젝트가 실재한다 — 그러면 되돌릴 방법도, 「보존됐나」 대조할 원본도 없다 → **경고하고 백업을 «기본값 예»로** 제안.
+2. **덮일 대상 목록** — 스킬 본문(dispatch·backfill·build·e2e) · 규약 · 에이전트(도메인·web·qa) · (있으면) `scripts/lanes/`·`.claude/lanes/` — 파일별 줄 수와 함께. 노하우 `_archive/` 는 노하우만 덮는다는 것도 알린다.
+3. **묻는다** — 「재온보딩은 위 N개 파일을 고칩니다. 착수 전에 통째로 백업할까요?」
+   - **예** → **레포 밖**에 복사한다: `B=~/.claude-backups/<repo 이름>-<YYYYMMDD-HHMM>; mkdir -p "$B" && chmod 700 "$B" && rsync -a --exclude 'worktrees/' .claude "$B"/`(+ 있으면 `scripts/lanes`).
+     레인 워크트리(`.claude/worktrees/` — 설치물까지 든 작업 사본)는 빼고, 비밀이 든 설정이 섞이므로 폴더는 주인만 읽게 한다. **경로를 보고**한다.
+     🚫 레포 안(`.claude.bak-…`)에 두지 마라 — `settings.local.json`·토큰 사본이 gitignore 밖에 생겨 **커밋될 수 있다.**
+   - **아니오** → 기록하고 진행하되, git 안전망이 없으면 한 번 더 확인받는다.
+
 **A. repo 스캔**
-- 코드 루트에 실제 소스가 있나 / README·빈 폴더뿐인가 → `has_build` 신호.
+- 코드 루트(→ `{{code_base}}`)에 실제 소스가 있나 / README·빈 폴더뿐인가 → `has_build` 신호.
 - `.gitmodules` 존재 / 코드 루트가 서브모듈 폴더들인가 → `commit_strategy`·`code_boundary` 신호.
 - 빌드 파일(pyproject/build.gradle/package.json/Makefile) → `{{build_cmds}}`·`{{tech_stack_table}}`·`{{package_layout}}` 원자료.
-- `frontend/`·`package.json`(UI 프레임워크) · LogiCraft `screen_spec` 건수 → `frontend_track` 신호 → on 이면 `{{frontend_stack_block}}`.
+- `frontend/`·`package.json`(UI 프레임워크) · LogiCraft `screen_spec` 건수 → `frontend_track` 신호 → on 이면 `{{frontend_stack_block}}`·`{{frontend_stack_short}}`·`{{frontend_code_root}}`.
 - 여러 도메인 폴더가 함께 쓰는 경로(공용 lib·스키마/마이그레이션·앱 진입점·빌드·테스트 하네스) → `{{shared_base}}` **후보**(확정은 인터뷰 — toggles.md §5.5).
 - `CLAUDE.md` → `{{project_id}}`·도메인 표·주의사항.
-- **E2E 신호** → `e2e_track`: 브라우저로 조작 가능한 앱 표면(프론트 앱·라우트·dev 스크립트)이 있나 · 기존 `playwright.config.*`/`cypress.config.*`/spec 폴더 · `grep -r "data-testid"` 건수(→ `e2e_selector`) · 인증 라우트 유무(→ `e2e_auth`).
+- 설치된 MCP(설정 파일·`/mcp`) 중 코드 탐색 도구 → `{{code_nav_tools}}` 후보.
+- **병행 레인 신호**(`parallel_lanes` — 시범 · 기본 off · **신호만 모은다**): `git --version`(≥ 2.31) · bare/서브모듈 여부 · `command -v orca`(→ `worktree_tool` 권고) · `command -v python3` · 지금 브랜치(→ `lane_main_branch` 후보) ·
+  락파일·빌드 파일·`.env.example`·시험 DB 설정(→ `lane_prep` 초안) · scripts 의 lint/typecheck/test/build(→ `lane_checks` 초안) · 이미 `scripts/lanes/`·`.claude/lanes/` 가 있나(→ 있으면 **덮지 않는다**).
+- **E2E 신호** → `e2e_track`: 브라우저로 조작 가능한 앱 표면이 있나 · 기존 `playwright.config.*`/`cypress.config.*`/spec 폴더(→ `{{e2e_root}}`·`{{e2e_run_cmd}}`) · `grep -r "data-testid"` 건수(→ `e2e_selector`) · 인증 라우트 유무(→ `e2e_auth`).
+- **시험 범위 후보** — 스택의 연관 시험 명령 후보(toggles §5.7 표) · 시험 파일 수(실행 없이 센다).
 
 **B. LogiCraft 조회** (project_id 확보 후)
-- `project_id` 없으면 `list_projects({q})` 로 검색·사용자 확정.
-- 도메인 목록·이름 → 매핑표 골격. `get_project_kickoff` → 기술스택·아키텍처 결정.
+- `project_id` 없으면 `list_projects({q})` 로 검색·사용자 확정. `{{project_name}}` 도 여기서.
+- 도메인 목록·이름 → 매핑표(`{{domain_mapping_table}}`) 골격 — 행마다 `{{domain_id}}`·`{{domain_name}}`·`{{domain_short}}`·`{{domain_code_root}}`·`{{domain_agent_name}}`. `get_project_kickoff` → 기술스택·아키텍처 결정.
 - ADR(진실원·정책) → 도메인 지침 초안 근거(Phase 4).
-- 로컬 키트 `docs/design/*/IMPLEMENTATION.md` 존재·last sync → `has_build` 보강, `{{domain_kit_root}}`.
+- 로컬 키트 `docs/design/*/IMPLEMENTATION.md` 존재·last sync → `has_build` 보강, `{{domain_kit_root}}` · (phase0 on) 키트 ERD → `{{foundation_schema_note}}`.
 
-**C. E2E 실측** (`e2e_track` 후보가 on 일 때만 — toggles.md §5.2)
-E2E 슬롯은 **읽어서 얻은 값이 실제와 다른 경우가 흔하다.** 조립 전에 직접 확인한다:
-- 앱을 실제로 띄워본다 → `{{e2e_service_up}}`·`{{e2e_base_url}}`·`{{e2e_api_base}}` 확정. (문서와 다른 기동 명령, 죽은 프로세스가 잡은 포트 등이 여기서 드러난다.)
-- 인증 우회를 실제로 태워 세션이 발급되는지 본다 → `{{e2e_auth_bypass}}`. 우회가 특정 환경설정에 의존하면(예: 실서비스 IdP 를 가리키면 우회 불가) 그 조건을 `{{e2e_env_caveat}}` 에 적는다.
-- 테스트 데이터 삭제 API 를 실제로 호출해본다 → `{{e2e_cleanup}}`. 오삭제 방지 장치(확인 문구 일치·권한·2단계)는 **문서에 없고 400 응답으로만 드러나는** 경우가 많다.
-- **권한을 실제로 써본다** → `{{e2e_roles}}`·`{{e2e_fixture_setup}}`. 우회로 얻은 계정이 관리·승인 API 를 **실제로 호출할 수 있는지** 확인한다. 권한 부족은 **403 으로만 드러나며**, 그때 "미커버"로 넘기면 그 역할의 시나리오가 통째로 빠진다. 권한 부여가 필요하면 **되돌리는 방법까지 함께 확정**한다.
-- 확인 못 한 값은 **비우고 "정보부족"으로 표시**한다(추정 금지 — 추정값을 넣으면 3종 스킬 전체가 그 위에서 깨진다).
+**C. 슬롯 점검** — `_TEMPLATING.md §1` 카탈로그를 위에서부터 훑어 **각 슬롯의 값·후보·「인터뷰 필요」·「규약 기본값」**을 표로 만든다
+(`{{PrefixTitle}}`·`{{conventions_path}}`·`{{change_orders_path}}`·`{{knowhow_dir}}` 처럼 규약 기본값인 것도 표에 넣어 게이트②에서 보인다). 빈칸으로 남는 슬롯이 없게 한다.
 
-산출: **스위치별 추정값(신호 근거 포함) + 슬롯 원자료**. 자동판정 불가분(work_claim·계층내용·E2E 우회수단)은 "인터뷰 필요"로 표시.
+산출: **스위치별 추정값(신호 근거 포함) + 슬롯 표**. 자동판정 불가분(work_claim·계층내용·E2E 우회수단·parallel_lanes)은 "인터뷰 필요"로 표시.
 
 ### Phase 1 — 아키타입/스위치 확정  🚦게이트①
 1. Discovery 신호로 **가까운 프리셋(P1 greenfield-monolith / P2 brownfield-submodule)** 선택.
@@ -74,493 +112,206 @@ has_build            off       코드 루트에 기존 소스 존재
 code_boundary        package   단일 repo, 서브모듈 없음
 conventions_location shared ⚠️  monolith 균일 스택 → override(P2 는 embedded)
 work_claim           ?         인터뷰 필요 (팀 작업 여부)
-...
+parallel_lanes       ?         인터뷰 필요 — 병행 요구 없음 · git worktree 가능 · Orca 없음 · 서브모듈 아니오
 프리셋: P2(brownfield) 기반 + monolith 오버라이드(package/single/shared)
 ```
 사용자 확인·수정 후 스위치 확정. (프리셋 밖 새 조합이 반복되면 toggles.md 에 P3 로 승격 제안.)
+★ `parallel_lanes` 는 프리셋이 정하지 않는다(둘 다 off). git worktree 가 불가하면(오래된 git · bare · 서브모듈 미해결) **off 로 제시**하고 사유를 적는다.
+★ 게이트① 끝에 **Phase 1.5 에서 무엇을 실행할지 목록**을 미리 보인다(없으면 「실측 없음」).
+
+### Phase 1.5 — 실측 확인 (게이트① 뒤 · 호출마다 동의)  🚦
+읽어서 얻은 값이 실제와 다른 슬롯만 «돌려 보고» 확정한다. **한 번에 하나씩**, 각 호출 전에 이렇게 보인다:
+> 「`<무엇>` 을 실행합니다 — 대상 `<URL·명령·DB>` · 영향 `<생기는 것·지워지는 것>` · 되돌리는 법 `<…>` · 예상 소요 `<…>`. 할까요? (아니오 → 아는 값·수치만 알려 주셔도 됩니다)」
+
+- ☠️ 대상 base_url·DB 가 **localhost·개발 환경이 아니면 멈추고 묻는다**(운영·공유 스테이징 금지 — 우회·삭제가 실제 사용자 데이터에 닿는다).
+- **E2E**(`e2e_track` 후보가 on · toggles §5.2):
+  - 앱 기동 → `{{e2e_service_up}}`·`{{e2e_base_url}}`·`{{e2e_api_base}}`(문서와 다른 기동 명령·죽은 프로세스가 잡은 포트가 여기서 드러난다).
+  - 인증 우회를 태워 세션이 발급되는지 → `{{e2e_auth_bypass}}` · 환경 의존이면 `{{e2e_env_caveat}}`.
+  - **시험용으로 만든 데이터 하나**에 대해서만 삭제 API 호출 → `{{e2e_cleanup}}`(오삭제 방지 요구가 400 으로만 드러나는 경우가 많다).
+  - 권한을 실제로 써 본다 → `{{e2e_roles}}`·`{{e2e_fixture_setup}}`. 권한 부여가 필요하면 **부여 전에 되돌리는 법을 확정**하고 따로 동의받는다.
+- **시험 범위**(toggles §5.7): ① 연관 시험 명령을 한 번 돌려 몇 파일이 도는지 ② 전체 시험을 한 번 돌려 파일 수·건수·소요를 잰다 —
+  ☠️ 전체 시험은 오래 걸리고 공유 DB 에 닿을 수 있다 → **소요·DB 접근을 먼저 알리고** 묻는다. 원하지 않으면 사용자가 아는 수치를 받는다.
+- 확인 못 한 값은 **비우고 "정보부족"**(추정 금지 — 추정값을 넣으면 그 위에서 3종 스킬 전체가 깨진다).
 
 ### Phase 2 — 슬롯 인터뷰  🚦게이트②
-자동판정 불가한 슬롯만 확정:
-- `{{prefix}}` (**에이전트** 접두사) — 프로젝트 약칭.
-- `{{skill_prefix}}` (**스킬** 접두사) — 기본은 `{{prefix}}` 와 같다. **다르면 그때만 묻는다.**
-  ☠️ 재온보딩이면 **실물 이름을 먼저 보라** — `.claude/skills/` 와 `.claude/agents/` 의 접두가
-  **다를 수 있다**(실측: KLID 은 스킬 `mc-klid-*` · 에이전트 `klid-*`). 한 슬롯으로 만들면
-  **스킬이 자기를 틀린 이름으로 부른다.**
+Phase 0-C 의 슬롯 표를 보이고, 자동판정 불가한 것만 묻는다:
+- `{{prefix}}`(에이전트 접두) · `{{skill_prefix}}`(스킬 접두 — 기본 `{{prefix}}` 와 같다. **다르면 그때만 묻는다**) · `{{PrefixTitle}}`.
+  ☠️ 재온보딩이면 **실물 이름을 먼저 보라** — `.claude/skills/` 와 `.claude/agents/` 의 접두가 다를 수 있다. 한 슬롯으로 만들면 스킬이 자기를 틀린 이름으로 부른다.
 - `work_claim` on/off (팀 구성 질문).
-- `{{shared_base}}` (`code_boundary=package` 일 때) — **공유기반 경로**. Discovery 가 찾은 후보를 보여 주고
-  「도메인 에이전트가 임의로 고치면 안 되는 것」을 고르게 한다. ☠️ 웹앱 기본값(`core/`·`db/migrations/`·앱 진입점)을
-  **묻지 않고 넣지 마라** — 라이브러리·임베디드 레포에는 그 경로가 없고 실제 공유기반이 경계 규칙에서 빠진다(toggles.md §5.5).
-- `frontend_track` 이 신호로 안 갈리면(프론트 패키지는 있는데 이 세트로 구현할지 불분명 등) 묻는다.
-- `{{layer_rounds}}` (dependency_layers=on 시) — 계약 의존 근거로 계층 순서. LogiCraft 계약 의존 참고해 초안 제시 후 확정.
-- `{{commit_forbidden}}` — 커밋금지 파일(secrets·설정).
-- 매핑표의 code_root·에이전트명 최종 확인.
-- **★ QA 검증 모델** (`{{qa_model}}`) — **자동판정 불가. 반드시 묻는다.**
-  구현과 검증에 **다른 모델**을 쓰면 서로 다른 맹점을 덮어 결함 검출률이 올라간다.
-  구현자와 **같은 모델로 검증하면 같은 맹점을 공유한다** — 서열이 아니라 **각자 놓치는 게 다르다**는 게 요지.
-  물을 때 이렇게 알린다:
-  > 「QA 는 토큰을 가장 많이 먹는 단계입니다. **토큰 비용을 줄이려면 저렴한 모델을 권장**합니다.
-  >  ① **외부 도구에 위임** — 별도 CLI·에이전트 러너로 다른 벤더 모델을 부르는 방식
-  >  ② **같은 계열의 값싼 모델** — 지금 세션과 같은 제품군의 저비용 모델을 서브에이전트로
-  >  어느 쪽으로 할까요? 쓰시는 도구·모델 이름을 그대로 알려주세요.」
-  - ☠️ **후보 «목록»을 읽어 제시하지 마라** — 프로젝트마다 쓰는 도구가 다르고 그 목록이 곧 낡는다.
-    **범주 둘만 제시**하고 **사용자가 말한 값을 그대로 받는다.**
-  - ☠️☠️ **받은 값이 실제로 응답하는지 그 자리에서 확인하라.** 이름만 적어 두면 안 된다 —
-    KLID 에서 기본 모델이 **존재하지 않는 이름**(`glm-5.2`)을 가리켜 `Error: Model not found` 로
-    **QA 가 시작조차 못 했는데 래퍼가 정상 종료처럼 보였고**, 그걸 「통과」로 오독한 채
-    라운드가 닫힌 적이 있다(2026-09-16 발각·재현). **검증이 0회 돌아간 것이다.**
-    ⇒ 짧은 과제 하나를 실제로 던져 **응답을 눈으로 확인**하고, 실패하면 값부터 바로잡는다.
-  - **대체 경로도 같이 정한다** — 그 모델이 실패했을 때 무엇으로 돌릴지(예: 메인 세션의
-    서브에이전트). 그리고 **위임이 「아예 안 돈 것」과 「돌았는데 종료코드가 이상한 것」을
-    가르는 신호**가 있는지 확인하라. 없으면 그것부터 만든다 — 없으면 오독이 반복된다.
-  - **네 값을 함께 확정한다** — `{{qa_model}}`(무엇) · `{{qa_invoke}}`(**어떻게 부르나** — 래퍼 경로·호출 형태.
-    이름만 적으면 다음 세션이 못 쓴다) · `{{qa_fallback}}`(실패 시 무엇으로) · `{{qa_fail_signal}}`(판별 신호).
-
-  **★ 갈래별로 값이 이렇게 생겼다** (형태 예시 — 실제 값은 사용자가 준다)
-
-  | | ① 외부 도구 위임 | ② 같은 계열 값싼 모델 |
-  |---|---|---|
-  | `qa_model` | 그 도구가 부를 모델 이름 | 저비용 모델 이름 |
-  | `qa_invoke` | 래퍼·CLI 실행줄 (경로 + 인자) | 서브에이전트 호출 형태 (에이전트명 + 모델 지정) |
-  | `qa_fallback` | 서브에이전트로 대체 | **상위 모델 서브에이전트**로 대체 |
-  | `qa_fail_signal` | 래퍼의 실패 종료코드·표식 | 에이전트가 **결과 없이 끝난 경우** |
-
-  ☠️ **②를 골라도 된다 — 위임 도구가 «없는» 것이 정상이다.** 대부분의 프로젝트엔 별도 러너가 없다.
-  그때 **온보딩 중에 래퍼를 만들라고 요구하지 마라** — 그건 이 스킬의 일이 아니다.
-  ②로 확정하고, 「판별 신호가 없다」면 그 사실을 **`qa_fail_signal` 에 그대로 적는다**
-  (예: 「없음 — 결과 블록 부재로만 판정」). 비워 두는 것보다 **없다고 적는 편이** 다음 세션에 낫다.
-
-  **★ 「응답 확인」은 이렇게 한다** — 무겁게 하지 마라. **한 번, 작게.**
-  - ① 외부 도구: 그 실행줄로 **아주 짧은 과제 하나**(예: 「이 파일 줄 수를 세라」)를 던져
-    **결과가 돌아오는지 눈으로 본다.** 모델 이름이 틀리면 여기서 즉시 드러난다.
-  - ② 서브에이전트: **한 번 띄워** 같은 수준의 과제를 준다. 비용이 아깝다면 최소한
-    **그 에이전트 정의 파일이 실재하는지**와 **모델 지정이 유효한 이름인지**는 확인한다.
-  - ☠️ **건너뛰었으면 「미확인」이라고 보고하라.** 조용히 넘기면 이 조항을 넣은 이유가 사라진다.
-  - ☠️☠️ **받은 값은 «반드시 방출물에 실린다».** 2026-09-16 에 인터뷰만 추가되고 **dispatch 템플릿에
-    슬롯이 없어** 답이 어디에도 안 실렸다(2026-09-18 발각). 슬롯은 `_TEMPLATING.md §1 검증 위임 슬롯`
-    에 등록돼 있고 **Phase 5 검증이 방출물 안에 실렸는지 직접 확인**한다.
-- **★ 설계 반영 워커 모델** (`{{backfill_model}}`) — 설계 backfill 도 **단계마다 성격이 달라**
-  값싸게 돌릴 수 있다(toggles §5.5). 물어서 받되 **비우면 `{{qa_model}}` 과 같은 것으로 본다.**
-  > 「설계 반영도 초안·반영·말단·검사 네 단계로 나눠 값싼 모델에 맡길 수 있습니다.
-  >  QA 와 같은 것으로 할까요, 따로 정하시겠습니까?」
-- **E2E 계정 전략** (`e2e_track=on` 이고 `e2e_auth != none` 일 때 — toggles.md §5.3). **자동판정 불가 — 반드시 묻는다.** 안 물으면 권한 필요한 시나리오가 403 으로 조용히 빠지거나, 급한 대로 자격증명이 spec 에 하드코딩돼 저장소에 커밋된다.
-  - `{{e2e_roles}}` — 시나리오에 필요한 역할과 **각 역할의 획득 방법**(가입만/승인필요/역할부여필요). 부여가 필요하면 되돌리는 방법도.
-  - `e2e_account_strategy` — 자급자족으로 만들 수 있나, 받아야 하나. **"데이터가 쌓여 있어야만 검증되는 시나리오(대량 목록·통계·이력)가 있습니까?"** 를 물어 판정한다. 있으면 `seed`/`mixed`.
-  - `{{e2e_seed_accounts}}` — `seed`/`mixed` 면 **어떤 env 키로 주입할지와 용도**(자격증명 값 자체는 받지 않는다).
-  - `{{e2e_groups}}` — 그룹 태그 체계. 기본 `@provisioning`/`@smoke`/`@regression` 제시 후 확정.
+- `{{shared_base}}`(`code_boundary=package` 일 때) — 후보를 보이고 「도메인 에이전트가 임의로 고치면 안 되는 것」을 고르게 한다. ☠️ 웹앱 기본값(`core/`·`db/migrations/`·앱 진입점)을 묻지 않고 넣지 마라(toggles §5.5).
+- `frontend_track` 이 신호로 안 갈리면 묻는다. `{{layer_rounds}}`(dependency_layers=on) — 계약 의존 근거 초안 → 확정. `{{commit_forbidden}}`. `{{code_nav_tools}}`(없으면 빈 값). 매핑표의 code_root·에이전트명 최종 확인.
+- **★ QA 검증 모델 4값** — `{{qa_model}}` · `{{qa_invoke}}` · `{{qa_fallback}}` · `{{qa_fail_signal}}`. **자동판정 불가 — 반드시 묻는다**(상세 `references/qa-delegation.md`).
+  > 「QA 는 토큰을 가장 많이 먹는 단계입니다. 구현과 **다른 모델**로 돌리면 서로 다른 맹점을 덮고, 토큰 비용을 줄이려면 저렴한 모델을 권합니다.
+  >  ① **외부 도구에 위임** — 별도 CLI·러너로 다른 벤더 모델을 부른다. ⚠️ **QA 프롬프트에 실리는 레포 내용(코드·diff·CO·설계 발췌)이 그 벤더로 전송됩니다.**
+  >  ② **같은 계열의 값싼 모델** — 지금 세션과 같은 제품군의 저비용 모델을 서브에이전트로.
+  >  어느 쪽으로 할까요? 쓰시는 도구·모델 이름을 그대로 알려 주세요.」
+  - ☠️ 후보 «목록»을 읽어 제시하지 마라 — **범주 둘만** 제시하고 사용자가 말한 값을 그대로 받는다.
+  - ☠️☠️ **받은 값이 실제로 응답하는지 확인**한다 — **동의를 받고**(①이면 반출에 대한 동의 포함) 아주 짧은 과제 하나를 던져 결과를 눈으로 본다.
+    없는 모델 이름 → 즉시 실패 → 래퍼가 정상 종료처럼 보임 → 「통과」로 오독 → **검증 0회로 라운드가 닫힌** 실측이 있다. 건너뛰었으면 「미확인」으로 보고한다.
+  - ②를 골라도 된다 — 위임 도구가 없는 것이 정상이다. 온보딩 중에 래퍼를 만들라고 요구하지 마라. 판별 신호가 없으면 그 사실을 `qa_fail_signal` 에 적는다(「없음 — 결과 블록 부재로만 판정」).
+  - ☠️ 받은 값은 **반드시 방출물에 실린다**(dispatch · build) — Phase 5 가 grep 으로 확인한다.
+- **★ 시험 범위** — `{{test_scope_table}}` · `{{full_test_gate}}`(toggles §5.7). Phase 1.5 수치를 보이고 묻는다:
+  > 「전체 시험이 N파일·M건·S초입니다. 구현 에이전트와 QA 는 바꾼 파일과 연관된 시험만 돌리고, 전체는 변경지시서를 닫기 직전에 **한 번** 돌리게 하겠습니다(여러 건을 묶어 한 번 / 배포 직전 한 번도 됩니다). 이대로 할까요?」
+  ③ 「항상 묶음」(가로지르는 규칙 시험)이 있는지 묻는다. ☠️ 연관 명령을 못 돌려 봤으면 「미확인」 + `없음 — 경로로 고른다` — 추정 명령을 넣으면 에이전트가 **0건을 통과로 읽는다.**
+- **★ 설계 반영 워커 모델** `{{backfill_model}}`(toggles §5.4.1) — 「설계 반영도 초안·반영·말단·검사 네 단계로 나눠 값싼 모델에 맡길 수 있습니다. QA 와 같은 것으로 할까요?」 **비우면 `{{qa_model}}` 과 같은 것.**
+- **★ 병행 레인** `parallel_lanes`(시범 · toggles SW15·§5.6) — **항상 묻는다**, 기본 off.
+  > 「일을 레인(워크트리 하나 + 작업자 하나)으로 병행하는 도구를 넣을까요? 레인마다 워크트리가 따로라 격리되고 메인이 풀려나며 QA 통과분만 한 줄씩 합칩니다. 대가는 자원(설치·빌드 × 레인) · 번호 충돌 관리 · 레인에서 화면 확인을 못 하는 것입니다.」
+  on 이면 확정: `{{worktree_tool}}`(기본 git · Orca 가 있으면 권한다) · `{{lane_prep}}`(초안 확정 · 비워도 된다) · `{{lane_checks}}`(`그룹|이름|통과줄|명령` · 시험 단계엔 통과 건수 정규식) ·
+  ☠️ 검사 명령에 비밀(토큰·비밀번호)을 넣지 마라 — `--plan` 이 명령을 그대로 찍는다(필요하면 환경 변수로) ·
+  `{{lane_concurrency}}`(기본 2) · `{{lane_main_branch}}` · `{{lane_heavy_tests}}` · `{{deploy_gate}}`(비우면 사용자 승인만) · `{{backfill_lane_auto}}`(기본 off) ·
+  `{{lane_qa_shell}}`(새로 묻지 않는다 — `qa_invoke` 가 셸 실행줄이면 `{label}`·`{prompt}`·`{main}` 자리로 옮겨 보이고 확인만. 자리는 맨으로 쓰거나 자리만 따옴표로 감싼다 — 다른 글자와 붙여 따옴표 안에 넣지 않는다. 갈래 ②면 비운다).
+  ☠️ **원본 프로젝트의 값(특정 패키지 관리자 명령·공용 패키지 빌드·DB 꼬리표·원격 배포)을 기본값으로 넣지 마라.**
+- **E2E 계정 전략**(`e2e_track=on` · `e2e_auth != none` · toggles §5.3) — **반드시 묻는다**: `{{e2e_roles}}`(역할별 획득 방법 · 부여면 되돌리는 법) · `e2e_account_strategy`(「데이터가 쌓여 있어야만 검증되는 시나리오가 있습니까?」) · `{{e2e_seed_accounts}}`(자격증명 값이 아니라 env 키 이름과 용도) · `{{e2e_groups}}`.
 
 ### Phase 3 — 조립 (assembler)
 `_TEMPLATING.md` 규약대로 **결정적 치환**한다(외부 엔진 없음 — 이 스킬이 직접):
-1. **방출 목록 결정** (스위치 기준):
-   - 항상: `{{prefix}}-dispatch/SKILL.md`, `{{prefix}}-design-backfill/SKILL.md`, `{{prefix}}-qa-verifier.md`, 도메인마다 `{{domain_agent_name}}.md`.
-   - `has_build=on`: `{{prefix}}-build/SKILL.md`.
+1. **방출 목록 결정** (스위치 기준 · 스킬 경로는 `{{skill_prefix}}`, 에이전트는 `{{prefix}}`):
+   - 항상: `.claude/skills/{{skill_prefix}}-dispatch/SKILL.md` + 같은 폴더 `reference.md`(까닭·실측 — 본문은 절차만) · `.claude/skills/{{skill_prefix}}-design-backfill/SKILL.md` · `.claude/agents/{{prefix}}-qa-verifier.md` · 도메인마다 `.claude/agents/{{domain_agent_name}}.md` · `{{knowhow_dir}}_gen-headnote.py`.
+   - `has_build=on`: `.claude/skills/{{skill_prefix}}-build/SKILL.md`.
    - `conventions_location==shared`: `.claude/conventions.md`.
-   - `frontend_track=on`: `_switched/web-implementer.tmpl.md` → `{{prefix}}-web-implementer.md`. off 면 생성하지 않고, dispatch·build 본문의 프론트 참조도 `<!-- IF frontend_track -->` 로 함께 빠진다(없는 에이전트를 부르는 스킬이 나오지 않게).
-   - `e2e_track=on`: `.claude/e2e-conventions.md` + E2E 스킬 3종(`{{prefix}}-e2e-author`/`-run`/`-verify`). 규약 파일을 먼저 만들고 3종이 그것을 참조하게 한다(슬롯 값은 규약 한 곳에만 — 3종에 중복 박지 않는다).
-> ☠️ **아래 「Write」는 «신규 온보딩» 기준이다.** Phase 0-A 가 기존 세트를 감지했으면
-> **그대로 덮어쓰지 마라** — §재온보딩의 ①감지 ②분석 ③질의 ④처리를 거친 **병합**이다.
-> 두 조항이 충돌하면 **§재온보딩이 우선**한다.
+   - `frontend_track=on`: `.claude/agents/{{prefix}}-web-implementer.md`. off 면 생성하지 않고 dispatch·build 의 프론트 참조도 조건 블록으로 함께 빠진다.
+   - `parallel_lanes=on`: `scripts/lanes/` 6개(`_common.sh` + `lane-new`·`lane-orca`·`lane-prep`·`lane-qa`·`lane-merge` `.sh` — 뒤 다섯은 `chmod +x`) + `.claude/lanes/lane-prompt-block.md`. dispatch·backfill 에는 「병행 레인」·「백필 레인」 절이 INSERT 된다. ☠️ `scripts/lanes/` 가 이미 있으면 **Write 하지 말고 diff 를 보인다.**
+   - `e2e_track=on`: `.claude/e2e-conventions.md` + `.claude/skills/{{skill_prefix}}-e2e-author`/`-run`/`-verify`. 규약 파일을 먼저 만들고 3종이 참조하게 한다(슬롯 값은 규약 한 곳에만).
+> ☠️ 아래 「Write」는 **신규 온보딩** 기준이다. 재온보딩이면 §재온보딩의 ①~④를 거친 **병합**이다. 충돌하면 §재온보딩이 우선한다.
 
-2. **각 파일**: 해당 템플릿 Read → `<!-- INSERT ... IF sw -->`(on 이면 조각 삽입, off 삭제) → `<!-- IF sw -->/<!-- ELSE -->/<!-- ENDIF -->` 해소 → `{{slot}}` 치환 → 방출 경로에 Write.
-3. **implementer 는 도메인마다 1회** 인스턴스화(도메인별 슬롯). `{{domain_guidance}}` 는 Phase 4 에서 채우므로 여기선 골격 표시로 두고 Phase 4 후 갱신.
+1-a. **이미 있는 파일 확인** 🚦 — 신규 온보딩이어도 방출 목록 중 **이미 있는 파일**(예: `.claude/conventions.md` · `{{change_orders_path}}MASTER.md`·`_TEMPLATE.md` · `{{knowhow_dir}}` 안의 파일 · `scripts/lanes/`)을 목록으로 보이고
+   파일마다 **diff 보기 → 병합 / 건너뜀 / 덮어쓰기(백업 뒤)** 중 고르게 한다. 묻지 않고 Write 하지 않는다. 특히 MASTER·노하우는 기존 기록이라 덮어쓰기를 권하지 않는다.
+
+2. **각 파일**: 템플릿 Read → `<!-- INSERT … IF sw -->`(on 이면 조각 삽입, off 삭제) → `IF`/`ELSE`/`ENDIF` 해소 → `{{slot}}` 치환 → 방출 경로에 Write.
+3. **implementer 는 도메인마다 1회** 인스턴스화. `{{domain_guidance}}` 는 Phase 4 에서 채우므로 여기선 골격으로 두고 Phase 4 후 갱신.
+4. 머리말 생성기는 방출 직후 한 번 돌린다(`python3 {{knowhow_dir}}_gen-headnote.py` — 묶음이 없으면 「전부 최신」).
 
 ### Phase 4 — 도메인 지침 초안 (설계 정독)  🚦게이트③
 `toggles.md §5.1` 대로, 도메인마다 특화지침(책임·경계 / 진실원·엔티티 / 함정 top / 정책·제약 / 코드 레이아웃)을 **근거 ITEM ID 붙여** 초안한다.
 
-**진실원 결정 (★ 로컬 키트는 LogiCraft 의 스냅샷 — 궁극 진실원은 LogiCraft):**
-1. **신선도 먼저 판정** — 키트 `version-master`/last sync 와 `_raw` 의 `current_version` 을 LogiCraft 와 대조해 **fresh / stale / 없음** 을 도메인별로 판별.
-2. **fresh 면 로컬 키트가 진실원** — `IMPLEMENTATION.md` + 타입별 요약(ADR/ERD/DFEAT/CONST/policy) + `_raw/*.json`. 이미 구현지향 정제돼 함정·CONST·진실원 뽑기 좋음. (묻지 않고 진행)
-3. **★ stale 면 사용자에게 3택 확인 (자동 결정 금지)** — 어느 도메인 키트가 stale 이면 게이트에서 묻는다:
-   - **(a) 현재 로컬 키트 그대로** — 이 버전 스냅샷 기준으로 초안. 빠르나 최신 아닐 수 있음(선택 사실을 지침에 명기).
-   - **(b) 키트 업데이트 먼저** — `/mc-logi-implement-kit` SYNC 로 해당 도메인 재동기화 후, 갱신된 키트로 초안. (권장 — 이후 build/구현도 최신 키트 사용)
-   - **(c) LogiCraft(live) 직접** — 키트 무시하고 `get_item`/`list_items` 로 라이브 설계에서 추출. 키트 SYNC 없이 최신 반영.
-   - drift 요지(무엇이 몇 버전 차이)를 함께 제시해 사용자가 판단하게 한다.
-4. **키트 없음/부분이면 LogiCraft(live)가 1차** — brownfield 등 키트 미생성 아키타입(`has_build=off`)은 `get_item`/`list_items`(ADR·ERD·DFEAT·CONST) + 코드에서 직접 추출.
-- (도메인 많으면 도메인별 Task 에이전트 병렬 가능.)
-- **근거 없으면 비우고** "정보부족 — 설계 보완 또는 첫 구현 중 확인"으로 보고. 지어내기 금지.
-- 설계가 얇거나 LogiCraft 미등록이면 골격만 + "첫 구현 후 노하우로 축적" 명시.
-- 초안을 사용자에게 제시·확정 → `{{domain_guidance}}` 채워 implementer 파일 갱신.
-- **프론트 트랙 있으면 `{{web_guidance}}` 도 동일 방식으로 초안** — 단 근거는 `screen_spec`(sections·consumes_apis·required_roles·uses_constant) + 디자인시스템(DS) + 소비 API 계약. 백엔드 ERD/DFEAT 가 아니라 화면·계약 관점. 근거 없으면 비우고 정보부족 보고.
-- 노하우 섹션은 온보딩에서 비워둔다(구현하며 축적).
+**진실원 결정 (로컬 키트는 LogiCraft 의 스냅샷 — 궁극 진실원은 LogiCraft):**
+1. **신선도 먼저 판정** — 키트 `version-master`/last sync 와 `_raw` 의 `current_version` 을 LogiCraft 와 대조해 도메인별 **fresh / stale / 없음**.
+2. **fresh 면 로컬 키트가 진실원** — `IMPLEMENTATION.md` + 타입별 요약 + `_raw/*.json`. (묻지 않고 진행)
+3. **stale 면 3택을 묻는다(자동 결정 금지)** — (a) 현재 키트 그대로(선택 사실을 지침에 명기) · (b) `/mc-logi-implement-kit` SYNC 후(권장) · (c) LogiCraft(live) 직접. drift 요지를 함께 보인다.
+4. **키트 없음/부분이면 LogiCraft(live)가 1차** — `get_item`/`list_items`(ADR·ERD·DFEAT·CONST) + 코드에서 추출.
+- 근거 없으면 비우고 "정보부족 — 설계 보완 또는 첫 구현 중 확인"으로 보고. 설계가 얇으면 골격만 + "첫 구현 후 노하우로 축적".
+- 프론트 트랙이면 `{{web_guidance}}` 도 같은 방식 — 근거는 `screen_spec`·디자인시스템·소비 API 계약.
+- 노하우 섹션은 비워 둔다(구현하며 축적). 도메인이 많으면 도메인별 병렬 가능.
 
 ### Phase 5 — 검증 · 완료  🚦게이트④
-`_TEMPLATING.md §6` 검증:
-- 스킬 본문이 참조하는 **모든 `{{prefix}}-*` 에이전트명**이 `.claude/agents/` 에 실제 존재 (교차검증 — 참조는 있는데 파일 없음 = 실패).
-- 매핑표 도메인 수 == 생성된 implementer 수.
-- `conventions_location==shared` 면 `.claude/conventions.md` 존재 + 참조 경로 일치.
-- `e2e_track=on` 이면 `.claude/e2e-conventions.md` + 스킬 3종 존재 + 3종이 모두 규약 경로를 참조.
-- `e2e_auth != none` 이면 **`{{e2e_storage_dir}}` 가 `.gitignore` 에 있는지 확인**한다(로그인 세션 그 자체이므로 커밋되면 안 된다). 없으면 추가하고 보고.
-- 남은 `{{...}}`·`<!-- IF/INSERT/ELSE/ENDIF ... -->` 마커 없음(미치환 스캔).
-- **비운 E2E 슬롯 목록 보고** — 확인 못 해 비운 것을 "정보부족 — 첫 저작 시 확인"으로 명시(조용히 넘기지 않는다).
-- ★ **검증·위임 슬롯이 실제로 방출물에 실렸는지** — 인터뷰에서 받은 값이 **방출물 안에 문자열로
-  존재**하는지 grep 으로 확인한다. ☠️ 받아 놓고 안 실리면 **다음 세션은 그 값을 모른다**(2026-09-16 실사고).
-
-  | 슬롯 | 어느 방출물에서 확인 |
-  |---|---|
-  | `{{qa_model}}` · `{{qa_invoke}}` · `{{qa_fallback}}` · `{{qa_fail_signal}}` | dispatch<!-- IF has_build --> · build<!-- ENDIF has_build --> |
-  | **`{{backfill_model}}`** | **backfill** |
-
-  ☠️ **`{{backfill_model}}` 을 빠뜨리지 마라** — 2026-09-19 까지 이 검사에 **QA 4값만** 있었다.
-  백필 워커 모델은 인터뷰에서 받고 템플릿에도 슬롯이 있는데 **실렸는지는 아무도 안 봤다** —
-  QA 에서 한 번 난 사고(받아 놓고 안 실림)가 **그대로 재현될 자리**였다.
-  ★ 비워 두기로 한 값은 **「비움 = `{{qa_model}}` 과 동일」이라는 문장이 방출물에 있는지**로 확인한다
-  (빈 문자열을 grep 하면 언제나 통과한다 — 그건 검사가 아니다).
-- ★ **노하우 구조** — `{{knowhow_dir}}`·`{{knowhow_archive_dir}}` 생성 확인 +
-  **implementer·web-implementer·qa-verifier 전부**에 `## 노하우 색인`·`## 노하우 — 상시` 섹션과
-  출력 `knowhow_read` 필드가 있는지 grep 으로 확인한다.
-  ☠️ QA 템플릿에는 **2026-09-19 전까지 색인 절이 아예 없었다** — 노하우를 가장 많이 쓰는 역할인데.
-- ★★ **머리말 규칙이 «재어지는지»** — 지침만 있고 검사가 없으면 3라운드 안에 무너진다(권유형 색인 전례).
-  방출물에서 넷을 grep 으로 확인한다:
-  ⑴ 에이전트 3종 절차에 **`limit=40`**(offset 에 limit 강제) · ⑵ 스키마에 **`how: headnote|items|full`** ·
-  ⑶ dispatch 게이트에 **`how` 누락 / `matched` 4건 미만** 판정 행 · ⑷ 대조 스크립트가 **`"limit"` 을 뽑는지**.
-  ☠️ ⑷가 핵심이다 — 전사본에 offset·limit 이 **이미 들어 있는데** 옛 스크립트는 `file_path` 만 뽑아
-    버렸다. 데이터가 있는데 **측정기가 안 보고 있었다.** 그래서 「머리말만 읽었나」는 한 번도 검사된 적이 없다.
-- ★★ **Phase 5.9 에 머리말 재생성이 실려 있는지** — `_gen-headnote.py` 호출이 노하우 append 절에 있는지 본다.
-  없으면 항목을 붙일 때마다 줄 번호가 밀려 **머리말이 매 라운드 조용히 낡는다**(붙이는 쪽엔 증상이 없다).
-- ★★ **머리말 신선도 검사** — `python3 {{knowhow_dir}}_gen-headnote.py --check` 가 **rc=0** 인지 본다.
-  rc=1(낡음)이면 줄 번호가 밀려 있다 — 에이전트가 **엉뚱한 줄로 간다.** 갱신 후 재검사.
-- ★★ **작성 규칙이 실렸는지** (CO-199 · 1.6.0) — 설계는 «처음부터 칸에» 써야 한다. 방출물에서 grep 으로 확인:
-  ⑴ implementer·web-implementer 출력에 **`design_facts:`** 와 절차 **`Phase 3.5 — 설계 사실 보고`** ·
-  ⑵ dispatch Phase 5 에 **`설계 사실 옮겨 적기`** · probe_axes 에 design_facts 근거 축 · IMPREC 게이트에 **`evidence`** 확인 ·
-  ⑶ `_TEMPLATE.md` §6 에 **「설계 사실」「서술 변경」** 두 부분 ·
-  ⑷ backfill 에 **`fields:`** 블록 · **`작성 규칙 5검사`** · 핵심 원칙 **「처음부터 칸에 쓴다」**.
-  ⑸ backfill 에 **「레인마다 «성공 판정»이 다르다」** 표 — 초안·반영 레인은 `--require-verdict` 없이 산출물로 판정(2026-10-01 실측: 초안 레인이 verdict 부재로 exit 20 오판).
-  ⑹ backfill 에 **「재검토 표시 보존 검사」** — B 레인은 `resolves_review_from` 으로 검토한 원인만 선언, 옛 서버면 `restore_review_needed(dry_run=false)` 로 되살린다(2026-10-01 실측: 백필 저장 8항목에서 자동 재검토 표시 58건 소실).
-  ☠️ 하나라도 없으면 그 세트는 설계에 관계를 산문으로 쌓는다 — 옛 산문 이관(`mc-logi-schema-fill`)을 해 놓아도 **다시 쌓인다.**
-  ☠️ **멱등이 아니다 — 삽입이 줄 번호를 밀므로 `rc=0` 이 나올 때까지(보통 2회) 돌려라.**
-  한 번만 돌리고 `--check` 를 보면 **계속 rc=1(낡음)** 이 나온다. 이것을 「스크립트가 고장났다」로
-  읽지 마라 — **고정점에 아직 도달하지 않은 것**이다. 실측(2026-09-20): 1회차 삽입 직후 `--check`
-  rc=1 → 2회차 갱신 → `--check` rc=0. 검증 절차는 **`gen → gen → --check`** 로 쓴다.
-  ☠️ 스크립트 자체에도 함정이 있었다 — `re.sub` 치환을 «문자열»로 주면 본문의 `\x`·`\1` 이
-  치환 이스케이프로 해석돼 터진다. **첫 실행(삽입)은 그 분기를 안 타서 재실행 때만** 드러났다.
-  방출본은 `lambda` 로 막아 두었다 — **고치지 마라.**
-- ★★ **끊긴 참조 검사** — 본체·스킬이 가리키는 **모든 `{{knowhow_dir}}*.md` 경로가 실재**하는지 확인한다.
+`_TEMPLATING.md §6` 검증 + 아래. 하나라도 실패하면 고치고 다시 본다. **왜 이 검사들이 있는지는 `references/verification-notes.md`.**
+- **참조 무결성** — 스킬이 참조하는 모든 `{{prefix}}-*` 에이전트가 `.claude/agents/` 에 실재 · 매핑표 도메인 수 == implementer 수 · `frontend_track=off` 면 `web-implementer` 0건 · shared 면 `.claude/conventions.md` 존재·경로 일치 · e2e 면 규약 + 3종 + 참조 일치 · dispatch `### Phase` 번호 중복 0.
+- **역방향 고아** — `.claude/agents/` 중 어느 스킬도 안 부르는 파일을 목록화 → 실패가 아니라 「의도된 독립 실행인가?」로 보고(재온보딩이면 ③질의에 포함).
+- **미치환 0** — 방출물 전부(스크립트·`_gen-headnote.py` 포함)에 `{{`·`<!-- IF`·`<!-- ELSE`·`<!-- ENDIF`·`<!-- INSERT` 가 없다.
+- **비운 슬롯 보고** — 확인 못 해 비운 것(특히 E2E)을 "정보부족 — 첫 저작 시 확인"으로 목록화.
+- **받은 값이 실렸는지(grep)** — QA 4값이 **dispatch 와(`has_build=on` 이면) build** 에 · `{{backfill_model}}` 이 **backfill** 에.
+  비우기로 한 `backfill_model` 은 빈 문자열 grep 이 아니라 **「비움 = `<qa_model 값>` 과 동일」 문장**이 backfill 에 있는지로 본다.
+- **dispatch 본문·reference** — `reference.md` 방출 · 본문 `wc -l` ~250 안팎 · 본문에 핵심 게이트 문자열이 있는지(grep): `단계 체크리스트` · `탐색근거:` · `QA 계획:` · `노하우 열람 게이트` · `인용 확인` · `read_evidence` · `스키마·마이그레이션을 건드리면` · `Phase 5.95 — 전체 시험 게이트` · `IMPREC 추적 게이트` · `쉬운 말` · (레인 on) `레인 판정:`·`## 병행 레인`. qa-verifier 출력에 `read_evidence:` · 에이전트 3종·레인 블록·backfill 에 `사용자의 언어로`.
+- **시험 범위** — ⑴ `{{test_scope_table}}` 이 dispatch(Phase 5.95)·build(Phase E.95)·implementer·web-implementer·qa-verifier·conventions·레인 블록에 **같은 글자로** 실렸다
+  ⑵ 에이전트 「자체검증」·QA 「실측 재실행」 절에서 **표 줄(`|` 로 시작)을 뺀 나머지**에 전체 시험 명령이 없다(표 안의 전체 시험 칸은 정상)
+  ⑶ dispatch 에 `Phase 5.95 — 전체 시험 게이트`, build 에 `Phase E.95` 와 `{{full_test_gate}}` 값 ⑷ 연관 시험 명령이 Phase 1.5 에서 **0건이 아니었다**(못 돌렸으면 「미확인」).
+- **노하우 구조** — `{{knowhow_dir}}`·`{{knowhow_archive_dir}}` 생성 · implementer·web-implementer·qa-verifier **전부**에 `## 노하우 색인`·`## 노하우 — 상시` 와 출력 `knowhow_read`.
+- **머리말 규칙이 재어지는지** — ⑴ 에이전트 절차에 `limit=40` ⑵ 스키마에 `how: headnote|items|full` ⑶ dispatch 게이트에 `how` 누락 / `matched` 4건 미만 판정 행 ⑷ 대조 스크립트(dispatch `reference.md`)가 `"limit"` 을 뽑는다.
+  ⑸ Phase 5.9(노하우 append)에 `_gen-headnote.py` 호출이 있다 ⑹ `python3 {{knowhow_dir}}_gen-headnote.py --check` 가 rc=0(생성기가 고정점까지 스스로 반복한다 — rc=1 이면 진짜 이상).
+- **작성 규칙(1.6.0)** — ⑴ implementer·web 출력에 `design_facts:` · 절차 `Phase 3.5 — 설계 사실 보고` ⑵ dispatch Phase 5 에 `설계 사실 옮겨 적기` · probe_axes 의 design_facts 축 · IMPREC 게이트의 `evidence`
+  ⑶ `_TEMPLATE.md` §6 에 「설계 사실」「서술 변경」 ⑷ backfill 에 `fields:` · `작성 규칙 5검사` · 「처음부터 칸에 쓴다」 ⑸ backfill 에 「단계마다 «성공 판정»이 다르다」 표 ⑹ 「재검토 표시 보존 검사」.
+- **끊긴 참조** — 본체·스킬이 가리키는 `_knowhow/*.md` 가 전부 실재:
   ```bash
   grep -rhoE '_knowhow/[^ `)」|]+\.md' .claude/agents/*.md .claude/skills/ | sort -u |
     while read r; do [ -f ".claude/agents/$r" ] || echo "끊김: $r"; done
   ```
-  ☠️ **실측 사고**(LogiCraft 2차 재온보딩) — 묶음을 600줄 상한으로 **쪼개면서 본체의 참조를 안 고쳤다.**
-  하필 **가장 강한 읽기 지시**(「관계 축 작업 전 **반드시** 열어 읽을 것」)가 없어진 파일을 가리켰고,
-  그 뒤 8개 라운드가 전부 그 축 작업이었다. **쪼개기·개명 직후 반드시 이 검사를 돌린다.**
-- ★ **에이전트 본체 줄 수**를 `wc -l` 로 세어 보고한다(신규는 짧다).
-  **재온보딩이면 400줄 초과분을 §재온보딩 ⑤ 의 「분류 초안」 형식으로 게이트에 올린다** —
-  ☠️ 「나눌까요?」라고만 묻지 마라. 섹션별 분량·라운드 조각·본체/묶음 배분·삭제 후보까지 만들어 묻는다.
-- ★ **역방향 고아 검사** — `.claude/agents/` 의 파일 중 **어느 스킬도 참조하지 않는 것**을 목록화한다.
-  ☠️ 지금까지는 **정방향만**(참조 → 파일 존재) 봤다. 그러면 **재온보딩이 호출 줄을 날려도 통과한다** —
-  파일은 남고 부르는 데만 사라져 **아무 에러도 안 난다.**
-  ⇒ **실패로 처리하지 마라.** 원래 독립 실행용 자산일 수 있다(실측: LogiCraft 의 스키마 조사 에이전트 2종).
-    **「고아 N건 — 의도된 독립 실행인가?」로 보고**하고, 재온보딩이면 ③질의에 포함한다.
-- 부트스트랩 파일 생성(아래 §부트스트랩).
-- **보고**: 생성 파일 목록 · 스위치 표 · 비운 슬롯(정보부족) · 다음 액션(build 실행 등).
+- **병행 레인**(`parallel_lanes=on`):
+  ```bash
+  L=scripts/lanes
+  for f in _common.sh lane-new.sh lane-orca.sh lane-prep.sh lane-qa.sh lane-merge.sh; do [ -f "$L/$f" ] || echo "없음: $f"; done
+  for f in lane-new.sh lane-orca.sh lane-prep.sh lane-qa.sh lane-merge.sh; do [ -x "$L/$f" ] || echo "실행권한 없음: $f"; done
+  for f in "$L"/*.sh; do bash -n "$f" || echo "문법 오류: $f"; done
+  [ -f .claude/lanes/lane-prompt-block.md ] || echo "없음: 표준 블록"
+  grep -q 'knowhow_dir_abs 가 없다' "$L/lane-qa.sh" || echo "lane-qa 의 knowhow_dir_abs 강제가 빠졌다"
+  grep -q 'QA_SCOPE_LINE=' "$L/lane-qa.sh" || echo "lane-qa 의 범위 줄 검사가 빠졌다"
+  grep -q 'lane_commit' "$L/lane-qa.sh" || echo "lane-qa 의 레인 커밋 고정이 빠졌다"
+  grep -q 'lane_pids_in_dir' "$L/lane-merge.sh" || echo "lane-merge 의 남은 프로세스 끝내기가 빠졌다"
+  git check-ignore -q .claude/worktrees/x && git check-ignore -q .lane-dispatch || echo "gitignore 누락"
+  grep -rn '{{\|<!-- IF\|<!-- ELSE\|<!-- ENDIF\|<!-- INSERT' "$L" .claude/lanes && echo "미치환 잔존"
+  grep -rn '/Users/\|/home/' "$L" .claude/lanes && echo "절대경로가 박혔다"
+  ```
+  ⑴ 슬롯이 실렸는지 — `lane_main_branch`·`lane_concurrency`·`change_orders_path` 가 `_common.sh` 에, `lane_prep` 단계가 `lane-prep.sh` 에, `lane_checks` 가 `lane-merge.sh` 에, `qa_model`·`qa_fallback`(+`lane_qa_shell`)이 `lane-qa.sh` 에.
+     비운 슬롯은 빈 문자열이 아니라 **ELSE 문장**(「준비할 것 없음」·「사용자 승인만」·「서브에이전트 갈래」)으로 본다.
+  ⑵ dispatch 에 `## 병행 레인` 절과 Phase 3 게이트 `레인 판정:` 줄 · backfill 에 `## 백필 레인` 절.
+  ⑶ **원본 프로젝트 고유값이 새지 않았는지** — 이 스킬을 만든 프로젝트들의 값(저장소 이름·패키지 범위·브랜치 이름·호스트 이름)이 방출물에 없어야 한다.
+     검사 패턴은 「이 저장소에 없어야 할 이름」으로 사용자에게 물어 정한다(기본: 다른 프로젝트 이름·운영 호스트 이름).
+  ⑷ `lane-merge.sh <아무이름> --plan --worktree /tmp --branch x` 로 검사 단계 목록이 확정한 그대로 찍히는지 본다(아무것도 안 바꾼다 · 「워크트리 목록에 없다」 경고가 함께 나오는 것이 정상).
+  `parallel_lanes=off` 면 방출물에 `scripts/lanes` 언급이 없어야 한다.
+- **에이전트 본체 줄 수** — `wc -l` 로 세어 보고. 재온보딩이면 400줄 초과분을 §재온보딩 ⑤ 형식으로 게이트에 올린다.
+- **부트스트랩**(아래) 생성 — ☠️ 원래 있던 파일(`.gitignore`·`CLAUDE.md`)에 넣을 줄은 **먼저 보이고 확인받은 뒤** 넣는다.
+- **보고**: 생성 파일 목록 · 스위치 표 · 비운 슬롯(정보부족) · 실측에서 실행한 것과 결과 · 다음 액션(build 실행 등).
 
 ---
 
-## 부트스트랩 파일 (dispatch/build 가 전제하는 것 — 함께 생성)
+## 부트스트랩 파일 (dispatch/build 가 전제하는 것 — Phase 5 에서 함께 생성)
 
-세트가 동작하려면 아래가 있어야 한다(없으면 dispatch 첫 실행이 깨짐). Phase 5 에서 생성:
-
-- `{{change_orders_path}}_TEMPLATE.md` — CO 골격. 상단 헤더 표(제목·대상 도메인·구현상태·LogiCraft 설계반영<!-- IF work_claim -->·work_claim 행<!-- ENDIF work_claim -->) + §1 배경 · §2 변경 요지 · §3 도메인별 변경 상세(에이전트 구현용) · §4 영향·리스크 · §5 검증 · §6 관련 설계 ITEM(backfill 예정) · §7 구현 로그.
-  ★ **§6 은 두 부분**이다(CO-199 · 2026-10-01) — ① **설계 사실**: `- ITEM.칸: 값 — 근거(코드: 경로:줄 — 조각 · CO §n)` 한 줄씩(구현 에이전트 `design_facts` 를 dispatch Phase 5 가 옮긴다 → backfill 이 칸 값으로 넘긴다) ② **서술 변경**: 산문에 반영할 **현행** 내용. 변경 경위는 §7 에만 — 설계 산문에 옮기지 않는다(backfill 은 경위를 `change_summary` 로).
-- `{{change_orders_path}}MASTER.md` — CO 추적 표: `CO번호 · 제목 · 대상도메인 · 구현상태 · 설계반영(⏳/🎨/—) · 커밋 · 생성일`. 빈 표 + 컬럼 헤더로 초기화.
-<!-- IF has_build -->
-- `docs/design/BUILD-MASTER.md` — 도메인별 <!-- IF dependency_layers -->계층·<!-- ENDIF dependency_layers -->구현 상태(⬜/🔨/✅/⚠️) 표.
-<!-- ENDIF has_build -->
-- **`{{knowhow_dir}}`** (기본 `.claude/agents/_knowhow/`) — 주제별 노하우 묶음이 쌓일 자리. 빈 디렉토리로 생성하고
-  `README.md` 에 규약 한 단락: 「에이전트 본체는 **색인만** 갖는다 · 새 노하우는 **주제 묶음에** 붙인다 ·
-  **라운드별 섹션을 만들지 마라** · 본체 400줄 초과면 묶음을 하나 더 판다」.
-- **`{{knowhow_dir}}_gen-headnote.py`** — 묶음 **머리말 생성기**(스킬의 `templates/_assets/_gen-headnote.py`
-  를 슬롯 치환해 그대로 방출). 묶음 맨 앞에 「먼저 여기만 읽어라」 목록(항목 + **줄 번호**)을 만든다.
-  ☠️ **이것이 없으면 에이전트는 결국 전문을 연다** — 파일 안에 무엇이 있는지 열어보지 않고는 알 수 없기 때문.
-  실측(LogiCraft): 묶음 분리로 본체를 3,333→708줄로 줄였는데 **전문 열람 탓에 노하우 주입이 2.7배로 늘었다.**
-  머리말 도입 후 A/B 에서 **주입 −93% · 소요 −80%**, 판정 품질 저하 신호 없음.
-  - **등급 표기 규약을 함께 방출한다** — 묶음 항목은 `- **★★ …` / `- **☠️☠️ …` 처럼
-    **최상위 불릿 + 등급**으로 쓴다. ☠️ **등급이 없으면 머리말이 비고 처방이 통째로 죽는다.**
-  - ☠️ **파생물이다** — 항목을 더하면 **다시 돌려야** 한다(`--check` 로 낡음 판정 · rc=1).
-    줄 번호가 밀리면 「여기로 가라」가 엉뚱한 곳을 가리킨다(끊긴 참조와 **같은 유형의 사고**).
-- **`{{knowhow_archive_dir}}`** (기본 `.claude/agents/_archive/`) — 노하우 정리 시 원문 보관. 빈 디렉토리.
-  ☠️ 정리는 **지우는 게 아니라 옮기는 것**이다.
-- (선택) 루트 `CLAUDE.md` 에 세트 사용법 안내 블록 추가 제안(수정·구현·backfill 진입점).
-
-> ⚠️ `_TEMPLATE.md` 의 work_claim 헤더 행은 `work_claim=on` 일 때만. 참고 실물: KLID `.claude/change-orders/_TEMPLATE.md`.
-
-## ★ 재온보딩 사후 측정 — 노하우가 실제로 전달되는가
-
-재온보딩은 **구조가 맞는지**만으로 끝내지 않는다. 노하우를 묶음으로 옮기면 **전달 방식이 바뀐다** —
-전에는 본체와 함께 **항상** 주입됐고, 이제는 에이전트가 **열어야** 읽힌다. 그 차이를 실측으로 본다.
-
-### 무엇을 재나
-라운드마다 에이전트별 **묶음 열람 수**(실제로 «연» 것만 — `ls`·`wc` 는 제외)와
-**`knowhow_read` ↔ 전사본 불일치**. 스크립트는 dispatch `Phase 5 ★ 노하우 열람 게이트`.
-
-### ☠️ 한 라운드로 판정하지 마라 — **최소 3라운드**
-
-실측(LogiCraft) — 권유형 색인(1차)일 때 **직후 2라운드는 1~3개를 열다가 3번째에 0으로 무너졌다.**
-한 번 잘 나온 것은 아무것도 증명하지 않는다.
-
-| 구간 | 라운드당 평균 열람 | 0건 라운드 |
-|---|---:|---|
-| 권유형(1차) | 1.1 | **3/7** |
-| 절차형(2차) | 6.7 | 0/3 |
-
-☠️☠️ **「지시를 고쳤으니 됐다」로 닫지 마라 — 실측으로 반증됐다.**
-LogiCraft 캠페인에서 **지시 개정을 세 번 했고 세 번 다 다음 라운드에 바로 듣지 않았다.**
-결정적 사례 — CO-164 와 CO-165 의 프롬프트를 **바이트 단위로 비교했더니 차이가 없었는데**
-열람이 **0·0·0 vs 5·5·6·8** 로 갈렸다. 본체 색인·게이트도 두 라운드 모두 이미 적용돼 있었다.
-**원인은 지금도 확정되지 않았다**(그 사이 노하우 갱신 / 작업 성격 차이 / 표본 크기 — 셋 다 가설).
-⇒ **전달 여부는 매 라운드 회수 때 전사본으로 재는 것 말고 알 방법이 없다.**
-
-**실패로 보는 기준** — 3라운드 중 **0건 라운드가 하나라도 나오거나** 평균이 1 미만이면
-장치가 듣지 않는 것이다. 문구를 더 세게 쓰지 말고 **구조**를 바꿔라(프롬프트에 본문 직접 첨부 등).
-
-☠️ **가장 위험한 상태** — `knowhow_read` 는 채워졌는데 **실제 열람이 0**. 읽은 척이다. 반드시 대조하라.
-
-### 비용은 어떻게 되나 — **절감이 목적이 아니다**
-
-| 관점 | 실측(LogiCraft) |
-|---|---|
-| 본체 **고정비** | ✅ 크게 준다 — 3,333줄 → 708줄(**−79%**) |
-| 묶음 **변동비** | ❌ **늘었다** — 에이전트 1회 노하우 주입 833줄 → **2,218줄(2.7배)** |
-| 머리말 도입 후 | ✅ A/B 에서 주입 3,411 → **250줄(−93%)** · 소요 2,650 → **540초(−80%)** |
-
-☠️ **왜 늘었나 — 원인 셋이 전부 «처방의 부작용»이었다.**
-⑴ 「실제로 열어 읽어라」를 명령형으로 밀어 **과잉 열람**을 유도했다(11개 중 6~8개를 연다)
-⑵ 색인을 «행동» 단위로 건 것은 옳았지만, **한 라운드가 변이·테스트·DB·규범·렌더를 다 해서**
-   6~8행이 전부 해당한다 — **구조적 귀결**이다
-⑶ 매 라운드 append 로 묶음이 커졌다(하루에 20건 추가된 날도 있다)
-
-⇒ ⑶을 **머리말**이 닫는다(파일 안에 뭐가 있는지 **열지 않고** 알게 한다). ⑴⑵는 남아 있다.
-
-★ **절감을 목적으로 내세우지 마라.** 바뀐 것은 양이 아니라 **비율**이다 —
-  전에는 833줄이 주입돼도 **묻혔고**, 지금은 골라져 들어간다. **값을 치르고 전달률을 산 것**이다.
-
-☠️ **QA 위임의 절감액은 «잴 수 없다».** 위임 러너 로그에 토큰이 기록되지 않고,
-  같은 QA 를 상위 모델로 돌린 값을 **재본 적이 없다.** 「N 토큰 절감」이라고 쓰지 마라 —
-  말할 수 있는 것은 **라운드당 QA 1회가 상위 모델 예산에서 완전히 빠진다**는 사실까지다.
-
-☠️ **기준선을 적을 때 «명령 전체»를 함께 적어라.** 「lint 250」은 명령 없이는 무의미하다 —
-  같은 레포에서 `pnpm -C apps/api lint` 는 273, `npx eslint .` 는 1,531 이 나온다(6배).
-  실측 캠페인에서 **분모를 틀린 것이 네 번**이었다.
-
-### ☠️ 이 체계가 막지 못하는 것
-
-**노하우는 «이미 아는 함정»만 막는다.** 실측(LogiCraft CO-164) — 그 라운드의 실제 사고
-(트랜잭션이 정상 종료하면 커밋된다는 것을 놓쳐 dev DB 에 7행이 남음)는 **재온보딩과 무관**했다.
-그 함정이 **전 구간 어디에도 적혀 있지 않았기** 때문이다.
-⇒ 열람 수가 올라갔다고 **사고가 준다고 보고하지 마라.** 둘은 다른 주장이다.
+- `{{change_orders_path}}_TEMPLATE.md` — CO 골격: 상단 헤더 표(제목·대상 도메인·구현상태·LogiCraft 설계반영, `work_claim=on` 이면 work_claim 행) + §1 배경 · §2 변경 요지 · §3 도메인별 변경 상세 · §4 영향·리스크 · §5 검증 · §6 관련 설계 ITEM · §7 구현 로그.
+  ★ **§6 은 두 부분** — ① **설계 사실**: `- ITEM.칸: 값 — 근거(코드: 경로:줄 — 조각 · CO §n)` 한 줄씩(구현 에이전트 `design_facts` 를 dispatch Phase 5 가 옮긴다 → backfill 이 칸 값으로 넘긴다) ② **서술 변경**: 산문에 반영할 **현행** 내용. 경위는 §7 에만.
+- `{{change_orders_path}}MASTER.md` — `CO번호 · 제목 · 대상도메인 · 구현상태 · 설계반영(⏳/🎨/—) · 커밋 · 생성일` 빈 표.
+- (`has_build=on`) `docs/design/BUILD-MASTER.md` — 도메인별 (dependency_layers=on 이면 계층·)구현 상태(⬜/🔨/✅/⚠️) 표.
+- `{{knowhow_dir}}` — 빈 디렉토리 + `README.md` 한 단락: 「본체는 **색인만** · 새 노하우는 **주제 묶음에** · **라운드별 섹션 금지** · 본체 400줄 초과면 묶음을 하나 더 판다」.
+- `{{knowhow_dir}}_gen-headnote.py` — 묶음 맨 앞에 「먼저 여기만 읽어라」 목록(항목 + 줄 번호)을 만드는 생성기. 이것이 없으면 에이전트는 결국 전문을 연다.
+  묶음 항목은 `- **★★ …` / `- **☠️☠️ …` 처럼 **최상위 불릿 + 등급**으로 쓴다는 규약을 README 에 함께 적는다. 파생물이다 — 항목을 더하면 다시 돌린다.
+- `{{knowhow_archive_dir}}` — 노하우 정리 시 원문 보관(정리는 지우는 게 아니라 옮기는 것).
+- `.gitignore` 에 더할 줄(**게이트④에서 먼저 보이고 확인**): `parallel_lanes=on` 이면 `.claude/worktrees/`·`.lane-dispatch` · `e2e_auth != none` 이면 `{{e2e_storage_dir}}`(로그인 세션 그 자체).
+- (선택 · 제안만) 루트 `CLAUDE.md` 에 세트 사용법 안내 블록(수정·구현·backfill 진입점). `parallel_lanes=on` 이면 「병행 레인」 한 단락(동시 상한 · 도구 · 공용 기록의 주인 · 번호는 메인이 정한다)을 더 제안한다.
 
 ## 게이트 요약
-1. Phase 1 — 아키타입/스위치 확정
-2. Phase 2 — 슬롯 인터뷰
-3. Phase 4 — 도메인 지침 초안 확정 (+ 키트 stale 시 진실원 3택: 현재키트/업데이트/LogiCraft)
-4. Phase 5 — 최종 검증
+1. Phase 1 — 아키타입/스위치 확정 (재온보딩이면 그 전에 Phase 0 ⓪ 백업)
+2. Phase 1.5 — 실측 실행마다 동의 (실측할 것이 없으면 건너뜀)
+3. Phase 2 — 슬롯 인터뷰 (QA 모델 시험 호출 · 외부 위임 반출 동의 포함)
+3-a. Phase 3 1-a — 이미 있는 파일마다 병합/건너뜀/덮어쓰기 선택
+4. Phase 4 — 도메인 지침 초안 확정 (+ 키트 stale 시 진실원 3택)
+5. Phase 5 — 최종 검증 (+ `.gitignore`·`CLAUDE.md` 에 넣을 줄 확인)
 
-**재온보딩이면 게이트가 둘 더 있다** (§재온보딩 — 신규보다 게이트가 많다):
-
-5. **③ 질의** — 실물에만 있는 절·호출을 **어떻게 할지**(보존/승격/폐기) 확정
-6. **⑤ 노하우 정리** — 본체 400줄 초과 시 **분류 초안**을 놓고 확정
-
-☠️ 재온보딩에서 이 둘을 건너뛰면 **손으로 쌓은 것을 덮어쓴다.** 그 손실은 조용하다 — 아무 에러도 안 난다.
-
-그 외 자동.
+재온보딩이면 둘 더: **③ 질의**(실물에만 있는 절·호출을 보존/승격/폐기) · **⑤ 노하우 정리**(본체 400줄 초과 시 분류 초안). 건너뛰면 손으로 쌓은 것을 조용히 덮어쓴다.
 
 ## 재온보딩 (업그레이드 모드)
 
-이미 세트가 있는 프로젝트에서 다시 실행하면(Phase 0-A 가 감지) **신규 온보딩과 다르게 돈다.**
+이미 세트가 있는 프로젝트에서 다시 실행하면(Phase 0-A 가 감지) **신규 온보딩과 다르게 돈다.** 상세·판정 기준·실측은 **`references/reonboarding.md`**.
 
-> ☠️ **세트는 쓰이면서 자란다.** 라운드를 돌 때마다 실사고에서 얻은 규약이 스킬·에이전트에 붙는다.
-> 그건 **템플릿에 없는 자산**이다. 모르고 덮으면 **그 프로젝트가 겪은 사고를 다시 겪는다.**
-> 실측: 한 프로젝트의 수정 절차서가 **690줄**인데 템플릿은 **186줄**, 설계 반영 절차서는
-> **960줄**인데 템플릿은 **116줄**이었다. 차이 **1,348줄**이 전부 그런 자산이다.
+> ☠️ **세트는 쓰이면서 자란다.** 라운드마다 실사고에서 얻은 규약이 붙는다 — **템플릿에 없는 자산**이다. 모르고 덮으면 그 프로젝트가 겪은 사고를 다시 겪는다
+> (실측: 수정 절차서 690줄 vs 템플릿 186줄, 설계 반영 절차서 960줄 vs 116줄).
 
-### ⓪ 착수 전 — **무엇이 덮이는지 보이고 백업을 묻는다** 🚦
+**⓪ 백업** — Phase 0 의 ⓪(레포 밖 백업)을 이미 했다.
 
-☠️ **재온보딩은 기존 파일을 고친다.** 사용자는 그게 어디까지인지 모른 채 「재온보딩 해줘」라고 한다.
-먼저 **덮일 대상을 목록으로 보이고 백업 여부를 묻는다.**
+**① 감지** — 실물과 새 조립 결과를 대조해 **실물에만 있는 절**(헤딩·줄 수)을 뽑는다. ☠️ 제목 비교는 문구만 바뀐 같은 절도 잡는다 — 「후보」이지 결론이 아니다.
+- **①-a 버전 신호** — 실물이 어느 버전에서 멈췄는지 보고 「이번 업그레이드로 받을 것」을 게이트①에 올린다(1.6.0 작성 규칙 · 1.7.0 Phase 번호·frontend_track·shared_base · 1.8.0 병행 레인 · 1.9.0 시험 범위 · 1.10.x 레인·안전 · **1.11.0 dispatch 본문·reference 분리 · 마이그레이션 절차 · QA 인용 확인 · 보고 언어**). 버전별 목록은 reference ①-a.
+  새 절은 실물의 커스텀 절을 덮지 말고 **끼워 넣는다.** 기존 CO 파일은 고치지 않는다(`_TEMPLATE.md` 만).
+- **①-b 참조 감지** — 헤딩 비교로는 «호출 한 줄»을 놓친다. **실물 스킬이 참조하는 심볼 − 신규 방출물이 참조하는 심볼 = 사라질 호출**을 **기계로** 뽑는다(reference 에 명령). 한 줄이라도 있으면 ③질의.
 
-**① 되돌릴 수 있는지부터 확인한다** — 이게 먼저다.
-```bash
-git check-ignore -v .claude/skills 2>/dev/null && echo "IGNORED"
-git ls-files .claude | wc -l          # 0 이면 git 이 안전망이 아니다
-```
-☠️ **`.claude/` 가 gitignore 인 프로젝트가 실재한다**(실측: LogiCraft — `git ls-files .claude` = **0**,
-실제 파일 347개). 그 상태에서 재온보딩하면 **되돌릴 방법이 없고, 유실 검증조차 불가능**하다
-(원본이 없으니 「보존됐나」를 대조할 수가 없다).
-⇒ **ignore 면 경고를 띄우고 백업을 «기본값 예»로 제안**한다.
+**② 분석** — 덩어리마다 분류 초안(근거 첨부): **개작**(같은 역할 · 문구만 다름 → 신규 채택) · **범용**(→ 템플릿 승격) · **프로젝트 전용**(→ 보존) · **낡음**(→ 폐기 후보).
+☠️ 「개작」으로 판정한 `##` 절도 버리기 전에 `###`/`####` 하위 절을 훑어 **프로젝트 고유 하위 규약을 살려 옮긴다**(원래 소속 Phase 를 명시) — 통째로 버려 고유 규약 4개·CO 증거 9건을 잃은 실측이 있다. 검증은 CO 번호·파일 경로 같은 **고유 식별자 집합**으로.
 
-**② 덮일 대상을 목록으로 보인다** — 파일별 현재 줄 수와 함께:
-- 스킬 본문 (`{{prefix}}-dispatch` · `-design-backfill` · `-build` · e2e 3종)
-- 규약 (`conventions.md` · `e2e-conventions.md`)
-- 에이전트 (도메인별 · web · qa-verifier)
-- ★ **노하우는 별도로 표시** — `{{knowhow_archive_dir}}` 가 따로 뜨지만 **스킬·규약은 안 뜬다.**
-  실측(LogiCraft): 노하우는 3일치 보관본이 있었는데 **스킬 본문은 백업이 0** 이었다.
+**③ 묻는다** 🚦 — 분류 초안을 근거와 함께 보이고 「이건 무엇이고 어떻게 할까요」. 자동 판정 금지(특히 「낡음」).
 
-**③ 묻는다** 🚦
-> 「재온보딩은 위 N개 파일을 고칩니다. **착수 전에 통째로 백업할까요?**
->  (`.claude.bak-<날짜>/` 로 복사 — 몇 초면 됩니다)」
+**④ 처리** — 확정된 것만: 보존(다시 끼워 넣기) · 폐기(보관본을 남기고 보고) · **승격 제안** — 설치된 이 스킬(templates·`_TEMPLATING.md`)은 고치지 않는다.
+  범용으로 판정한 절은 `.claude/onboard-upstream-proposals-<날짜>.md` 로 내보내(어느 템플릿 어디에 · 근거 · 원문) 이 스킬의 작성자·관리자에게 보고하게 한다.
+- 보존이 덮어쓰기를 이긴다. 스위치 변경은 그대로 반영. 도메인 지침·노하우는 보존.
+- `scripts/lanes/`·`.claude/lanes/` 가 이미 있으면 파일별 `diff -u` 를 보이고 실물에만 있는 단계·종료코드·검사를 ③에 올린다(실물 고유값은 슬롯 값 후보).
 
-- **예** → `.claude` 전체를 `.claude.bak-<YYYYMMDD>/` 로 복사하고 **경로를 보고**한다.
-- **아니오** → 그 사실을 기록하고 진행하되, **git 안전망이 없으면 한 번 더 확인**받는다.
-- ☠️ **백업은 노하우 `_archive/` 와 별개다.** 그건 노하우만 덮는다.
+**⑤ 노하우 정리** 🚦 — 본체 400줄 초과면 게이트. 「나눌까요?」만 묻지 말고 **분류 초안**을 만들어 묻는다:
+① 섹션별 분량 표 ② 라운드 조각(`CO-NNN`·날짜 제목)과 흡수될 주제 ③ 본체/묶음 배분과 근거 — **되돌리기 어려운 금지 규칙은 본체 `## 노하우 — 상시`**, 묶음은 색인에 **「이 행동을 하기 전」**으로 건다 ④ 삭제 후보와 근거 + 본체 예상 줄 수.
+- 색인·상시·`knowhow_read` 는 400줄 초과분만이 아니라 **모든 본체에** 입힌다.
+- 묶음 600줄은 쪼갤 이유가 아니라 **검토 신호**다 — ① 중복 정리 ② 잘못 놓인 항목 재배치 ③ 그래도 크면 «서로 다른 순간에 필요한가»로 판정해 **평면으로** 쪼갠다(묶음 안에 묶음 금지). 쪼갠 직후 끊긴 참조 검사.
+- 정리는 **보관이 먼저** — `{{knowhow_archive_dir}}` 로 원문을 뜨고 제목 단위 대조로 **유실 0건**(본체 + 묶음 합산)을 확인한 뒤 뺀다.
+- 결과를 표로: 감지 N → **개작(위양성) N** · 승격 · 보존 · 폐기 · 보류. 개작을 걸러낸 뒤의 수가 실제 판단 대상이다.
 
-### 네 걸음
+**⑥ 사후 측정** — 노하우를 묶음으로 옮기면 «항상 주입»이 «열어야 읽힘»으로 바뀐다. 라운드마다 묶음 열람 수와 `knowhow_read` ↔ 전사본 불일치를 재고, **최소 3라운드**로 판정한다(`references/knowhow-measurement.md`). 열람이 늘었다고 사고가 준다고 보고하지 마라 — 노하우는 이미 아는 함정만 막는다.
 
-**① 감지** — 실물과 새 조립 결과를 대조해 **실물에만 있어 보이는 절·섹션을 목록화**한다.
-  파일별로 «템플릿에 없는 헤딩» 을 뽑고 줄 수도 센다.
+## 버전 기록
 
-  ☠️ **이건 «후보»이지 «결론»이 아니다.** 제목 비교는 **문구만 바뀐 같은 절을 새것으로 잡는다** —
-  실측(2026-09-18): 5파일에서 **389건**이 잡혔는데 그중 상당수가 위양성이었다.
-  「`## 입력 (메인이 프롬프트로 전달)`」이 템플릿의 「`## 입력 (오케스트레이터가 전달)`」과
-  **같은 절인데 문구만 달라** 신규로 분류됐다.
-  ⇒ 감지 수치를 **그대로 보고하지 마라.** ②에서 거른 뒤의 수를 함께 적는다.
-
-  **①-a 구버전 신호 — 이번 업그레이드로 받을 것** (1.6.0 · CO-199)
-  아래가 보이면 그 세트는 «작성 규칙» 이전 버전이다 — 게이트①에 「이번 업그레이드 대상」으로 보고한다:
-  - `_TEMPLATE.md` §6 이 한 줄 자유 서술(`- <… ID + 반영 필요 내용>`)뿐이다 → 설계 사실/서술 변경 두 부분으로
-  - implementer·web-implementer 출력에 `design_facts` 가 없다 → Phase 3.5 추가
-  - backfill 에 `fields:` 블록·작성 규칙 5검사가 없다 → 추가
-  - 이 절들은 **템플릿이 새로 가진 것**이라 ②에서 «실물에만 있음»과 반대 방향이다 — 실물의 커스텀 절을 덮지 말고 **끼워 넣는다**.
-  - ☠️ 기존 CO 파일(`CO-NNN-*.md`)은 고치지 않는다 — `_TEMPLATE.md` 만. 옛 CO 는 backfill 이 A 초안에서 커밋 코드로 칸 값을 뽑는다.
-
-  **①-a′ 구버전 신호 — 1.7.0 에서 받을 것** (CO-202)
-  - dispatch 에 `### Phase 3.5` 헤딩이 **둘**(점유 선언 · 공유기반 선처리) → 점유 선언을 `Phase 3.4` 로
-  - `.claude/agents/` 에 `{{prefix}}-web-implementer.md` 가 **없는데** dispatch·build 가 그 이름을 부른다 → `frontend_track=off` 로 판정하고 프론트 참조를 걷어 낸다
-  - `code_boundary=package` 인데 공유기반 문구가 `core/`·`db/migrations/`·앱 진입점 **고정 문구**다 → 그 경로가 이 레포에 실재하는지 확인하고, 아니면 `{{shared_base}}` 를 인터뷰로 확정해 바꾼다(실재하면 그대로 두되 슬롯 값으로 기록)
-
-  **①-b 참조 감지 — 헤딩만 보면 «호출 한 줄»을 놓친다** ☠️
-  프로젝트가 만든 자산(커스텀 에이전트·스크립트·슬래시 명령)을 **기존 절 안에서 부르고 있으면**
-  헤딩 비교로는 안 잡힌다. 파일은 남고 **부르는 데만 사라져** 아무 에러도 안 난다.
-  ⇒ **심볼 집합을 직접 비교**한다:
-  ```
-  실물 스킬이 참조하는 심볼   ―   신규 방출물이 참조하는 심볼   =   사라질 호출
-  ```
-  대상: `{{prefix}}-*` 에이전트명 · `.claude/agents/` 파일명 · 스크립트 경로 ·
-  슬래시 명령(`/…`) · `Agent(subagent_type=…)` 인자.
-  차집합이 **0이 아니면 전부 ③질의 대상**이다 — 「사라져도 되는 호출인가」를 묻는다.
-
-  ☠️ **눈으로 훑지 마라 — 반드시 기계로 뽑아라.** 실물 스킬이 수백 줄이면 놓친다.
-  아래를 그대로 쓰거나 같은 일을 하는 것으로 대체한다(`<REAL>`=실물 `.claude`, `<NEW>`=신규 방출 `.claude`):
-  ```bash
-  ex(){ grep -rhoE "<PFX>-[a-z0-9-]+|[.~/][\w./~-]+\.(sh|py|mjs)|subagent_type[=: ]+[\w.-]+" \
-         "$1"/skills/*/SKILL.md 2>/dev/null | sort -u; }
-  comm -23 <(ex "<REAL>") <(ex "<NEW>")     # ← 사라질 호출
-  ```
-  `<PFX>` 는 확정한 `{{prefix}}`. 결과가 **한 줄이라도 있으면 ③질의**에 올린다.
-
-**② 분석** — 각 덩어리가 **무엇인지 읽고** 분류 초안을 만든다. 추정하지 말고 근거를 붙인다.
-
-| 분류 | 신호 | 처리 후보 |
-|---|---|---|
-| **개작** | 템플릿에 **같은 역할의 절이 있고 문구만 다르다** — 위치·인접 절·하는 일이 같다 | **신규 문구 채택** (감지 위양성) |
-| **범용** | 어느 프로젝트에서나 재발할 함정·규약 | **템플릿으로 승격** |
-| **프로젝트 전용** | 이 repo·도메인·스택에서만 성립 | **보존** |
-| **낡음** | 가리키는 대상이 사라졌거나 결정이 번복됨 | **폐기 후보** |
-
-☠️☠️ **「개작」 판정은 `##` 단위로 하되, «보존 판정»은 `###`/`####` 단위로 내려라** (2026-09-18 실사고)
-
-**한 절을 「개작」으로 판정하면 그 «안에 든 것»까지 통째로 버려진다.** 실측: KLID 재온보딩에서
-`## 파이프라인` 을 개작으로 보고 신규를 채택했더니, 그 안에 있던 프로젝트 고유 하위 규약
-**4개가 함께 사라졌다**(`### 탐색 원칙` · `#### rename 스윕` · `#### 마이그레이션 모듈별 판정` ·
-`### Phase 3 MASTER↔CO 헤더 일치검사` — **CO 증거 9건 유실**). 빌드도 검증도 안 잡는다.
-
-⇒ 개작으로 판정한 절은 **버리기 전에 한 단계 더 내려가** 하위 절을 훑어라:
-  - 신규 템플릿에 **같은 하위 절이 있나**(제목이 아니라 **역할**로)
-  - 없으면 그건 **프로젝트 고유**다 → **그 하위 절만 살려 옮긴다**
-  - 옮길 때 **원래 어느 Phase 소속이었는지 명시**하라 — 부록으로 모으면 읽을 시점을 놓친다
-⇒ 검증은 **CO 번호·파일 경로 같은 «고유 식별자 집합»으로** 한다. 제목 대조만으로는 이 유실이 안 보인다.
-
-☠️ **「개작」을 먼저 걸러라.** 이걸 안 걸면 ③질의에서 사용자에게 **수백 건을 던지게 된다.**
-판별은 제목이 아니라 **역할**로 한다 — 그 절이 파이프라인의 **같은 자리에서 같은 일**을 하는가.
-반대로 **템플릿 쪽이 개선된 문구**일 수 있다(이번 개편이 그렇다) — 그때는 **신규를 채택**하고
-실물의 옛 문구는 버린다. 단 그 절에 **프로젝트 고유 내용이 덧붙어 있으면** 그 부분만 살려 옮긴다.
-
-**③ 묻는다** 🚦 — 분류 초안을 **근거와 함께** 제시하고 **「이건 무엇이고 어떻게 할까요」**를 묻는다.
-  ☠️ **자동 판정 금지.** 특히 「낡음」은 사용자만 아는 맥락이 있다.
-
-**④ 처리** — 확정된 것만:
-- **보존** — 새 조립 결과에 그 절을 **다시 끼워 넣는다**(덮지 않는다).
-- **★ 승격** — `templates/_invariant/*` 또는 `_switched/*` 에 반영해 **다음 프로젝트도 받게** 한다.
-  슬롯화가 필요하면 `_TEMPLATING.md §1` 에 등록한다.
-- **폐기** — 제거하되 **보관본을 남기고** 보고한다.
-
-### 그 외 규칙
-
-- ☠️ **보존이 덮어쓰기를 이긴다.** Phase 3 조립의 「방출 경로에 Write」는 **신규 온보딩 기준**이고,
-  재온보딩에서는 **①~④를 거친 병합**이 된다. 이 두 조항이 충돌하면 **이 절이 우선**이다.
-- **스위치 변경**(예: 팀 합류 → work_claim on)은 그대로 반영한다.
-- **도메인 지침·노하우는 보존**한다(덮어쓰지 않음).
-### ⑤ 노하우가 부풀어 있으면 — **분류 초안까지 만들어 묻는다**
-
-에이전트 본체 줄 수를 `wc -l` 로 센다. **400줄 초과면 게이트를 연다.**
-☠️ **자동 정리는 금지**다. 그런데 **「나눌까요?」라고만 묻는 것도 금지**다 — 그건 묻는 게 아니라
-**판단을 떠넘기는 것**이다. 담당자는 그 파일을 열어 볼 시간이 없어서 재온보딩을 시킨 것이다.
-
-**제안에 반드시 담을 네 가지** (실측 기반 · 추정 금지):
-
-1. **섹션별 분량 표** — `##`/`###` 단위로 줄 수를 세어 **큰 것부터** 나열한다.
-2. **☠️ 라운드 조각 식별** — 제목이 `CO-NNN`·날짜로 시작하는 항목을 표시한다.
-   **주제 섹션을 만들어 놓고도 그 사이로 라운드가 끼어드는 것이 최빈 패턴**이다
-   (실측: LogiCraft QA 노하우 23항목 중 **12개가 라운드 조각**, 「변이 설계」와
-   「CO-135 변이는…」이 **같은 주제인데 갈라져** 있었다).
-   ⇒ **어느 주제로 흡수될지**를 함께 적는다.
-3. **본체 / 묶음 후보 배분** — 각 주제가 어디로 갈지와 **그 근거**:
-   - **본체**(항상 읽음) = 지침 + **매 라운드 필요한 것**(사고 이력이 있는 축·기본 절차) + 색인
-     ☠️ **되돌리기 어려운 금지 규칙은 반드시 본체 `## 노하우 — 상시`** 에 둔다(예: 병렬 중 `git stash` 금지).
-     묶음에 넣으면 고르기에 맡겨져 빠진다 — 실측: QA 가 알던 stash 금지가 묶음으로 옮겨진 뒤
-     **바로 그 사고가 재발**했다(LogiCraft CO-163).
-   - **묶음**(`{{knowhow_dir}}`) = 특정 상황에서만 쓰는 것 — 색인에 **「이 행동을 하기 전」**으로 건다.
-     ☠️ **주제가 아니라 행동**이다. 「테스트 설계」가 아니라 「변이를 심기 전」·「실 DB 에 쓰기 전」.
-     주제는 착수 때 예측해야 걸리고, 행동은 **그 행동을 하려는 순간** 걸린다.
-   - 배분 후 **본체 예상 줄 수**를 제시한다(400 이하로 떨어지는지).
-4. **삭제 후보와 근거** — 완료된 캠페인 / 이미 다른 주제에 흡수됨 / 중복.
-   ☠️ 「낡음」 판정은 **사용자만 아는 맥락**이 있다. 근거를 대고 **묻기만** 한다.
-
-★★ **색인·상시·`knowhow_read` 는 «모든» 본체에 입힌다 — 400줄 초과분만이 아니다.**
-  ☠️ 실측(LogiCraft 2026-09-18) — 재온보딩이 **400줄 넘는 본체(d003·d020·web·qa)만 분할**하면서 색인을 붙였고
-  나머지(d004·d005·d008·d011)는 손대지 않았다. 그 도메인들은 **공용 묶음이 있다는 사실 자체를 몰랐다.**
-  ⇒ 분할 대상이 아니어도 **템플릿의 색인·상시 절과 출력 필드를 병합**한다(내용이 비어 있어도 절은 둔다).
-
-★ **줄 수 합이 원본과 안 맞는 게 정상**이다 — 라운드 조각을 주제로 흡수하면 중복 서술이 합쳐진다.
-  **어림임을 밝히고** 정확한 수치는 실제 정리 후에 보고한다.
-
-**★ 묶음에도 상한이 있다 — 600줄** (2026-09-18 실측으로 신설)
-
-묶음은 「필요할 때만」 읽으니 본체보다 관대해도 되지만, **무한은 아니다.**
-실측(LogiCraft 재온보딩): 본체를 3,325 → 565 로 줄였는데 **묶음 하나가 1,306줄**이 됐다.
-그 묶음이 한 번 지정되면 **565 + 1,306 = 1,871** — 줄인 효과가 그 자리에서 상쇄된다.
-
-#### ☠️ 600줄은 «쪼갤 이유»가 아니다 — **검토를 시작할 신호**다 (2026-09-19 개정)
-
-크기를 결정 기준으로 쓰면 틀린다. **쪼개서 아끼려면 전제가 필요하다** — 쪼갠 조각이
-**서로 다른 순간에** 필요해야 한다. 같은 순간에 다 필요하면 어차피 다 읽으므로 총량은 그대로이고,
-**색인 행만 늘어 훑을 것이 많아진다.**
-
-★ 실측이 그 전제를 지지하지 않는다(LogiCraft CO-164): QA 가 묶음 **10종 중 8종**을 읽었고,
-노하우 항목 261개 중 **86.6%가 읽힌 묶음 안**에 있었다. **필요가 좁지 않고 넓다** —
-넓게 필요한 것을 잘게 갈라도 결국 다 읽는다.
-
-☠️ 그리고 쪼개기에는 **실증된 실패 방식**이 있다 — 2차 재온보딩이 600줄 상한으로 쪼개면서
-본체 참조를 안 고쳐 **가장 강한 읽기 지시가 없어진 파일을 가리켰다**(그 뒤 8라운드가 그 축 작업이었다).
-
-**⇒ 순서를 지켜라. 쪼개기는 마지막이다.**
-
-| 순서 | 무엇 | 왜 먼저인가 |
-|---|---|---|
-| **1** | **중복 정리** | 전달을 **하나도 해치지 않고** 변동비만 줄인다. 실측: 한 에이전트 노하우 660줄 중 **302줄이 순수 중복**(같은 내용 두 벌)이었다 |
-| **2** | **잘못 놓인 항목 재배치** | **전달과 비용을 동시에** 고친다 — 안 읽히던 항목이 읽히는 묶음으로 가고, 원래 묶음은 가벼워진다. 후보는 `knowhow_read.skipped` 사유에서 나온다 |
-| **3** | **그래도 크면 쪼개기** | 판정 질문은 크기가 아니라 **「이 안의 내용이 서로 다른 순간에 필요한가」**. 45,000자여도 한 순간에 다 필요하면 **두고**, 15,000자여도 두 순간으로 갈리면 **쪼갠다** |
-
-☠️ 쪼갠 직후에는 **끊긴 참조 검사**를 반드시 돌린다(본체·스킬이 가리키는 `_knowhow/*.md` 실재).
-
-- **600줄 초과면 «더 잘게 쪼갤지» 묻는다**(게이트 · 자동 금지).
-- ☠️ **쪼개는 방식은 «평면 세분화»다. 묶음 안에 또 묶음을 두지 마라.**
-  계층을 두면 색인이 2단이 되어 **에이전트가 「어느 하위를 읽을지」를 또 판단**해야 한다 —
-  줄이려던 비용이 다시 는다. **색인은 항상 한 단**으로 둔다.
-- **600줄이 넘었다는 건 대개 주제를 굵게 잡았다는 뜻**이다. 안을 열어 보면 서로 다른 상황에서
-  읽는 것들이 뭉쳐 있다(실측: 「테스트설계」 안에 **변이 설계 · 구조 함정 · e2e** 가 함께).
-  ⇒ 이름을 `<주제>-<하위>` 로 갈라 **평면으로** 늘린다. 색인엔 줄이 하나 더 늘 뿐이다.
-- 색인의 **「언제 읽나」가 갈라지지 않으면** 쪼개도 소용없다 — 같은 상황에서 둘 다 읽게 된다.
-  쪼개기 전에 **「이 둘은 다른 때 읽는가」**를 먼저 확인하라.
-
-☠️ 정리 실행은 **보관이 먼저**다 — `{{knowhow_archive_dir}}` 로 원문을 뜨고,
-**제목 단위 대조로 유실 0건**(본체 + 묶음 합산)을 확인한 뒤에야 본체에서 뺀다.
-- 처리 결과를 **표로 보고**한다: 감지 N건 → **개작(위양성) N** · 승격 N · 보존 N · 폐기 N · 보류 N.
-  ☠️ **개작을 걸러낸 뒤의 수**가 실제 판단 대상이다. 감지 원수를 결론처럼 적지 마라.
+- **1.11.0** (2026-11-16) — 첫 실전 프로젝트(한 세션 · 변경지시서 11건) 현장 보고 중 넷만 반영.
+  - 방출 dispatch 를 절차만 남겨 줄였다(스위치 전부 on 렌더 632 → 257줄 · 대화 압축 때 Phase 3 게이트 형식·열람 대조·스킬 재호출이 잘려 나갔다). 사례·까닭은 같은 폴더 `reference.md` 로(📎 표시) · 맨 앞에 「단계 체크리스트」 · 압축되면 스킬을 다시 부르라는 줄.
+  - 메인이 쓰는 스키마·마이그레이션 절차 4단계(사본에 먼저 적용해 표별 행 수 비교 · 옛→새 모양 시험 · 자동 적용 중지 · QA 전수 + 명시 축) — 현장 결함 둘이 모두 메인이 쓴 마이그레이션에서 나왔다.
+  - QA 인용 확인 — pass 전에 `read_evidence` 가 이번 바뀐 파일을 실제로 인용하고 그 경로가 저장소에 있는지 본다(아니면 「안 돎」 → 대체 경로). qa-verifier 출력에 `read_evidence` 필수 · `lane-qa.sh` 가 자동으로 본다(종료 23). 다른 모델이 남의 프로젝트 내용을 지어내 pass 를 낸 현장 사례.
+  - 보고 언어 — 에이전트·QA·레인 작업자·백필 워커는 사용자의 언어로 보고(프로젝트 지침 · 없으면 사용자 언어) · 사용자 최종 보고는 내부 용어 대신 쉬운 말로.
+- **1.10.1** (2026-11-16) — 재검토 반영. 합치기가 «레인»만 받게(사용자 기능 워크트리를 넘기면 거절 — 실측 재현 사고) · 남은 프로세스 끝내기에서 터미널 붙은 것·셸·편집기는 끝내지 않고 정리를 멈춤 · -9 는 PID 를 다시 구해 터미널 없는 것에만 · 더러운지 먼저 확인 ·
+  QA 실행줄 자리를 변수 참조로(한글·공백 경로 · bash 3.2) · 출력 거르기 확대 · 잠금 신호 처리와 낡은 잠금·예약 걷기 · 필요한 스킬 의존(mc-logi-update 등)과 용어 표 · 신규 온보딩도 이미 있는 파일은 묻고 병합 · 승격은 스킬을 고치지 않고 제안 파일로 ·
+  백업에서 레인 워크트리 제외·권한 700 · `--push` 는 계획을 보이고 동의 뒤 · 도메인 에이전트 이름을 매핑표 기준으로 · 낡은 절 참조 정리 · 작성자 환경 흔적(orca-dev 등) 제거 · description 축약.
+- **1.10.0** (2026-11-16) — 공유 마켓 공개를 위한 정리.
+  - 안전: 실측 실행(앱 기동·삭제 API·권한 부여·전체 시험·QA 시험 호출)을 게이트① 뒤 **Phase 1.5** 로 옮기고 호출마다 동의 · localhost 가 아니면 멈춤 · 외부 QA 위임의 **데이터 반출 고지** · 재온보딩 백업을 **레포 밖**으로 · `.gitignore` 수정은 먼저 보이고 확인 · 재온보딩 백업 절을 본체 앞쪽(Phase 0 ⓪)으로.
+  - 정합: 스킬 경로를 전부 `{{skill_prefix}}` 로 · build 에 QA 4값 표와 `Phase E.95 전체 시험 게이트` · 시험 범위 검사가 표 줄을 빼고 보게 · toggles 절 번호 정리(§5.4.1·§5.7) · 슬롯 카탈로그에 「출처」 칸과 `{{code_nav_tools}}` · `knowhow_dir_abs` 를 슬롯에서 빼고 실행 시 계산 · 머리말 생성기가 스스로 고정점까지 반복 · backfill 의 분업 「레인」을 「단계」로.
+  - 레인 스크립트: 메인 찾기를 서브모듈에서도 맞게(core.worktree) · git 2.31 미만을 먼저 알림 · 출력 거르기 확대(password=·token=·bearer) · 합치기의 남은 프로세스 끝내기(이름으로만 판정 · 명령줄 비출력 · 부른 셸 제외 · /proc 대체) · 지울 워크트리·브랜치 확인 · QA 범위 줄 검사 · 동시 상한을 잠금 + 죽은 레인 제외로 · 작업자 블록에 부하·백그라운드 정리 금지 두 줄.
+  - 본체를 줄이고 실측 서술을 `references/` 로 옮기며 사례 이름을 익명화했다. 필요한 도구 절 · 한국어 전용 명시.
+- 1.9.0 시험 범위(전체 시험은 CO 하나에 한 번) · 1.8.0 병행 레인(시범) · 1.7.0 Phase 번호·frontend_track·shared_base · 1.6.0 작성 규칙(설계는 처음부터 칸에) — 각 버전에서 받을 것은 `references/reonboarding.md` ①-a.

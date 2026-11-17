@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# 병행 레인 하나를 git 워크트리로 세운다 (서브에이전트 레인 · mc-logi-build-onboard 방출 · 시범).
+#
+#   scripts/lanes/lane-new.sh [--kind impl|backfill|other] <이름> [CO-NNN]
+#
+# Orca 작업자 레인은 scripts/lanes/lane-orca.sh — Orca 가 워크트리를 직접 만든다
+# (저장소 안에 git 으로 만든 워크트리는 Orca 사이드바에 안 보였다 · 실측).
+#
+# 하는 일 — 단계마다 실패하면 그 자리에서 멈춘다(앞 단계 결과는 남겨 둔다):
+#   0. 구현 레인(kind=impl)이면 동시 상한 검사(기본 {{lane_concurrency}} · LANE_MAX / LANE_FORCE=1)
+#   1. 메인 저장소에 워크트리 `.claude/worktrees/lane-<이름>` + 브랜치 `lane/<이름>` (메인 브랜치 끝에서)
+#      ☠️ 새 작업 공간은 늘 `git worktree add` 로 만든다 — 워크트리 폴더를 cp 로 복사하지 마라
+#        (복사본의 .git 파일이 원래 워크트리를 가리켜 두 폴더가 한 브랜치·인덱스를 나눠 쓴다)
+#   2. 레인 기록(<git-common-dir>/lane-state/<이름>)에 워크트리·브랜치·owner=git·kind — 합치기가 이걸로 찾는다
+#   3. scripts/lanes/lane-prep.sh <워크트리> — 설치·빌드·환경 연결·시험 DB 준비(온보딩 lane_prep 슬롯)
+#
+# 이미 그 폴더나 브랜치·기록이 있으면 거절한다(덮어쓰지 않는다).
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lanes/_common.sh
+. "$HERE/_common.sh"
+
+usage() { echo "사용법: $0 [--kind impl|backfill|other] <이름> [CO-NNN]" >&2; exit 1; }
+KIND=impl; ARGS=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --kind) [ $# -ge 2 ] || usage; KIND="$2"; shift 2 ;;
+    --help|-h) usage ;;
+    --*) lane_die "모르는 인자: $1" ;;
+    *) ARGS+=("$1"); shift ;;
+  esac
+done
+[ ${#ARGS[@]} -ge 1 ] && [ ${#ARGS[@]} -le 2 ] || usage
+NAME="${ARGS[0]}"; CO="${ARGS[1]:-}"
+lane_check_name "$NAME"
+lane_check_kind "$KIND"
+[ -z "$CO" ] || [[ "$CO" =~ ^CO-[0-9]{3,4}$ ]] || lane_die "CO 는 CO-NNN 꼴이어야 한다: '$CO'"
+
+MAIN="$(lane_main_root)"
+MAINBR="$(lane_main_branch "$MAIN")"
+WT="$MAIN/$LANE_WT_DIR_REL/lane-$NAME"
+BR="lane/$NAME"
+
+git -C "$MAIN" check-ignore -q "$LANE_WT_DIR_REL/lane-$NAME" \
+  || lane_die "$LANE_WT_DIR_REL/ 가 .gitignore 에 없다 — 먼저 넣어라(안 넣으면 메인 status 에 워크트리가 뜬다)"
+[ ! -e "$WT" ] || lane_die "이미 있다: $WT — 다른 이름을 쓰거나 그 레인을 먼저 정리하라"
+! git -C "$MAIN" show-ref --verify --quiet "refs/heads/$BR" || lane_die "브랜치가 이미 있다: $BR"
+
+STATE="$(lane_state_file "$NAME")" || lane_die "레인 기록 자리를 못 구했다"
+# 상한 검사 + 자리 예약을 잠금 안에서(동시에 두 레인을 세워도 상한을 넘지 않게).
+lane_reserve "$STATE" "$KIND"
+# 워크트리를 기록하기 전에 실패하면 예약을 거둔다(자리를 영영 막지 않게).
+trap '[ -n "$(lane_state_get "$STATE" worktree)" ] || rm -f "$STATE"' EXIT
+
+lane_say "1/3 워크트리 $WT ($BR ← $MAINBR $(git -C "$MAIN" rev-parse --short "$MAINBR"))"
+git -C "$MAIN" worktree add -q -b "$BR" "$WT" "$MAINBR"
+
+lane_say "2/3 레인 기록 $STATE"
+lane_state_put "$STATE" owner git
+lane_state_put "$STATE" worktree "$WT"
+lane_state_put "$STATE" branch "$BR"
+[ -z "$CO" ] || lane_state_put "$STATE" co "$CO"
+
+lane_say "3/3 준비 (lane-prep.sh)"
+"$HERE/lane-prep.sh" "$WT" || lane_die "준비 실패 — 워크트리는 남겨 두었다: $WT (다시: scripts/lanes/lane-prep.sh $WT)"
+
+cat <<EOF
+
+✅ 레인 세움 — $NAME${CO:+ ($CO)} · kind=$KIND
+  다음      : 레인 지시문에 .claude/lanes/lane-prompt-block.md 의 「복사 시작~끝」을 붙여 보낸다
+              QA 는 scripts/lanes/lane-qa.sh (레인 커밋에 고정 · QA 동안 이 레인에 쓰지 않는다)
+              합치기는 scripts/lanes/lane-merge.sh $NAME [--with <그룹>] [--push]
+  공용 기록 : MASTER 의 구현·배포 칸은 메인이, 설계반영 칸은 백필 레인이 쓴다 — 이 레인은 쓰지 않는다
+EOF
