@@ -2,7 +2,7 @@
 name: mc-logi-build-onboard
 description: LogiCraft 설계를 쓰는 프로젝트에 구현 오케스트레이션 세트(수정 dispatch · 설계 backfill · build · E2E · 도메인 구현 에이전트 · 독립 QA 에이전트 · 선택으로 병행 레인)를 만들어 넣는 메타 스킬. 이미 세트가 있으면 덮어쓰지 않고 레포 밖에 백업한 뒤 병합한다. 게이트마다 사용자 확인. "이 프로젝트 온보딩해줘", "구현 세트 만들어줘", "dispatch/build 스킬 세팅", "세트 업그레이드", "/mc-logi-build-onboard" 에 쓴다.
 metadata:
-  version: 1.11.0
+  version: 1.11.2
 ---
 
 # mc-logi-build-onboard — 구현 오케스트레이션 세트 온보딩
@@ -158,7 +158,9 @@ Phase 0-C 의 슬롯 표를 보이고, 자동판정 불가한 것만 묻는다:
   > 「일을 레인(워크트리 하나 + 작업자 하나)으로 병행하는 도구를 넣을까요? 레인마다 워크트리가 따로라 격리되고 메인이 풀려나며 QA 통과분만 한 줄씩 합칩니다. 대가는 자원(설치·빌드 × 레인) · 번호 충돌 관리 · 레인에서 화면 확인을 못 하는 것입니다.」
   on 이면 확정: `{{worktree_tool}}`(기본 git · Orca 가 있으면 권한다) · `{{lane_prep}}`(초안 확정 · 비워도 된다) · `{{lane_checks}}`(`그룹|이름|통과줄|명령` · 시험 단계엔 통과 건수 정규식) ·
   ☠️ 검사 명령에 비밀(토큰·비밀번호)을 넣지 마라 — `--plan` 이 명령을 그대로 찍는다(필요하면 환경 변수로) ·
-  `{{lane_concurrency}}`(기본 2) · `{{lane_main_branch}}` · `{{lane_heavy_tests}}` · `{{deploy_gate}}`(비우면 사용자 승인만) · `{{backfill_lane_auto}}`(기본 off) ·
+  `{{lane_concurrency}}` — ★ **반드시 묻는다**(기본값으로 넘기지 마라):
+  > 「구현 레인은 동시에 몇 개까지 띄울까요? 기본은 2개입니다. 레인 하나마다 설치·빌드·시험이 따로 돌아 메모리와 CPU 를 그만큼 더 씁니다. 설계 반영(백필) 레인은 이 수에 들어가지 않습니다. 나중에 바꾸려면 레인을 띄울 때 `LANE_MAX=<수>` 를 붙이거나 `scripts/lanes/_common.sh` 의 `LANE_MAX_DEFAULT` 를 고칩니다.」
+  답이 없으면 2 · 1 이상 정수만 받는다 · `{{lane_main_branch}}` · `{{lane_heavy_tests}}` · `{{deploy_gate}}`(비우면 사용자 승인만) · `{{backfill_lane_auto}}`(기본 off) ·
   `{{lane_qa_shell}}`(새로 묻지 않는다 — `qa_invoke` 가 셸 실행줄이면 `{label}`·`{prompt}`·`{main}` 자리로 옮겨 보이고 확인만. 자리는 맨으로 쓰거나 자리만 따옴표로 감싼다 — 다른 글자와 붙여 따옴표 안에 넣지 않는다. 갈래 ②면 비운다).
   ☠️ **원본 프로젝트의 값(특정 패키지 관리자 명령·공용 패키지 빌드·DB 꼬리표·원격 배포)을 기본값으로 넣지 마라.**
 - **E2E 계정 전략**(`e2e_track=on` · `e2e_auth != none` · toggles §5.3) — **반드시 묻는다**: `{{e2e_roles}}`(역할별 획득 방법 · 부여면 되돌리는 법) · `e2e_account_strategy`(「데이터가 쌓여 있어야만 검증되는 시나리오가 있습니까?」) · `{{e2e_seed_accounts}}`(자격증명 값이 아니라 env 키 이름과 용도) · `{{e2e_groups}}`.
@@ -230,7 +232,7 @@ Phase 0-C 의 슬롯 표를 보이고, 자동판정 불가한 것만 묻는다:
   grep -rn '{{\|<!-- IF\|<!-- ELSE\|<!-- ENDIF\|<!-- INSERT' "$L" .claude/lanes && echo "미치환 잔존"
   grep -rn '/Users/\|/home/' "$L" .claude/lanes && echo "절대경로가 박혔다"
   ```
-  ⑴ 슬롯이 실렸는지 — `lane_main_branch`·`lane_concurrency`·`change_orders_path` 가 `_common.sh` 에, `lane_prep` 단계가 `lane-prep.sh` 에, `lane_checks` 가 `lane-merge.sh` 에, `qa_model`·`qa_fallback`(+`lane_qa_shell`)이 `lane-qa.sh` 에.
+  ⑴ 슬롯이 실렸는지 — `lane_main_branch`·`lane_concurrency`(게이트②에서 사용자가 답한 값 그대로 — `grep "LANE_MAX_DEFAULT='<답>'"`)·`change_orders_path` 가 `_common.sh` 에, `lane_prep` 단계가 `lane-prep.sh` 에, `lane_checks` 가 `lane-merge.sh` 에, `qa_model`·`qa_fallback`(+`lane_qa_shell`)이 `lane-qa.sh` 에.
      비운 슬롯은 빈 문자열이 아니라 **ELSE 문장**(「준비할 것 없음」·「사용자 승인만」·「서브에이전트 갈래」)으로 본다.
   ⑵ dispatch 에 `## 병행 레인` 절과 Phase 3 게이트 `레인 판정:` 줄 · backfill 에 `## 백필 레인` 절.
   ⑶ **원본 프로젝트 고유값이 새지 않았는지** — 이 스킬을 만든 프로젝트들의 값(저장소 이름·패키지 범위·브랜치 이름·호스트 이름)이 방출물에 없어야 한다.
@@ -245,7 +247,7 @@ Phase 0-C 의 슬롯 표를 보이고, 자동판정 불가한 것만 묻는다:
 
 ## 부트스트랩 파일 (dispatch/build 가 전제하는 것 — Phase 5 에서 함께 생성)
 
-- `{{change_orders_path}}_TEMPLATE.md` — CO 골격: 상단 헤더 표(제목·대상 도메인·구현상태·LogiCraft 설계반영, `work_claim=on` 이면 work_claim 행) + §1 배경 · §2 변경 요지 · §3 도메인별 변경 상세 · §4 영향·리스크 · §5 검증 · §6 관련 설계 ITEM · §7 구현 로그.
+- `{{change_orders_path}}_TEMPLATE.md` — CO 골격: 상단 헤더 표(제목·대상 도메인·구현상태·LogiCraft 설계반영, `work_claim=on` 이면 work_claim 행) + §1 배경 · §2 변경 요지 · §3 도메인별 변경 상세 · §4 영향·리스크 · §5 검증 · §6 관련 설계 ITEM(① 설계 사실 · ② 서술 변경 · ③ 결정 근거(사용자 확정 — ADR·REQ·RFP·NFR 를 만들거나 결정을 바꿀 때)) · §7 구현 로그.
   ★ **§6 은 두 부분** — ① **설계 사실**: `- ITEM.칸: 값 — 근거(코드: 경로:줄 — 조각 · CO §n)` 한 줄씩(구현 에이전트 `design_facts` 를 dispatch Phase 5 가 옮긴다 → backfill 이 칸 값으로 넘긴다) ② **서술 변경**: 산문에 반영할 **현행** 내용. 경위는 §7 에만.
 - `{{change_orders_path}}MASTER.md` — `CO번호 · 제목 · 대상도메인 · 구현상태 · 설계반영(⏳/🎨/—) · 커밋 · 생성일` 빈 표.
 - (`has_build=on`) `docs/design/BUILD-MASTER.md` — 도메인별 (dependency_layers=on 이면 계층·)구현 상태(⬜/🔨/✅/⚠️) 표.
@@ -276,7 +278,7 @@ Phase 0-C 의 슬롯 표를 보이고, 자동판정 불가한 것만 묻는다:
 **⓪ 백업** — Phase 0 의 ⓪(레포 밖 백업)을 이미 했다.
 
 **① 감지** — 실물과 새 조립 결과를 대조해 **실물에만 있는 절**(헤딩·줄 수)을 뽑는다. ☠️ 제목 비교는 문구만 바뀐 같은 절도 잡는다 — 「후보」이지 결론이 아니다.
-- **①-a 버전 신호** — 실물이 어느 버전에서 멈췄는지 보고 「이번 업그레이드로 받을 것」을 게이트①에 올린다(1.6.0 작성 규칙 · 1.7.0 Phase 번호·frontend_track·shared_base · 1.8.0 병행 레인 · 1.9.0 시험 범위 · 1.10.x 레인·안전 · **1.11.0 dispatch 본문·reference 분리 · 마이그레이션 절차 · QA 인용 확인 · 보고 언어**). 버전별 목록은 reference ①-a.
+- **①-a 버전 신호** — 실물이 어느 버전에서 멈췄는지 보고 「이번 업그레이드로 받을 것」을 게이트①에 올린다(1.6.0 작성 규칙 · 1.7.0 Phase 번호·frontend_track·shared_base · 1.8.0 병행 레인 · 1.9.0 시험 범위 · 1.10.x 레인·안전 · **1.11.0 dispatch 본문·reference 분리 · 마이그레이션 절차 · QA 인용 확인 · 보고 언어** · 1.11.1 결정 근거 · 1.11.2 레인 동시 상한을 묻는다 — 레인이 켜진 세트면 지금 `LANE_MAX_DEFAULT` 값을 보이고 유지할지 묻는다). 버전별 목록은 reference ①-a.
   새 절은 실물의 커스텀 절을 덮지 말고 **끼워 넣는다.** 기존 CO 파일은 고치지 않는다(`_TEMPLATE.md` 만).
 - **①-b 참조 감지** — 헤딩 비교로는 «호출 한 줄»을 놓친다. **실물 스킬이 참조하는 심볼 − 신규 방출물이 참조하는 심볼 = 사라질 호출**을 **기계로** 뽑는다(reference 에 명령). 한 줄이라도 있으면 ③질의.
 
@@ -300,6 +302,10 @@ Phase 0-C 의 슬롯 표를 보이고, 자동판정 불가한 것만 묻는다:
 **⑥ 사후 측정** — 노하우를 묶음으로 옮기면 «항상 주입»이 «열어야 읽힘»으로 바뀐다. 라운드마다 묶음 열람 수와 `knowhow_read` ↔ 전사본 불일치를 재고, **최소 3라운드**로 판정한다(`references/knowhow-measurement.md`). 열람이 늘었다고 사고가 준다고 보고하지 마라 — 노하우는 이미 아는 함정만 막는다.
 
 ## 버전 기록
+
+- **1.11.2** (2026-11-18) — 구현 레인 동시 상한(`lane_concurrency`)을 사용자에게 묻는다. 지금까지는 확정할 값 목록에 「기본 2」로만 있어 묻지 않고 2로 넘어갈 수 있었다. 질문 문장(자원 비용 · 백필 레인은 세지 않음 · 나중에 바꾸는 법)을 넣고, 재온보딩이면 현재 값을 보이고 유지할지 묻는다 · 검증은 답한 값이 `_common.sh` 에 실렸는지 본다. · `lane-qa.sh` 의 판정 읽기를 판정값 넷(pass_with_notes·pass·fail·blocked)으로 좁혔다 — 위임 래퍼의 요약 줄 `verdict : ok` 가 맨 뒤에 붙어 진짜 판정을 덮는 일이 있었다.
+
+- **1.11.1** (2026-11-17) — 결정 근거(출처). LogiCraft 가 ADR·REQ·RFP·NFR 의 결정 변경에 근거를 받는데, 설계 반영 작업자가 CO 본문의 사용자 말을 따다 근거를 스스로 채운 실사고가 있었다. dispatch 는 CO 를 쓸 때 근거를 묻고 `_TEMPLATE.md` §6 「③ 결정 근거(사용자 확정)」에 적는다 · backfill 은 그 칸만 쓰고 비면 `unknown`·`not_written` 으로 남겨 보고한다(지어 채우기 금지).
 
 - **1.11.0** (2026-11-16) — 첫 실전 프로젝트(한 세션 · 변경지시서 11건) 현장 보고 중 넷만 반영.
   - 방출 dispatch 를 절차만 남겨 줄였다(스위치 전부 on 렌더 632 → 257줄 · 대화 압축 때 Phase 3 게이트 형식·열람 대조·스킬 재호출이 잘려 나갔다). 사례·까닭은 같은 폴더 `reference.md` 로(📎 표시) · 맨 앞에 「단계 체크리스트」 · 압축되면 스킬을 다시 부르라는 줄.

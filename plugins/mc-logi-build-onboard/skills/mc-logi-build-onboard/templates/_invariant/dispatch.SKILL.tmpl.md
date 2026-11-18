@@ -57,6 +57,7 @@ project_id `{{project_id}}` · code_base `{{code_base}}` · CO 폴더 `{{change_
 ### Phase 2 — 변경지시서(CO) 작성
 1. **영향 도메인 판정** — grep(`grep -ri '@design'` · API 경로 · `SCREEN-`/`API-`) + 매핑표 + 에이전트 특화지식. 여러 도메인<!-- IF frontend_track -->·백/프론트<!-- ENDIF frontend_track -->에 걸치면 각각 분해.<!-- IF code_boundary == package --> 공유기반·스키마를 건드리면 CO §3 에 명시하고 **메인 선처리** 표시.<!-- ENDIF code_boundary -->
 2. **CO 파일** — `{{change_orders_path}}_TEMPLATE.md` 골격으로 `CO-NNN-{slug}.md`(번호 = MASTER 최하단 +1). **도구를 모르는 사람도 이것만 읽고 이해**하게 쓴다. §3 은 에이전트가 받아 구현할 만큼 구체적으로(대상 파일/심볼·변경·불변·주의·수용기준). §6 에 backfill 예상 ITEM.
+   ☠️ **결정 근거(출처)는 CO 를 쓸 때 사용자에게 묻는다** — §6 에 ADR·REQ·RFP·NFR 의 생성·결정 변경·폐기가 예상되면, 그 자리에서 **누가(요청자) · 어떤 경로로(회의·메일·전화·말·문서) · 언제 · 왜 · 증빙**을 묻고 §6 「③ 결정 근거(사용자 확정)」 칸에 적는다. 모르면 「모름」, 나중에 적겠다면 「나중에」로 적는다. 🚫 사용자 말을 CO 에서 따다 근거로 지어 채우지 않는다(LogiCraft 는 이 네 유형의 결정 변경에 근거를 받는다 — 설계 반영 단계는 이 칸만 쓴다).
 3. **MASTER 등록** — 행 추가(📝 · 대상 도메인 · 생성일 · 설계반영 ⏳).
 - ☠️ CO 에 **실측한 곳 목록**을 넣을 때는 반드시: 「이것만 고치지 말고 **전수 grep 으로 누락을 재확인**하라」 + 수용기준은 「표의 N곳 수정」이 아니라 **「구 식별자 잔존 0건」** + **그 grep 명령 자체**를 수용기준에 적는다.
   식별자는 요약 파일 · 단언 문자열 · 절차 주석 · 문서 주석(given/when/then)의 네 층에 흩어지고, template literal / f-string 안의 행은 단순 grep 에 안 걸린다. 📎 reference「CO 실측 목록」

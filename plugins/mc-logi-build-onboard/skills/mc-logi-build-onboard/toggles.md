@@ -325,7 +325,7 @@ Discovery 가 두 프리셋 중 하나로 딱 안 떨어질 때(예: brownfield-
 | `{worktree_tool}` | ★ 인터뷰 — **기본 `git`**. Orca 가 깔려 있으면(`orca --version`) `orca` 를 **권한다** | `git` / `orca` |
 | `{lane_prep}` | ★ repo 스캔 초안(락파일·빌드 파일·`.env.example`·시험 DB 설정) → **인터뷰 확정** · **비울 수 있음**(준비 없음) | `"설치\|pnpm install --frozen-lockfile --offline"` 줄들 |
 | `{lane_checks}` | ★ 빌드 파일(package.json scripts·Makefile·pyproject)에서 초안 → 인터뷰 확정 | `"always\|서식\|-\|lane_changed_files npx --no-install prettier --check --ignore-unknown"` 줄들 |
-| `{lane_concurrency}` | 인터뷰 — 기본 **2** (구현 레인만 센다) | `2` |
+| `{lane_concurrency}` | ★ 인터뷰 — **반드시 묻는다**(질문 문장은 SKILL.md 게이트②) · 답이 없으면 **2** · 구현 레인만 센다 · 재온보딩이면 현재 값을 보이고 유지 여부를 묻는다 | `2` |
 | `{deploy_gate}` | 인터뷰 — 배포 전 확인 한 줄 · **비움 = 사용자 승인만** | `야간 일괄 작업이 도는 중이 아닌지 확인` |
 | `{backfill_lane_auto}` | 인터뷰 — `on`\|`off` · 기본 **off** | `off` |
 | `{lane_main_branch}` | repo — 레인이 갈라지고 합쳐질 브랜치(지금 체크아웃 · 확인) | `main` / `develop` |

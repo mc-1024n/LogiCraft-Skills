@@ -64,7 +64,8 @@ KH_REL='{{knowhow_dir}}'
 QA_SCOPE_LINE='전체 시험은 합치기에서 한 번만 돈다'
 
 # 로그에서 마지막 verdict 를 뽑는다 — `verdict : pass`(요약) · `verdict: pass`(에이전트 원문) 둘 다 받는다.
-verdict_of() { { grep -oE 'verdict[[:space:]]*:[[:space:]]*[a-z_]+' "$1" || true; } | tail -1 | sed -E 's/.*:[[:space:]]*//'; }
+# ☠️ 판정값 넷만 받는다 — 위임 래퍼의 요약 줄 `verdict : ok`(래퍼 자체 상태)가 맨 뒤에 붙어 진짜 판정을 덮었다(2026-11-18 CO-425 실측 · rc=12).
+verdict_of() { { grep -oE 'verdict[[:space:]]*:[[:space:]]*(pass_with_notes|pass|fail|blocked)\b' "$1" || true; } | tail -1 | sed -E 's/.*:[[:space:]]*//'; }
 exit_for() {
   case "$1" in
     pass|pass_with_notes) return 0 ;;
