@@ -1,6 +1,6 @@
 {
   "name": "mc-logi-build-onboard",
-  "version": "1.11.2",
+  "version": "1.11.3",
   "description": "LogiCraft 설계를 쓰는 프로젝트에 구현 오케스트레이션 세트(수정 dispatch · 설계 backfill · build · E2E · 도메인 구현 에이전트 · 독립 QA 에이전트 · 선택으로 병행 레인)를 만들어 넣는 메타 스킬. 이미 세트가 있으면 덮어쓰지 않고 레포 밖에 백업한 뒤 병합한다. 게이트마다 사용자 확인. \"이 프로젝트 온보딩해줘\", \"구현 세트 만들어줘\", \"dispatch/build 스킬 세팅\", \"세트 업그레이드\", \"/mc-logi-build-onboard\" 에 쓴다.",
   "summary": "LogiCraft 설계를 쓰는 프로젝트에 구현 세트(dispatch·backfill·build·E2E·도메인 구현·독립 QA·선택 병행 레인)를 조립해 넣는다. 기존 세트는 백업 후 병합. 시험은 변경지시서마다 한 번 · QA 인용 확인 · 마이그레이션 절차 내장.",
   "category": "operations",
@@ -10,7 +10,7 @@
   "logicraft": {
     "publisher_user_id": "4b805dc4-6d13-42c5-9710-f5a34bf2e73e",
     "publisher_email": "mc_1024@cudo.co.kr",
-    "published_at": "2026-11-18T23:19:24.097Z",
+    "published_at": "2026-11-19T00:33:26.637Z",
     "source": "mcp"
   }
 }

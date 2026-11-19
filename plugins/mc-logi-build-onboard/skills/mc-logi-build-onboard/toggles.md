@@ -327,7 +327,7 @@ Discovery 가 두 프리셋 중 하나로 딱 안 떨어질 때(예: brownfield-
 | `{lane_checks}` | ★ 빌드 파일(package.json scripts·Makefile·pyproject)에서 초안 → 인터뷰 확정 | `"always\|서식\|-\|lane_changed_files npx --no-install prettier --check --ignore-unknown"` 줄들 |
 | `{lane_concurrency}` | ★ 인터뷰 — **반드시 묻는다**(질문 문장은 SKILL.md 게이트②) · 답이 없으면 **2** · 구현 레인만 센다 · 재온보딩이면 현재 값을 보이고 유지 여부를 묻는다 | `2` |
 | `{deploy_gate}` | 인터뷰 — 배포 전 확인 한 줄 · **비움 = 사용자 승인만** | `야간 일괄 작업이 도는 중이 아닌지 확인` |
-| `{backfill_lane_auto}` | 인터뷰 — `on`\|`off` · 기본 **off** | `off` |
+| `{backfill_lane_auto}` | ★ 인터뷰 — **반드시 묻는다**(질문 문장은 SKILL.md 게이트②) · `on`\|`off` · 답이 없으면 **off** · on 이면 상용 반영 계획 사전 승인임을 한 번 더 확인 · 재온보딩이면 현재 값을 보이고 유지 여부를 묻는다 | `off` |
 | `{lane_main_branch}` | repo — 레인이 갈라지고 합쳐질 브랜치(지금 체크아웃 · 확인) | `main` / `develop` |
 | `{lane_qa_shell}` | **새로 묻지 않는다** — `{qa_invoke}` 가 셸 실행줄이면 그것을 `{label}`·`{prompt}`·`{main}` 자리로 옮겨 적은 것 · 갈래 ②(서브에이전트)면 **빈 값** | `qa-runner --agent acme-qa-verifier --label {label} {prompt}` |
 | `{lane_heavy_tests}` | 인터뷰 — 한 번에 한 레인만 돌릴 무거운 시험(공유 DB 를 쓰는 전체 시험 등) · **비울 수 있음** | `서버 전체 시험(pnpm test)` |
